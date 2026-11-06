@@ -9,6 +9,9 @@ public static class SettingsSections
     public const string Media = "media";
     public const string Notifications = "notifications";
     public const string Productivity = "productivity";
+    public const string News = "news";
+    public const string Weather = "weather";
+    public const string Dashboard = "dashboard";
 }
 
 public sealed record NotificationSettings
@@ -29,6 +32,76 @@ public sealed record NotificationSettings
         QuietStartMinutes = Math.Clamp(QuietStartMinutes, 0, 1439),
         QuietEndMinutes = Math.Clamp(QuietEndMinutes, 0, 1439),
     };
+}
+
+public sealed record NewsSettings
+{
+    /// <summary>Desligado até o usuário ativar: buscar notícias é acesso à rede, então é uma escolha explícita.</summary>
+    public bool Enabled { get; init; }
+    public int RefreshMinutes { get; init; } = 30;
+    public int RetentionDays { get; init; } = 14;
+    public IReadOnlyList<string> FollowedTopics { get; init; } = [];
+    public bool NotifyFollowedTopics { get; init; }
+
+    public NewsSettings Sanitize() => this with
+    {
+        RefreshMinutes = Math.Clamp(RefreshMinutes, 15, 24 * 60),
+        RetentionDays = Math.Clamp(RetentionDays, 1, 90),
+        FollowedTopics = [.. (FollowedTopics ?? []).Select(t => t?.Trim() ?? "").Where(t => t.Length is > 1 and <= 60).Distinct(StringComparer.OrdinalIgnoreCase).Take(30)],
+    };
+}
+
+/// <summary>Local escolhido pelo usuário (busca por nome; nunca localização automática sem consentimento).</summary>
+public sealed record WeatherLocation(string Name, string? Region, string? Country, double Latitude, double Longitude, string? TimeZone)
+{
+    public string DisplayName => string.Join(", ", new[] { Name, Region, Country }.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct());
+}
+
+public sealed record WeatherSettings
+{
+    public WeatherLocation? Location { get; init; }
+    public int RefreshMinutes { get; init; } = 30;
+    public bool ShowInWidget { get; init; } = true;
+
+    public WeatherSettings Sanitize() => this with
+    {
+        RefreshMinutes = Math.Clamp(RefreshMinutes, 15, 6 * 60),
+        Location = Location is { } l && double.IsFinite(l.Latitude) && double.IsFinite(l.Longitude) &&
+            Math.Abs(l.Latitude) <= 90 && Math.Abs(l.Longitude) <= 180 && !string.IsNullOrWhiteSpace(l.Name) ? l : null,
+    };
+}
+
+/// <summary>Cartões do dashboard (persistidos pelo nome — não renomeie).</summary>
+public enum DashboardCardKind
+{
+    Weather,
+    NextEvent,
+    Tasks,
+    News,
+    Media,
+    Focus,
+    System,
+}
+
+public sealed record DashboardCardSettings(DashboardCardKind Kind, bool Wide = false, bool Hidden = false);
+
+public sealed record DashboardSettings
+{
+    public static IReadOnlyList<DashboardCardSettings> Default { get; } =
+    [
+        new(DashboardCardKind.Weather), new(DashboardCardKind.NextEvent), new(DashboardCardKind.Tasks),
+        new(DashboardCardKind.News, Wide: true), new(DashboardCardKind.Media), new(DashboardCardKind.Focus), new(DashboardCardKind.System),
+    ];
+
+    public IReadOnlyList<DashboardCardSettings> Cards { get; init; } = Default;
+
+    /// <summary>Remove repetidos e desconhecidos e acrescenta cartões novos que ainda não estão na lista.</summary>
+    public DashboardSettings Sanitize()
+    {
+        var cards = (Cards ?? []).Where(c => c is not null && Enum.IsDefined(c.Kind)).DistinctBy(c => c.Kind).ToList();
+        cards.AddRange(Default.Where(d => cards.All(c => c.Kind != d.Kind)));
+        return this with { Cards = cards };
+    }
 }
 
 public sealed record ProductivitySettings

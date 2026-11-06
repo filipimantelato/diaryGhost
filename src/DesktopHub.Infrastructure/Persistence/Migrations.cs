@@ -133,5 +133,51 @@ public static class Migrations
                 value_ms  INTEGER NOT NULL
             ) STRICT;
             """),
+
+        new(4, "noticias_e_clima", """
+            CREATE TABLE news_sources (
+                id                    TEXT    NOT NULL PRIMARY KEY,
+                name                  TEXT    NOT NULL,
+                feed_url              TEXT    NOT NULL,
+                category              TEXT    NOT NULL,
+                built_in              INTEGER NOT NULL CHECK (built_in IN (0, 1)),
+                enabled               INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+                etag                  TEXT,
+                last_modified         TEXT,
+                last_attempt_at_ms    INTEGER,
+                last_success_at_ms    INTEGER,
+                last_error            TEXT,
+                consecutive_failures  INTEGER NOT NULL DEFAULT 0,
+                next_fetch_at_ms      INTEGER
+            ) STRICT;
+
+            CREATE TABLE news_articles (
+                id               TEXT    NOT NULL PRIMARY KEY,
+                source_id        TEXT    NOT NULL REFERENCES news_sources (id) ON DELETE CASCADE,
+                item_key         TEXT    NOT NULL,
+                title            TEXT    NOT NULL,
+                url              TEXT    NOT NULL,
+                summary          TEXT,
+                author           TEXT,
+                published_at_ms  INTEGER,
+                fetched_at_ms    INTEGER NOT NULL,
+                canonical_url    TEXT    NOT NULL,
+                title_key        TEXT    NOT NULL,
+                cluster_id       TEXT    NOT NULL,
+                is_read          INTEGER NOT NULL DEFAULT 0,
+                is_saved         INTEGER NOT NULL DEFAULT 0,
+                is_favorite      INTEGER NOT NULL DEFAULT 0,
+                UNIQUE (source_id, item_key)
+            ) STRICT;
+            CREATE INDEX ix_news_articles_fetched ON news_articles (fetched_at_ms);
+            CREATE INDEX ix_news_articles_canonical ON news_articles (canonical_url);
+
+            -- Cache genérico (ex.: última previsão do tempo, para mostrar offline).
+            CREATE TABLE cache (
+                key            TEXT    NOT NULL PRIMARY KEY,
+                value_json     TEXT    NOT NULL,
+                updated_at_ms  INTEGER NOT NULL
+            ) STRICT;
+            """),
     ];
 }

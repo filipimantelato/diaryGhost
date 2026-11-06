@@ -35,9 +35,25 @@ public sealed partial class SettingsService(ISettingsStore store, IEventBus bus,
             Media = (store.Read<MediaSettings>(SettingsSections.Media) ?? new MediaSettings()).Sanitize();
             Notifications = (store.Read<NotificationSettings>(SettingsSections.Notifications) ?? new NotificationSettings()).Sanitize();
             Productivity = (store.Read<ProductivitySettings>(SettingsSections.Productivity) ?? new ProductivitySettings()).Sanitize();
+            News = (store.Read<NewsSettings>(SettingsSections.News) ?? new NewsSettings()).Sanitize();
+            Weather = (store.Read<WeatherSettings>(SettingsSections.Weather) ?? new WeatherSettings()).Sanitize();
+            Dashboard = (store.Read<DashboardSettings>(SettingsSections.Dashboard) ?? new DashboardSettings()).Sanitize();
         }
         LogLoaded();
     }
+
+    public NewsSettings News { get; private set; } = new();
+    public WeatherSettings Weather { get; private set; } = new();
+    public DashboardSettings Dashboard { get; private set; } = new();
+
+    public void UpdateNews(Func<NewsSettings, NewsSettings> change) =>
+        Update(SettingsSections.News, () => News, v => News = v, change, s => s.Sanitize());
+
+    public void UpdateWeather(Func<WeatherSettings, WeatherSettings> change) =>
+        Update(SettingsSections.Weather, () => Weather, v => Weather = v, change, s => s.Sanitize());
+
+    public void UpdateDashboard(Func<DashboardSettings, DashboardSettings> change) =>
+        Update(SettingsSections.Dashboard, () => Dashboard, v => Dashboard = v, change, s => s.Sanitize());
 
     public void UpdateMedia(Func<MediaSettings, MediaSettings> change) =>
         Update(SettingsSections.Media, () => Media, v => Media = v, change, s => s.Sanitize());
