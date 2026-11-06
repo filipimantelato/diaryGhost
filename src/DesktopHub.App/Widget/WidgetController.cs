@@ -1,6 +1,7 @@
 using DesktopHub.App.Platform;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
+using DesktopHub.Core.Productivity;
 using DesktopHub.Core.Settings;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +17,7 @@ internal sealed partial class WidgetController(
     FullscreenMonitor fullscreen,
     MediaService media,
     IMasterVolume volume,
+    ProductivityService productivity,
     ILogger<WidgetController> logger,
     ILoggerFactory loggerFactory) : IDisposable
 {
@@ -47,6 +49,7 @@ internal sealed partial class WidgetController(
         // Eventos de mídia/volume chegam de threads do Windows; o contexto de UI serializa a entrega.
         _subscriptions.Add(bus.Subscribe<ActiveMediaChanged>(e => _window?.ShowMedia(e), ui));
         _subscriptions.Add(bus.Subscribe<MasterVolumeChanged>(e => _window?.ShowVolume(e.State), ui));
+        _subscriptions.Add(bus.Subscribe<ProductivityChanged>(e => _window?.ShowProductivity(e.Snapshot), ui));
         Refresh(WidgetVisibilityReason.User);
     }
 
@@ -88,7 +91,7 @@ internal sealed partial class WidgetController(
         {
             if (_window is null)
             {
-                _window = new WidgetWindow(settings, bus, media, volume, loggerFactory.CreateLogger<WidgetWindow>());
+                _window = new WidgetWindow(settings, bus, media, volume, productivity, loggerFactory.CreateLogger<WidgetWindow>());
                 LogCreated();
             }
             _window.Apply(s);

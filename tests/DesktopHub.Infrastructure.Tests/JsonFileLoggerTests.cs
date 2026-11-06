@@ -19,20 +19,27 @@ public sealed class JsonFileLoggerTests
                 logger.LogDebug("não deve aparecer");
                 logger.LogInformation("Sincronizou {Count} itens de {Source}", 3, "rss");
                 logger.LogError(new InvalidOperationException("falhou"), "Erro em {Module}", "clima");
+                logger.LogInformation("Categoria {Category}", "Timer"); // campo homônimo do "category" fixo
 #pragma warning restore CA1848, CA1873, CA2254
             } // Dispose aguarda a gravação
 
             var lines = Directory.GetFiles(dir, "hub-*.log").SelectMany(File.ReadAllLines).ToList();
-            Assert.Equal(2, lines.Count);
+            Assert.Equal(3, lines.Count);
 
             using var info = JsonDocument.Parse(lines[0]);
             Assert.Equal("Information", info.RootElement.GetProperty("level").GetString());
             Assert.Equal("Teste.Categoria", info.RootElement.GetProperty("category").GetString());
-            Assert.Equal("3", info.RootElement.GetProperty("Count").GetString());
+            Assert.Equal("3", info.RootElement.GetProperty("fields").GetProperty("Count").GetString());
+            Assert.Equal("Sincronizou {Count} itens de {Source}", info.RootElement.GetProperty("template").GetString());
             Assert.Equal("Sincronizou 3 itens de rss", info.RootElement.GetProperty("message").GetString());
 
             using var error = JsonDocument.Parse(lines[1]);
             Assert.Equal("System.InvalidOperationException", error.RootElement.GetProperty("exception").GetProperty("type").GetString());
+
+            using var collision = JsonDocument.Parse(lines[2]);
+            var topLevelNames = collision.RootElement.EnumerateObject().Select(p => p.Name).ToList();
+            Assert.Equal(topLevelNames.Count, topLevelNames.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+            Assert.Equal("Timer", collision.RootElement.GetProperty("fields").GetProperty("Category").GetString());
         }
         finally
         {

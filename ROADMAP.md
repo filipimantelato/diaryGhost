@@ -55,13 +55,32 @@ Pendências levadas adiante:
 - Investigar com profiler o custo residual do painel Mídia (benchmark da Fase 2).
 - Botão "abrir no app" da fonte.
 
-## Fase 3 — Produtividade e notificações
-- Cronômetro (voltas), temporizador (presets 5/10/15/25/30/60), Pomodoro (ciclos, histórico, estatísticas).
-- Cálculo por timestamps (`TimeProvider`), recuperação após suspensão/reinício (`timer_sessions`).
-- Central de notificações: prioridades, horário de silêncio, modo foco, deduplicação, histórico,
-  respeito ao "Não incomodar" e a jogos em tela cheia. ADR de toasts.
-- **Aceite:** temporizador de 25 min notifica com app minimizado; suspender a máquina no meio não gera
-  deriva; testes com `FakeTimeProvider`.
+## Identidade (entre as fases 2 e 3) ✅
+Nome **Diary Ghost** e logo original do fantasminha (ADR-013).
+
+## Fase 3 — Produtividade e notificações ✅ (2026-11-06)
+Entregue:
+- Cronômetro (voltas), temporizador (presets 5/10/15/25/30/60 e minutos livres), Pomodoro (durações,
+  ciclos, início automático opcional, histórico, estatísticas de hoje e 7 dias).
+- Modelo de tempo por timestamps UTC, um único timer, reagendamento ao retomar da suspensão (ADR-014);
+  estado salvo a cada mudança e retomado ao reiniciar; prazos vencidos com o app fechado concluídos como
+  "atrasados".
+- Central de notificações (ADR-016) e toasts nativos com botões (ADR-015).
+- Widget: painel Foco (anel, status, ciclos, controles), cartão Foco real no Início, compacto mostra o
+  timer em andamento. Página Produtividade. Notificações em Configurações. Bandeja: Pomodoro, cronômetro,
+  pausar notificações.
+- 88 testes (30 novos de tempo, notificação e persistência).
+
+Critérios do MVP: **8 ✅** (cronômetro) e **9 ✅** (temporizador com notificação — verificado ao vivo, inclusive
+com o app fechado durante o prazo).
+
+Verificado ao vivo: toast na Central de Notificações com botão; recuperação após fechar o app.
+**Não verificado ao vivo:** suspensão/hibernação real do PC (coberto pelos testes de prazo vencido e pelo
+reagendamento em `Resume`); clique nos botões do toast (coberto por teste com sink falso).
+
+Pendências levadas adiante:
+- Custo de redesenho do widget expandido (benchmark da Fase 3) → Fase 7.
+- Reabrir o app a partir de um toast antigo (precisa de ativador COM) → Fase 7, junto do instalador.
 
 ## Fase 4 — Agenda e lembretes
 - Calendário local (dia/semana/mês/lista), eventos recorrentes (RRULE) com fuso, categorias e cores.
@@ -85,7 +104,9 @@ Pendências levadas adiante:
 - `hub-notify` + named pipe para Claude Code (hooks) e outras ferramentas; página de estado das integrações.
 
 ## Fase 7 — Refinamento
-- Instalador, atalhos, desinstalação limpa, atualizações (ADR), assinatura de código.
+- Instalador, atalhos, desinstalação limpa, atualizações (ADR), assinatura de código (também evita
+  bloqueios do Smart App Control) e ativador COM para toasts.
+- Widget expandido com renderização por GPU (medir contra os benchmarks das fases 2 e 3).
 - Acessibilidade (auditoria com Narrador, contraste, tamanho de fonte), i18n.
 - Otimização guiada pelos benchmarks; testes de UI.
 

@@ -9,6 +9,7 @@ using DesktopHub.App.Platform;
 using DesktopHub.App.Theme;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
+using DesktopHub.Core.Productivity;
 using DesktopHub.Core.Settings;
 using DesktopHub.Core.Windowing;
 using Microsoft.Extensions.Logging;
@@ -47,13 +48,14 @@ public partial class WidgetWindow : Window
     private (int X, int Y) _dragCursorStart;
     private PixelRect _dragWindowStart;
 
-    internal WidgetWindow(SettingsService settings, IEventBus bus, MediaService media, IMasterVolume volume, ILogger logger)
+    internal WidgetWindow(SettingsService settings, IEventBus bus, MediaService media, IMasterVolume volume, ProductivityService productivity, ILogger logger)
     {
         _settings = settings;
         _logger = logger;
         _bus = bus;
         _media = media;
         _volume = volume;
+        _productivity = productivity;
         InitializeComponent();
         _clock = new DispatcherTimer(DispatcherPriority.Background);
         _clock.Tick += (_, _) => UpdateClock();
@@ -63,6 +65,7 @@ public partial class WidgetWindow : Window
         SourceInitialized += OnSourceInitialized;
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         InitializeMedia();
+        InitializeFocus();
     }
 
     /// <summary>Falso quando o Windows recusou a exclusão de capturas (ex.: versão anterior ao 2004).</summary>
@@ -94,6 +97,8 @@ public partial class WidgetWindow : Window
             _appliedCaptureExclusion = s.ExcludeFromCapture;
             CaptureExclusionSupported = WindowInterop.SetExcludeFromCapture(_hwnd, s.ExcludeFromCapture) || !s.ExcludeFromCapture;
         }
+        RenderFocusPanel(); // a ferramenta do painel Foco pode ter mudado
+        RenderFocusTick();
         UpdateTimers();
     }
 
@@ -151,7 +156,7 @@ public partial class WidgetWindow : Window
         [WidgetPanel.Home] = ("Início", null, null),
         [WidgetPanel.Media] = ("Mídia", null, null),
         [WidgetPanel.Volume] = ("Volume", null, null),
-        [WidgetPanel.Focus] = ("Foco", "Cronômetro, temporizador com presets (5 a 60 min) e Pomodoro com ciclos.", "Chega na Fase 3"),
+        [WidgetPanel.Focus] = ("Foco", null, null),
         [WidgetPanel.Agenda] = ("Agenda", "Próximo compromisso, horário, tempo restante e lembretes.", "Chega na Fase 4"),
         [WidgetPanel.Activity] = ("Atividade", "Eventos autorizados do Claude Code (via hooks oficiais) e de outras ferramentas.", "Chega na Fase 6"),
     };
@@ -167,6 +172,7 @@ public partial class WidgetWindow : Window
         HomeBody.Visibility = panel == WidgetPanel.Home ? Visibility.Visible : Visibility.Collapsed;
         MediaBody.Visibility = panel == WidgetPanel.Media ? Visibility.Visible : Visibility.Collapsed;
         VolumeBody.Visibility = panel == WidgetPanel.Volume ? Visibility.Visible : Visibility.Collapsed;
+        FocusBody.Visibility = panel == WidgetPanel.Focus ? Visibility.Visible : Visibility.Collapsed;
         PlaceholderBody.Visibility = placeholder is null ? Visibility.Collapsed : Visibility.Visible;
         PlaceholderText.Text = placeholder ?? "";
         PlaceholderBadge.Text = badge ?? "";
@@ -448,6 +454,7 @@ public partial class WidgetWindow : Window
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged; // evento estático: evita vazamento
         _clock.Stop();
         _progressTimer.Stop();
+        _focusTimer?.Stop();
         StopEqualizer();
         base.OnClosed(e);
     }

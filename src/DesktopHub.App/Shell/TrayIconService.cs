@@ -2,6 +2,8 @@ using System.Drawing;
 using System.Windows.Forms;
 using DesktopHub.App.Widget;
 using DesktopHub.Core.Media;
+using DesktopHub.Core.Notifications;
+using DesktopHub.Core.Productivity;
 using DesktopHub.Core.Settings;
 using WpfApplication = System.Windows.Application;
 
@@ -21,15 +23,24 @@ internal sealed class TrayIconService : IDisposable
     private readonly ToolStripMenuItem _mediaPlayPause;
     private readonly ToolStripMenuItem _mediaNext;
     private readonly ToolStripMenuItem _mediaPrevious;
+    private readonly ToolStripMenuItem _stopwatch;
+    private readonly ToolStripMenuItem _pomodoro;
+    private readonly ToolStripMenuItem _notificationsMenu;
+    private readonly ToolStripMenuItem _notificationsResume;
     private readonly WidgetController _widget;
     private readonly SettingsService _settings;
     private readonly MediaService _media;
+    private readonly ProductivityService _productivity;
+    private readonly NotificationCenter _notifications;
 
-    public TrayIconService(AppShell shell, WidgetController widget, SettingsService settings, MediaService media)
+    public TrayIconService(AppShell shell, ShellServices services)
     {
+        var (widget, settings) = (services.Widget, services.Settings);
         _widget = widget;
         _settings = settings;
-        _media = media;
+        _media = services.Media;
+        _productivity = services.Productivity;
+        _notifications = services.Notifications;
 
         _menu = new ContextMenuStrip
         {
@@ -55,6 +66,23 @@ internal sealed class TrayIconService : IDisposable
         _mediaMenu.DropDown.BackColor = DarkMenuColors.Surface;
         _mediaMenu.DropDown.ForeColor = DarkMenuColors.Text;
 
+        _stopwatch = new ToolStripMenuItem("Iniciar cronômetro", null, (_, _) => _productivity.StopwatchToggle());
+        _pomodoro = new ToolStripMenuItem("Iniciar foco (Pomodoro)", null, (_, _) => _productivity.PomodoroToggle());
+
+        _notificationsResume = new ToolStripMenuItem("Reativar agora", null, (_, _) => _notifications.Resume());
+        _notificationsMenu = new ToolStripMenuItem("Pausar notificações");
+        _notificationsMenu.DropDownItems.AddRange(
+        [
+            new ToolStripMenuItem("Por 30 minutos", null, (_, _) => _notifications.PauseFor(TimeSpan.FromMinutes(30))),
+            new ToolStripMenuItem("Por 1 hora", null, (_, _) => _notifications.PauseFor(TimeSpan.FromHours(1))),
+            new ToolStripMenuItem("Até eu reativar", null, (_, _) => _notifications.PauseFor(null)),
+            new ToolStripSeparator(),
+            _notificationsResume,
+        ]);
+        _notificationsMenu.DropDown.Renderer = _menu.Renderer;
+        _notificationsMenu.DropDown.BackColor = DarkMenuColors.Surface;
+        _notificationsMenu.DropDown.ForeColor = DarkMenuColors.Text;
+
         _menu.Items.AddRange(
         [
             open,
@@ -62,8 +90,9 @@ internal sealed class TrayIconService : IDisposable
             _alwaysOnTop,
             new ToolStripSeparator(),
             _mediaMenu,
-            Pending("Iniciar cronômetro — Fase 3"),
-            Pending("Pausar notificações — Fase 3"),
+            _pomodoro,
+            _stopwatch,
+            _notificationsMenu,
             new ToolStripSeparator(),
             new ToolStripMenuItem("Configurações", null, (_, _) => shell.OpenMain(MainPages.Settings)),
             new ToolStripMenuItem("Sair do Diary Ghost", null, (_, _) => shell.Exit()),
@@ -73,6 +102,13 @@ internal sealed class TrayIconService : IDisposable
             _toggleWidget.Text = _widget.IsShown ? "Ocultar widget" : "Mostrar widget";
             _alwaysOnTop.Checked = _settings.Widget.AlwaysOnTop;
             UpdateMediaMenu();
+            var state = _productivity.Snapshot;
+            _stopwatch.Text = state.Stopwatch.IsRunning ? "Pausar cronômetro" : state.Stopwatch.IsIdle ? "Iniciar cronômetro" : "Retomar cronômetro";
+            _pomodoro.Text = state.Pomodoro.Countdown.IsRunning ? "Pausar Pomodoro" : "Iniciar Pomodoro";
+            var paused = _notifications.IsPaused;
+            _notificationsMenu.Text = paused ? "Notificações pausadas" : "Pausar notificações";
+            _notificationsMenu.Checked = paused;
+            _notificationsResume.Enabled = paused;
         };
 
         _icon = new NotifyIcon
@@ -93,8 +129,6 @@ internal sealed class TrayIconService : IDisposable
 
     public void ShowBalloon(string title, string text, ToolTipIcon icon = ToolTipIcon.Info) =>
         _icon.ShowBalloonTip(5000, title, text, icon);
-
-    private static ToolStripMenuItem Pending(string text) => new(text) { Enabled = false };
 
     private void UpdateMediaMenu()
     {

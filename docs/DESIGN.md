@@ -47,7 +47,7 @@ corpo e barra de abas na base. A altura acompanha o conteúdo, com transição d
 | Início | 420 | cartões Mídia (real), Foco, Claude Code | 2 ✅ (Foco/Claude: fases 3/6) |
 | Mídia | 420 | capa, título, artista, fonte e estado, progresso (se o app informa), controles suportados, chips Auto + sessões | 2 ✅ |
 | Volume | 420 | silenciar, slider, valor; volume geral do Windows | 2 ✅ |
-| Foco | 420 | cronômetro / temporizador / Pomodoro | 3 |
+| Foco | 420 | chips Pomodoro/Temporizador/Cronômetro, anel de progresso, status, tempo, ciclos, controles; presets do temporizador | 3 ✅ |
 | Agenda | 420 | próximo evento, tempo restante, lembretes | 4 |
 | Atividade | 420 | eventos de integrações (Claude Code via hooks) | 6 |
 

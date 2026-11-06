@@ -6,8 +6,12 @@ using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
+using DesktopHub.Core.Notifications;
+using DesktopHub.Core.Productivity;
 using DesktopHub.Core.Settings;
+using DesktopHub.Infrastructure.Notifications;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using WpfApplication = System.Windows.Application;
 
 namespace DesktopHub.App.Shell;
@@ -32,6 +36,9 @@ internal sealed partial class AppShell(
     AppPaths paths,
     MediaService media,
     IMasterVolume volume,
+    ProductivityService productivity,
+    NotificationCenter notifications,
+    WindowsToastSink toasts,
     ILogger<AppShell> logger) : IDisposable
 {
     private readonly List<IDisposable> _subscriptions = [];
@@ -42,14 +49,25 @@ internal sealed partial class AppShell(
 
     public bool IsExiting => _exiting;
 
+    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications);
+
     public void Start()
     {
-        _tray = new TrayIconService(this, widget, settings, media);
+        toasts.Register("Diary Ghost", ExtractNotificationIcon());
+        notifications.PruneHistory();
+        productivity.Start(); // antes do widget: ele já nasce com o estado recuperado
+
+        _tray = new TrayIconService(this, Services);
         _subscriptions.Add(bus.Subscribe<OpenMainRequested>(e => OpenMain(e.Page), SynchronizationContext.Current));
         fullscreen.Start();
         widget.Start(startup.Options.NoWidget);
         volume.Start(); // COM do Core Audio fica na thread de UI
         _ = StartMediaAsync();
+
+        // Timers .NET usam um relógio que pode não avançar durante a suspensão: reagenda ao voltar,
+        // e também se o relógio/fuso do sistema mudar.
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        SystemEvents.TimeChanged += OnTimeChanged;
 
         hotkeys.Register(1, "Mostrar/ocultar widget", NativeMethods.MOD_CONTROL | NativeMethods.MOD_ALT, 0x48 /* H */, "Ctrl+Alt+H", widget.Toggle);
         hotkeys.Register(2, "Abrir o Diary Ghost", NativeMethods.MOD_CONTROL | NativeMethods.MOD_ALT, 0x44 /* D */, "Ctrl+Alt+D", () => OpenMain());
@@ -67,6 +85,35 @@ internal sealed partial class AppShell(
             _tray.ShowBalloon("Banco de dados recuperado",
                 "O arquivo de dados estava corrompido e foi preservado em 'corrupt'. Um banco novo foi criado.", ToolTipIcon.Warning);
         }
+    }
+
+    private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Resume)
+        {
+            LogResumed();
+            productivity.Reschedule();
+        }
+    }
+
+    private void OnTimeChanged(object? sender, EventArgs e) => productivity.Reschedule();
+
+    /// <summary>O Windows exibe o ícone do toast a partir de um arquivo: grava o logo embutido na pasta de dados.</summary>
+    private string ExtractNotificationIcon()
+    {
+        var path = Path.Combine(paths.Root, "notification-icon.png");
+        try
+        {
+            var resource = WpfApplication.GetResourceStream(new Uri("pack://application:,,,/Assets/logo.png"));
+            using var source = resource!.Stream;
+            using var target = File.Create(path);
+            source.CopyTo(target);
+        }
+        catch (IOException ex)
+        {
+            LogIconFailed(ex);
+        }
+        return path;
     }
 
     private async Task StartMediaAsync()
@@ -90,7 +137,7 @@ internal sealed partial class AppShell(
         }
         if (_main is null)
         {
-            _main = new MainWindow(this, settings, bus, widget, hotkeys, startup, paths, media);
+            _main = new MainWindow(Services);
             _main.Closed += OnMainClosed;
         }
         _main.Show();
@@ -162,6 +209,8 @@ internal sealed partial class AppShell(
             return;
         }
         _disposed = true;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged; // eventos estáticos: evitar vazamento
+        SystemEvents.TimeChanged -= OnTimeChanged;
         _subscriptions.ForEach(s => s.Dispose());
         hotkeys.Dispose();
         fullscreen.Dispose();
@@ -174,6 +223,12 @@ internal sealed partial class AppShell(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Encerrando o aplicativo")]
     private partial void LogExiting();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Sistema retomou da suspensão; temporizadores reagendados")]
+    private partial void LogResumed();
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Não foi possível gravar o ícone das notificações")]
+    private partial void LogIconFailed(Exception ex);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Falha ao iniciar o controle de mídia; demais módulos seguem ativos")]
     private partial void LogMediaFailed(Exception ex);

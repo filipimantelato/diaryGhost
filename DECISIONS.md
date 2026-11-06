@@ -159,8 +159,37 @@ O logo é um fantasminha **desenhado por código** (`scripts/generate-icon.ps1`)
 referência enviada pelo usuário, mas sem reutilizar a imagem — que tem cara de banco de imagens e
 provavelmente tem licença restrita. Assim o logo é original e pode ser distribuído.
 
+## ADR-014 — Modelo de tempo: UTC de parede, um único timer, reagendamento
+**Data:** 2026-11-06 · **Status:** aceita
+
+Cronômetro, temporizador e Pomodoro são estados imutáveis com `acumulado` + `rodando desde (UTC)`; o tempo
+exibido é calculado na hora. Nenhum tique por segundo no serviço: um único `ITimer` do `TimeProvider`
+dorme até o prazo mais próximo. Como timers do .NET usam um relógio que pode não avançar durante a
+suspensão, o app reagenda em `PowerModeChanged.Resume` e em `TimeChanged`. UTC (e não o relógio
+monotônico) porque precisa sobreviver a reinícios e contar o tempo em que o PC dormiu; o custo aceito é
+que ajustar o relógio manualmente afeta a contagem.
+Conclusões com mais de 5 s de atraso são "atrasadas": registradas com o horário real do prazo,
+notificadas com esse horário, e o Pomodoro **não** inicia a próxima fase sozinho (o usuário não estava lá).
+
+## ADR-015 — Toasts nativos para app sem pacote
+**Status:** aceita
+
+Escolhido `Windows.UI.Notifications` com um AUMID próprio (`DiaryGhost.App`) registrado por usuário em
+`HKCU\Software\Classes\AppUserModelId` (nome e ícone) e `SetCurrentProcessExplicitAppUserModelID`.
+Alternativa descartada: Windows App SDK (`AppNotificationManager`), que exigiria distribuir o runtime do
+WinAppSDK (dezenas de MB) só para isso. Limitação conhecida: sem ativador COM, clicar num toast que ficou
+na Central depois que o app fechou não reabre o app; com o app aberto, cliques e botões funcionam
+(evento `Activated`). Verificado: o toast aparece na Central de Notificações com o botão "Repetir".
+
+## ADR-016 — Central de notificações com política pura
+**Status:** aceita
+
+Todo módulo notifica via `NotificationCenter`. A decisão (`NotificationPolicy.Decide`) é uma função pura,
+coberta por testes: categoria desligada → duplicata (10 min) → pausa manual (só Critical) → horário de
+silêncio e tela cheia (só High/Critical) → limite por categoria (Low/Normal 5, High 20 por 10 min).
+Tudo vai para o histórico (30 dias), inclusive o que foi suprimido, com o motivo — visível em
+Configurações. Textos de notificação são escapados no XML do toast (testado contra injeção).
+
 ## Decisões pendentes
-- **Notificações (Fase 3):** toasts via Windows App SDK `AppNotificationManager` (suporta apps não
-  empacotados) vs. registro manual de AUMID com atalho no Menu Iniciar.
 - **Instalador e atualizações (Fase 7):** Velopack vs. MSIX vs. Inno Setup.
 - **Parser iCalendar (Fase 4):** Ical.Net vs. implementação mínima de RRULE.

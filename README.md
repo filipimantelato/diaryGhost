@@ -1,21 +1,29 @@
-# Personal Desktop Hub
+<img src="assets/logo.png" width="96" alt="Logo do Diary Ghost: um fantasminha branco" />
+
+# Diary Ghost
 
 Central pessoal residente para Windows 11: widget flutuante estilo "ilha", bandeja do sistema e
 aplicação completa — leve, local-first e sem telemetria.
 
-> **Estado:** Fases 1 (fundação) e 2 (widget e mídia) concluídas. Produtividade, agenda, notícias, clima
-> e integrações chegam nas próximas fases — ver [ROADMAP.md](ROADMAP.md). Módulos ainda não implementados
-> dizem isso explicitamente na interface.
+> **Estado:** Fases 1 (fundação), 2 (widget e mídia) e 3 (produtividade e notificações) concluídas.
+> Agenda, notícias, clima e integrações chegam nas próximas fases — ver [ROADMAP.md](ROADMAP.md).
+> Módulos ainda não implementados dizem isso explicitamente na interface.
 
 ## O que já funciona
 - **Widget flutuante** (estrutura baseada no [vídeo de referência](docs/VIDEO-ANALYSIS.md)): compacto
-  com a mídia atual; expandido com abas Início, Mídia, Volume (e Foco/Agenda/Atividade indicando a fase);
+  com o timer em andamento ou a mídia atual; expandido com abas Início, Mídia, Foco, Volume (e Agenda/Atividade indicando a fase);
   clique expande, arrastar move, clique direito abre o menu; posição memorizada e validada entre
   monitores; sempre visível opcional, bloqueio, opacidade, não rouba foco, some em tela cheia, pode ser
   excluído de capturas de tela.
 - **Mídia**: controla Spotify, navegadores e outros players que expõem os controles de mídia do Windows,
   sem login. Você escolhe a sessão (chips); comandos nunca vão para outra. Volume geral do Windows.
-- **Bandeja**: abrir, mostrar/ocultar widget, sempre visível, mídia (tocar/pausar/próxima/anterior), configurações, sair.
+- **Produtividade**: Pomodoro (durações e ciclos configuráveis, início automático opcional), temporizador
+  (presets de 5 a 60 min ou minutos livres) e cronômetro com voltas; estatísticas e histórico. Tudo
+  continua com a janela fechada e é retomado após reiniciar ou suspender — prazos vencidos com o app
+  fechado são avisados como "atrasados", com o horário real.
+- **Notificações nativas do Windows** com botões (Repetir, Iniciar), pausa manual, horário de silêncio,
+  sem interromper jogos em tela cheia, deduplicação, limite de frequência e histórico.
+- **Bandeja**: abrir, mostrar/ocultar widget, sempre visível, mídia, Pomodoro, cronômetro, pausar notificações, configurações, sair.
 - **Janela principal** com navegação lateral, dashboard e configurações funcionais.
 - **Atalhos globais**: `Ctrl+Alt+H` (widget), `Ctrl+Alt+D` (abrir app).
 - Fechar a janela mantém o app na bandeja (configurável); iniciar com o Windows (opcional).
@@ -46,6 +54,10 @@ o runtime:
 ```bash
 $env:DOTNET_ROOT = "$env:LOCALAPPDATA\Microsoft\dotnet"
 ```
+
+> **Smart App Control:** com ele ativo, o Windows pode bloquear DLLs de teste recém-compiladas em Debug
+> ("Uma política de Controle de Aplicativo bloqueou este arquivo"). Rode os testes em Release
+> (`dotnet test DesktopHub.slnx -c Release`), que passaram normalmente. Não desligue a proteção por isso.
 
 ### Argumentos
 | Argumento | Efeito |

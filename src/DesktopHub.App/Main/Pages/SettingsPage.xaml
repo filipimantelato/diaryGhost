@@ -90,6 +90,49 @@
         </StackPanel>
       </Border>
 
+      <!-- Notificações -->
+      <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+          <TextBlock Text="Notificações" Style="{StaticResource SubtitleText}" Margin="0,0,0,6" />
+          <TextBlock Text="{Binding WindowsNotificationStatus}" Style="{StaticResource CaptionText}" Margin="0,0,0,6" />
+          <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding TimerNotifications}" Content="Avisar quando temporizadores e fases do Pomodoro terminarem" />
+          <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding SuppressInFullscreen}" Content="Não interromper jogos e apps em tela cheia (só avisos importantes passam)" />
+          <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding QuietHoursEnabled}" Content="Horário de silêncio (só avisos importantes passam)" />
+          <StackPanel Orientation="Horizontal" Margin="0,4,0,8" IsEnabled="{Binding QuietHoursEnabled}">
+            <TextBlock Text="Das" Style="{StaticResource BodyText}" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox Width="70" Text="{Binding QuietStart}" AutomationProperties.Name="Início do horário de silêncio" />
+            <TextBlock Text="às" Style="{StaticResource BodyText}" VerticalAlignment="Center" Margin="8,0" />
+            <TextBox Width="70" Text="{Binding QuietEnd}" AutomationProperties.Name="Fim do horário de silêncio" />
+          </StackPanel>
+
+          <TextBlock Text="{Binding PauseStatus}" Style="{StaticResource BodyText}" Margin="0,8,0,8" />
+          <WrapPanel>
+            <Button Style="{StaticResource SecondaryButton}" Content="Pausar 30 min" Margin="0,0,8,8" Tag="30" Click="Pause_Click" />
+            <Button Style="{StaticResource SecondaryButton}" Content="Pausar 1 h" Margin="0,0,8,8" Tag="60" Click="Pause_Click" />
+            <Button Style="{StaticResource SecondaryButton}" Content="Até eu reativar" Margin="0,0,8,8" Tag="0" Click="Pause_Click" />
+            <Button Style="{StaticResource SecondaryButton}" Content="Reativar" Margin="0,0,8,8" Click="Resume_Click" />
+          </WrapPanel>
+
+          <TextBlock Text="Últimas notificações" Style="{StaticResource BodyText}" Margin="0,10,0,4" />
+          <ItemsControl ItemsSource="{Binding RecentNotifications}" Focusable="False">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Grid Margin="0,2">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="90" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding When}" Style="{StaticResource CaptionText}" />
+                  <TextBlock Grid.Column="1" Text="{Binding Title}" Style="{StaticResource BodyText}" />
+                  <TextBlock Grid.Column="2" Text="{Binding Outcome}" Style="{StaticResource CaptionText}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
       <!-- Atalhos -->
       <Border Style="{StaticResource Card}" Margin="0,16,0,0">
         <StackPanel>

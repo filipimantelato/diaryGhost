@@ -149,14 +149,31 @@ public sealed class JsonFileLoggerProvider : ILoggerProvider
 
                 if (state is IReadOnlyList<KeyValuePair<string, object?>> fields)
                 {
+                    // Campos do template ficam num objeto próprio: um campo chamado "Category" não pode colidir
+                    // com o "category" fixo (JSON com chaves que diferem só na caixa quebra vários leitores).
+                    var hasFields = false;
                     foreach (var (key, value) in fields)
                     {
                         if (key == "{OriginalFormat}")
                         {
                             json.WriteString("template", value?.ToString());
-                            continue;
                         }
-                        json.WriteString(key, Convert.ToString(value, CultureInfo.InvariantCulture));
+                        else
+                        {
+                            hasFields = true;
+                        }
+                    }
+                    if (hasFields)
+                    {
+                        json.WriteStartObject("fields");
+                        foreach (var (key, value) in fields)
+                        {
+                            if (key != "{OriginalFormat}")
+                            {
+                                json.WriteString(key, Convert.ToString(value, CultureInfo.InvariantCulture));
+                            }
+                        }
+                        json.WriteEndObject();
                     }
                 }
 

@@ -23,6 +23,8 @@ public sealed partial class SettingsService(ISettingsStore store, IEventBus bus,
     public GeneralSettings General { get; private set; } = new();
     public WidgetSettings Widget { get; private set; } = new();
     public MediaSettings Media { get; private set; } = new();
+    public NotificationSettings Notifications { get; private set; } = new();
+    public ProductivitySettings Productivity { get; private set; } = new();
 
     public void Load()
     {
@@ -31,24 +33,35 @@ public sealed partial class SettingsService(ISettingsStore store, IEventBus bus,
             General = (store.Read<GeneralSettings>(SettingsSections.General) ?? new GeneralSettings()).Sanitize();
             Widget = (store.Read<WidgetSettings>(SettingsSections.Widget) ?? new WidgetSettings()).Sanitize();
             Media = (store.Read<MediaSettings>(SettingsSections.Media) ?? new MediaSettings()).Sanitize();
+            Notifications = (store.Read<NotificationSettings>(SettingsSections.Notifications) ?? new NotificationSettings()).Sanitize();
+            Productivity = (store.Read<ProductivitySettings>(SettingsSections.Productivity) ?? new ProductivitySettings()).Sanitize();
         }
         LogLoaded();
     }
 
-    public void UpdateMedia(Func<MediaSettings, MediaSettings> change)
+    public void UpdateMedia(Func<MediaSettings, MediaSettings> change) =>
+        Update(SettingsSections.Media, () => Media, v => Media = v, change, s => s.Sanitize());
+
+    public void UpdateNotifications(Func<NotificationSettings, NotificationSettings> change) =>
+        Update(SettingsSections.Notifications, () => Notifications, v => Notifications = v, change, s => s.Sanitize());
+
+    public void UpdateProductivity(Func<ProductivitySettings, ProductivitySettings> change) =>
+        Update(SettingsSections.Productivity, () => Productivity, v => Productivity = v, change, s => s.Sanitize());
+
+    private void Update<T>(string section, Func<T> get, Action<T> set, Func<T, T> change, Func<T, T> sanitize) where T : class
     {
         ArgumentNullException.ThrowIfNull(change);
         lock (_gate)
         {
-            var updated = change(Media).Sanitize();
-            if (updated == Media)
+            var updated = sanitize(change(get()));
+            if (updated.Equals(get()))
             {
                 return;
             }
-            store.Write(SettingsSections.Media, updated);
-            Media = updated;
+            store.Write(section, updated);
+            set(updated);
         }
-        bus.Publish(new SettingsChanged(SettingsSections.Media));
+        bus.Publish(new SettingsChanged(section));
     }
 
     public void UpdateGeneral(Func<GeneralSettings, GeneralSettings> change)

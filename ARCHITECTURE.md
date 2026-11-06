@@ -127,7 +127,8 @@ Eventos planejados (catálogo em `src/DesktopHub.Core/Events/`):
 | `ActiveMediaChanged` | MediaService | 2 ✅ |
 | `MasterVolumeChanged` | CoreAudioMasterVolume | 2 ✅ |
 | `OpenMainRequested` | widget, bandeja | 2 ✅ |
-| `TimerCompleted`, `TimerStateChanged` | TimerService | 3 |
+| `ProductivityChanged`, `TimerCompleted` | ProductivityService | 3 ✅ |
+| `NotificationProcessed`, `NotificationActivated` | NotificationCenter | 3 ✅ |
 | `ReminderDue` | ReminderScheduler | 4 |
 | `CalendarEventChanged` | CalendarService/Sync | 4 |
 | `NewsUpdated`, `WeatherUpdated` | NewsService/WeatherService | 5 |
@@ -230,7 +231,7 @@ fuso original importa (eventos de calendário). A Fase 1 cria apenas `settings` 
 | Google Calendar | Calendar API v3, OAuth 2.0 "installed app" com redirect loopback + PKCE, sync incremental por `syncToken` | Requer projeto no Google Cloud com tela de consentimento; o usuário traz o próprio client ID. |
 | Outlook | Microsoft Graph (`calendarView`, consultas delta) com MSAL.NET | Registro de app no Entra ID. |
 | ICS | Download HTTP + parser RFC 5545 (Ical.Net) | Somente leitura. |
-| Notificações | Toasts do Windows; app não empacotado precisa de AUMID (atalho no Menu Iniciar) ou Windows App SDK `AppNotificationManager` | Decisão na Fase 3 (ADR pendente). O Windows já aplica "Não incomodar"; o app também consulta `SHQueryUserNotificationState`. |
+| Notificações ✅ | Toasts do Windows com AUMID próprio registrado em `HKCU\Software\Classes\AppUserModelId` (ADR-015) | Sem ativador COM, toast antigo não reabre o app fechado. O Windows aplica "Não incomodar"; a política do app trata pausa, silêncio e tela cheia (ADR-016). |
 | Claude Code | **Hooks** configurados em `settings.json` (`Notification`, `Stop`, `PreToolUse`, `PostToolUse`, `SessionStart`…) executam um comando que recebe JSON pelo stdin | O hub fornece um pequeno executável `hub-notify` que repassa o JSON por **named pipe local**. Conversas do Claude no navegador/app desktop **não** têm API de observação — fora de escopo. |
 | Outras ferramentas | Mesmo pipe local com contrato JSON versionado (`IntegrationEventReceived`) | Qualquer ferramenta que execute um comando ao concluir (CI local, scripts, builds) pode emitir eventos. |
 

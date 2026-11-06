@@ -7,6 +7,39 @@ public static class SettingsSections
     public const string General = "general";
     public const string Widget = "widget";
     public const string Media = "media";
+    public const string Notifications = "notifications";
+    public const string Productivity = "productivity";
+}
+
+public sealed record NotificationSettings
+{
+    public bool QuietHoursEnabled { get; init; }
+    /// <summary>Minutos desde 00:00 (hora local). Padrão 22:00–07:00; pode atravessar a meia-noite.</summary>
+    public int QuietStartMinutes { get; init; } = 22 * 60;
+    public int QuietEndMinutes { get; init; } = 7 * 60;
+    /// <summary>Pausa manual ("não incomodar" do app). null = ativo; DateTimeOffset.MaxValue = até reativar.</summary>
+    public DateTimeOffset? PausedUntil { get; init; }
+    public bool SuppressInFullscreen { get; init; } = true;
+    public bool TimerNotifications { get; init; } = true;
+
+    public NotificationSettings Sanitize() => this with
+    {
+        QuietStartMinutes = Math.Clamp(QuietStartMinutes, 0, 1439),
+        QuietEndMinutes = Math.Clamp(QuietEndMinutes, 0, 1439),
+    };
+}
+
+public sealed record ProductivitySettings
+{
+    public Productivity.PomodoroConfig Pomodoro { get; init; } = new();
+    /// <summary>Última duração escolhida no temporizador, em minutos.</summary>
+    public int LastTimerMinutes { get; init; } = 25;
+
+    public ProductivitySettings Sanitize() => this with
+    {
+        Pomodoro = (Pomodoro ?? new()).Sanitize(),
+        LastTimerMinutes = Math.Clamp(LastTimerMinutes, 1, 24 * 60),
+    };
 }
 
 public sealed record MediaSettings
@@ -56,6 +89,14 @@ public enum WidgetPanel
     Activity,
     Home,
     Volume,
+}
+
+/// <summary>Ferramenta exibida no painel Foco do widget.</summary>
+public enum FocusTool
+{
+    Pomodoro,
+    Timer,
+    Stopwatch,
 }
 
 /// <summary>Posição da janela do widget em pixels físicos da área de trabalho virtual.</summary>
@@ -122,6 +163,7 @@ public sealed record WidgetSettings
     public bool ExcludeFromCapture { get; init; }
     public WidgetLayout Layout { get; init; } = WidgetLayout.Compact;
     public WidgetPanel Panel { get; init; } = WidgetPanel.Media;
+    public FocusTool FocusTool { get; init; } = FocusTool.Pomodoro;
     public WidgetPosition? Position { get; init; }
 
     public WidgetSettings Sanitize() => this with

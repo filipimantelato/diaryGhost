@@ -160,6 +160,17 @@ public partial class WidgetWindow
 
     private void RenderCompact()
     {
+        // Prioridade do compacto: timer/Pomodoro/cronômetro em uso > mídia > relógio.
+        if (ActiveFocusSummary() is { } focus)
+        {
+            CompactArt.Visibility = Visibility.Collapsed;
+            CompactGlyph.Visibility = Visibility.Visible;
+            CompactGlyph.Text = focus.Glyph;
+            CompactText.Text = focus.Text;
+            Equalizer.Visibility = Visibility.Collapsed;
+            RequestResize();
+            return;
+        }
         var m = _shownMedia;
         if (m is not null)
         {
@@ -190,6 +201,7 @@ public partial class WidgetWindow
     /// </summary>
     private void UpdateTimers()
     {
+        UpdateFocusTimer();
         var expanded = _appliedLayout == WidgetLayout.Expanded;
         var playing = _shownMedia?.IsPlaying == true;
 
@@ -208,7 +220,7 @@ public partial class WidgetWindow
         }
 
         // Animação contínua é opcional: medida em ~0,18% de CPU (vs ~0,01% parado) — ver benchmark da Fase 2.
-        var equalizerNeeded = IsVisible && !expanded && playing && AnimationsAllowed && _settings.Widget.AnimatedPlaybackIndicator;
+        var equalizerNeeded = IsVisible && !expanded && playing && AnimationsAllowed && _settings.Widget.AnimatedPlaybackIndicator && ActiveFocusSummary() is null;
         if (equalizerNeeded && !_equalizerRunning)
         {
             StartEqualizer();

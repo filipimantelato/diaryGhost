@@ -4,6 +4,7 @@ using DesktopHub.App.Theme;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Events;
+using DesktopHub.Core.Notifications;
 using DesktopHub.Core.Settings;
 
 namespace DesktopHub.App.Main.Pages;
@@ -11,6 +12,8 @@ namespace DesktopHub.App.Main.Pages;
 public sealed record AccentOption(string Name, string Hex, bool IsSelected);
 
 public sealed record HotkeyRow(string Gesture, string Label, string Status, bool Ok);
+
+public sealed record NotificationRow(string When, string Title, string Outcome);
 
 /// <summary>
 /// Cada setter aplica a mudança de verdade (registro do Windows, janela do widget, tema) e a persiste.
@@ -21,16 +24,112 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private readonly SettingsService _settings;
     private readonly WidgetController _widget;
     private readonly AppPaths _paths;
-    private readonly IDisposable _subscription;
+    private readonly NotificationCenter _notifications;
+    private readonly List<IDisposable> _subscriptions = [];
     private string? _statusMessage;
 
-    internal SettingsViewModel(SettingsService settings, IEventBus bus, WidgetController widget, GlobalHotkeys hotkeys, AppPaths paths)
+    internal SettingsViewModel(SettingsService settings, IEventBus bus, WidgetController widget, GlobalHotkeys hotkeys, AppPaths paths,
+        NotificationCenter notifications)
     {
         _settings = settings;
         _widget = widget;
         _paths = paths;
+        _notifications = notifications;
         Hotkeys = [.. hotkeys.Bindings.Select(b => new HotkeyRow(b.Gesture, b.Label, b.Registered ? "Ativo" : "Indisponível — em uso por outro programa", b.Registered))];
-        _subscription = bus.Subscribe<SettingsChanged>(_ => OnPropertyChanged(string.Empty), SynchronizationContext.Current);
+        var ui = SynchronizationContext.Current;
+        _subscriptions.Add(bus.Subscribe<SettingsChanged>(_ => OnPropertyChanged(string.Empty), ui));
+        _subscriptions.Add(bus.Subscribe<NotificationProcessed>(_ => OnPropertyChanged(nameof(RecentNotifications)), ui));
+    }
+
+    // ---------- Notificações ----------
+
+    private NotificationSettings Notify => _settings.Notifications;
+
+    public string WindowsNotificationStatus => _notifications.ChannelStatus switch
+    {
+        NotificationChannelStatus.Enabled => "Notificações do Windows: ativas para o Diary Ghost.",
+        NotificationChannelStatus.DisabledByUser => "O Windows está bloqueando as notificações do Diary Ghost (Configurações do Windows › Sistema › Notificações). Elas ficam só no histórico abaixo.",
+        NotificationChannelStatus.Unavailable => "Notificações do Windows indisponíveis neste sistema; os avisos aparecem só no widget e no histórico.",
+        _ => "Não foi possível consultar o estado das notificações do Windows.",
+    };
+
+    public bool TimerNotifications
+    {
+        get => Notify.TimerNotifications;
+        set => _settings.UpdateNotifications(n => n with { TimerNotifications = value });
+    }
+
+    public bool SuppressInFullscreen
+    {
+        get => Notify.SuppressInFullscreen;
+        set => _settings.UpdateNotifications(n => n with { SuppressInFullscreen = value });
+    }
+
+    public bool QuietHoursEnabled
+    {
+        get => Notify.QuietHoursEnabled;
+        set => _settings.UpdateNotifications(n => n with { QuietHoursEnabled = value });
+    }
+
+    public string QuietStart
+    {
+        get => FormatMinutes(Notify.QuietStartMinutes);
+        set => SetQuietTime(value, start: true);
+    }
+
+    public string QuietEnd
+    {
+        get => FormatMinutes(Notify.QuietEndMinutes);
+        set => SetQuietTime(value, start: false);
+    }
+
+    public string PauseStatus => Notify.PausedUntil switch
+    {
+        null => "Notificações ativas.",
+        { } until when until <= DateTimeOffset.UtcNow => "Notificações ativas.",
+        { } until when until == DateTimeOffset.MaxValue => "Pausadas até você reativar (só alertas críticos passam).",
+        { } until => $"Pausadas até {until.ToLocalTime():HH:mm} (só alertas críticos passam).",
+    };
+
+    public void PauseNotifications(TimeSpan? duration) => _notifications.PauseFor(duration);
+
+    public void ResumeNotifications() => _notifications.Resume();
+
+    public IReadOnlyList<NotificationRow> RecentNotifications =>
+        [.. _notifications.Recent(8).Select(r => new NotificationRow(
+            r.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm", System.Globalization.CultureInfo.GetCultureInfo("pt-BR")),
+            r.Title,
+            OutcomeText(r.Outcome)))];
+
+    private static string OutcomeText(DeliveryOutcome outcome) => outcome switch
+    {
+        DeliveryOutcome.Shown => "exibida",
+        DeliveryOutcome.SuppressedPaused => "silenciada (pausa)",
+        DeliveryOutcome.SuppressedQuietHours => "silenciada (horário)",
+        DeliveryOutcome.SuppressedFullscreen => "silenciada (tela cheia)",
+        DeliveryOutcome.SuppressedCategoryOff => "desligada nas configurações",
+        DeliveryOutcome.Duplicate => "duplicada",
+        DeliveryOutcome.RateLimited => "limite de frequência",
+        DeliveryOutcome.BlockedByWindows => "bloqueada pelo Windows",
+        _ => "falhou",
+    };
+
+    private static string FormatMinutes(int minutes) => $"{minutes / 60:00}:{minutes % 60:00}";
+
+    private void SetQuietTime(string value, bool start)
+    {
+        // Validação da entrada: "HH:mm" (ou "H") entre 00:00 e 23:59.
+        if (TimeSpan.TryParseExact(value?.Trim(), [@"h\:mm", @"hh\:mm", "%h"], System.Globalization.CultureInfo.InvariantCulture, out var t) && t < TimeSpan.FromDays(1))
+        {
+            var minutes = (int)t.TotalMinutes;
+            _settings.UpdateNotifications(n => start ? n with { QuietStartMinutes = minutes } : n with { QuietEndMinutes = minutes });
+            StatusMessage = null;
+        }
+        else
+        {
+            StatusMessage = "Horário inválido: use o formato HH:mm (por exemplo, 22:30).";
+        }
+        OnPropertyChanged(start ? nameof(QuietStart) : nameof(QuietEnd));
     }
 
     private GeneralSettings General => _settings.General;
@@ -163,5 +262,5 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         Process.Start(new ProcessStartInfo("explorer.exe") { ArgumentList = { path }, UseShellExecute = false });
     }
 
-    public void Dispose() => _subscription.Dispose();
+    public void Dispose() => _subscriptions.ForEach(s => s.Dispose());
 }

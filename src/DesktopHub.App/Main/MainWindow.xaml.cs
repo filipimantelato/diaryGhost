@@ -19,6 +19,7 @@ namespace DesktopHub.App.Main;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private readonly ShellServices _services;
     private readonly SettingsService _settings;
     private readonly IEventBus _bus;
     private readonly WidgetController _widget;
@@ -28,17 +29,11 @@ public partial class MainWindow : Window
     private readonly MediaService _media;
     private readonly Dictionary<RadioButton, string> _navKeys;
 
-    internal MainWindow(AppShell shell, SettingsService settings, IEventBus bus, WidgetController widget,
-        GlobalHotkeys hotkeys, StartupState startup, AppPaths paths, MediaService media)
+    internal MainWindow(ShellServices services)
     {
-        _ = shell;
-        _settings = settings;
-        _bus = bus;
-        _widget = widget;
-        _hotkeys = hotkeys;
-        _startup = startup;
-        _paths = paths;
-        _media = media;
+        _services = services;
+        (_settings, _bus, _widget, _hotkeys, _startup, _paths, _media) =
+            (services.Settings, services.Bus, services.Widget, services.Hotkeys, services.Startup, services.Paths, services.Media);
         InitializeComponent();
 
         _navKeys = new()
@@ -55,7 +50,7 @@ public partial class MainWindow : Window
         };
 
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 2";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 3";
 
         SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
         NavDashboard.IsChecked = true;
@@ -82,8 +77,9 @@ public partial class MainWindow : Window
 
     private FrameworkElement CreatePage(string key) => key switch
     {
-        MainPages.Dashboard => new DashboardPage(_settings, _widget, _startup, _paths, _media),
-        MainPages.Settings => new SettingsPage(new SettingsViewModel(_settings, _bus, _widget, _hotkeys, _paths)),
+        MainPages.Dashboard => new DashboardPage(_settings, _widget, _startup, _paths, _media, _services.Productivity),
+        MainPages.Settings => new SettingsPage(new SettingsViewModel(_settings, _bus, _widget, _hotkeys, _paths, _services.Notifications)),
+        "productivity" => new ProductivityPage(_services.Productivity, _settings, _bus),
         "news" => new PlaceholderPage("", "Notícias", 5,
             "Agregador com fontes confiáveis via RSS/Atom e APIs oficiais, sem scraping. Mostra fonte, autor, horário de publicação e horário da consulta.",
             ["Categorias: política, tecnologia, games, ciência e meio ambiente, geral", "Deduplicação e agrupamento por acontecimento", "Salvar, favoritar, marcar como lida, seguir assuntos", "Destaques para desenvolvedores: releases do GitHub, CVEs críticas (NVD/CISA)", "Atualização em intervalos configuráveis com cache e ETag"]),
@@ -97,9 +93,6 @@ public partial class MainWindow : Window
             "Lembretes persistentes que disparam mesmo com a janela fechada, enquanto o app estiver em execução.",
             ["Notificações nativas do Windows com ações: concluir, adiar 5/10/30/60 min", "Recorrência", "Recuperação correta após suspensão, hibernação e mudança de horário"]),
         "media" => new MediaPage(_media, _settings, _bus),
-        "productivity" => new PlaceholderPage("", "Produtividade", 3,
-            "Cronômetro, temporizador e Pomodoro calculados por timestamps — sem deriva e corretos após suspensão.",
-            ["Cronômetro com voltas", "Temporizador com presets de 5 a 60 minutos", "Pomodoro com ciclos, histórico e estatísticas"]),
         "integrations" => new PlaceholderPage("", "Atividades e integrações", 6,
             "Eventos autorizados de ferramentas. Para o Claude Code, via hooks oficiais que chamam um pequeno executável local; conversas privadas nunca são lidas.",
             ["Canal local (named pipe restrito ao seu usuário) com contrato JSON versionado", "Claude Code: tarefa concluída, aguardando confirmação, falha", "Estado de cada integração e último erro"]),

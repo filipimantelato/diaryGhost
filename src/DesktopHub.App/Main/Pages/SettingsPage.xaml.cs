@@ -26,6 +26,16 @@ public partial class SettingsPage : UserControl, IDisposable
 
     private void ResetPosition_Click(object sender, RoutedEventArgs e) => _viewModel.ResetWidgetPosition();
 
+    private void Pause_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string minutesText } && int.TryParse(minutesText, out var minutes))
+        {
+            _viewModel.PauseNotifications(minutes == 0 ? null : TimeSpan.FromMinutes(minutes));
+        }
+    }
+
+    private void Resume_Click(object sender, RoutedEventArgs e) => _viewModel.ResumeNotifications();
+
     private void OpenData_Click(object sender, RoutedEventArgs e) => _viewModel.OpenDataFolder();
 
     private void OpenLogs_Click(object sender, RoutedEventArgs e) => _viewModel.OpenLogsFolder();

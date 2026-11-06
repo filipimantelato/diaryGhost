@@ -45,6 +45,7 @@
 
   <ItemGroup>
     <Resource Include="..\..\assets\app.ico" Link="Assets\app.ico" />
+    <Resource Include="..\..\assets\logo.png" Link="Assets\logo.png" />
   </ItemGroup>
 
 </Project>

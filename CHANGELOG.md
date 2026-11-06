@@ -2,6 +2,22 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.3.0] — 2026-11-06 — Diary Ghost e Fase 3: produtividade e notificações
+### Adicionado
+- Nome **Diary Ghost** e logo original (fantasminha desenhado por código); ícone, executável, pasta de
+  dados (`%LOCALAPPDATA%\DiaryGhost`, com migração automática da antiga) e inicialização com o Windows renomeados.
+- Pomodoro, temporizador e cronômetro: widget (painel Foco, cartão no Início, compacto), página
+  Produtividade com configuração, estatísticas e histórico; bandeja.
+- Persistência e recuperação: estado retomado ao reiniciar; prazos vencidos com o app fechado ou o PC
+  suspenso concluídos como "atrasados", com o horário real; reagendamento ao voltar da suspensão.
+- Notificações nativas do Windows com botões; central com prioridades, pausa manual, horário de silêncio,
+  respeito a jogos em tela cheia, deduplicação, limite de frequência e histórico de 30 dias.
+- Migração de banco 2: `productivity_state`, `focus_sessions`, `notifications`.
+- Estilo escuro para caixas de texto; ADR-013 a ADR-016; benchmark da Fase 3.
+
+### Corrigido
+- Logs JSON: campos do template (ex.: `Category`) ficam em `fields` e não colidem mais com campos fixos.
+
 ## [0.2.0] — 2026-11-06 — Fase 2: widget e mídia
 ### Adicionado
 - Controle universal de mídia pelas sessões do Windows (`Windows.Media.Control`): metadados, capa,

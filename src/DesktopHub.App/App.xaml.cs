@@ -8,8 +8,12 @@ using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
+using DesktopHub.Core.Notifications;
+using DesktopHub.Core.Productivity;
 using DesktopHub.Core.Security;
 using DesktopHub.Infrastructure.Media;
+using DesktopHub.Infrastructure.Notifications;
+using DesktopHub.Infrastructure.Productivity;
 using DesktopHub.Core.Settings;
 using DesktopHub.Infrastructure.Logging;
 using DesktopHub.Infrastructure.Persistence;
@@ -130,10 +134,16 @@ public partial class App : Application
 
         services.AddSingleton<IMediaSessionSource, GsmtcMediaSource>();
         services.AddSingleton<IMasterVolume, CoreAudioMasterVolume>();
+        services.AddSingleton<IProductivityStore, SqliteProductivityStore>();
+        services.AddSingleton<INotificationHistory, SqliteNotificationHistory>();
+        services.AddSingleton<WindowsToastSink>();
+        services.AddSingleton<INotificationSink>(sp => sp.GetRequiredService<WindowsToastSink>());
 
         // Aplicação
         services.AddSingleton<SettingsService>();
         services.AddSingleton<MediaService>();
+        services.AddSingleton<NotificationCenter>();
+        services.AddSingleton<ProductivityService>();
 
         // Plataforma e apresentação
         services.AddSingleton<FullscreenMonitor>();
