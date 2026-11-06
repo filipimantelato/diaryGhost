@@ -421,18 +421,27 @@ public sealed partial class NewsService : IDisposable
         _bus.Publish(new NewsUpdated(0));
     }
 
+    /// <summary>Marca várias como lidas e anuncia uma única vez.</summary>
     public void MarkAllRead(IEnumerable<Guid> ids)
     {
-        foreach (var id in ids.ToList())
+        ArgumentNullException.ThrowIfNull(ids);
+        var wanted = ids.ToHashSet();
+        List<NewsArticle> changed = [];
+        lock (_gate)
         {
-            lock (_gate)
+            for (var i = 0; i < _articles.Count; i++)
             {
-                if (_articles.Find(a => a.Id == id) is not { IsRead: false })
+                if (!_articles[i].IsRead && wanted.Contains(_articles[i].Id))
                 {
-                    continue;
+                    _articles[i] = _articles[i] with { IsRead = true };
+                    changed.Add(_articles[i]);
                 }
             }
-            SetState(id, read: true);
+        }
+        changed.ForEach(a => _store.UpdateArticleState(a.Id, true, a.IsSaved, a.IsFavorite));
+        if (changed.Count > 0)
+        {
+            _bus.Publish(new NewsUpdated(0));
         }
     }
 

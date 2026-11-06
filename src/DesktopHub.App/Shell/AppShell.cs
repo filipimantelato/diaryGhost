@@ -6,6 +6,8 @@ using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Events;
+using DesktopHub.Core.News;
+using DesktopHub.Core.Weather;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Notifications;
 using DesktopHub.Core.Productivity;
@@ -42,6 +44,8 @@ internal sealed partial class AppShell(
     WindowsToastSink toasts,
     AgendaService agenda,
     ReminderScheduler reminders,
+    NewsService news,
+    WeatherService weather,
     ILogger<AppShell> logger) : IDisposable
 {
     private readonly List<IDisposable> _subscriptions = [];
@@ -52,7 +56,7 @@ internal sealed partial class AppShell(
 
     public bool IsExiting => _exiting;
 
-    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders);
+    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders, news, weather);
 
     public void Start()
     {
@@ -61,6 +65,8 @@ internal sealed partial class AppShell(
         productivity.Start(); // antes do widget: ele já nasce com o estado recuperado
         agenda.Start();
         reminders.Start();    // entrega o que venceu com o app fechado e agenda o próximo aviso
+        news.Start();         // só acessa a rede se o módulo estiver ativado, 20 s depois de abrir
+        weather.Start();      // só acessa a rede com um local escolhido
 
         _tray = new TrayIconService(this, Services);
         _subscriptions.Add(bus.Subscribe<OpenMainRequested>(e => OpenMain(e.Page), SynchronizationContext.Current));
@@ -99,6 +105,8 @@ internal sealed partial class AppShell(
             LogResumed();
             productivity.Reschedule();
             reminders.Reschedule();
+            news.Reschedule();
+            weather.Reschedule();
         }
     }
 

@@ -8,6 +8,7 @@ using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Notifications;
 using DesktopHub.Core.Settings;
+using DesktopHub.Core.Weather;
 
 namespace DesktopHub.App.Main.Pages;
 
@@ -33,8 +34,9 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private string? _statusMessage;
 
     internal SettingsViewModel(SettingsService settings, IEventBus bus, WidgetController widget, GlobalHotkeys hotkeys, AppPaths paths,
-        NotificationCenter notifications, AgendaService agenda)
+        NotificationCenter notifications, AgendaService agenda, WeatherService weather)
     {
+        Weather = weather;
         _settings = settings;
         _widget = widget;
         _paths = paths;
@@ -45,6 +47,20 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         _subscriptions.Add(bus.Subscribe<SettingsChanged>(_ => OnPropertyChanged(string.Empty), ui));
         _subscriptions.Add(bus.Subscribe<NotificationProcessed>(_ => OnPropertyChanged(nameof(RecentNotifications)), ui));
         _subscriptions.Add(bus.Subscribe<AgendaChanged>(_ => OnPropertyChanged(nameof(Categories)), ui));
+    }
+
+    // ---------- Clima ----------
+
+    internal WeatherService Weather { get; }
+
+    public string WeatherLocationText => _settings.Weather.Location is { } l
+        ? $"Local: {l.DisplayName} ({l.Latitude.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}, {l.Longitude.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)})"
+        : "Nenhum local escolhido — nenhuma consulta de clima é feita.";
+
+    public bool WeatherInWidget
+    {
+        get => _settings.Weather.ShowInWidget;
+        set => _settings.UpdateWeather(w => w with { ShowInWidget = value });
     }
 
     // ---------- Agenda ----------

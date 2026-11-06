@@ -3,6 +3,8 @@ using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Events;
+using DesktopHub.Core.News;
+using DesktopHub.Core.Weather;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Notifications;
 using DesktopHub.Core.Productivity;
@@ -22,4 +24,6 @@ internal sealed record ShellServices(
     ProductivityService Productivity,
     NotificationCenter Notifications,
     AgendaService Agenda,
-    ReminderScheduler Reminders);
+    ReminderScheduler Reminders,
+    NewsService News,
+    WeatherService Weather);

@@ -90,7 +90,7 @@ public sealed class FeedParserTests
             try
             {
                 var feed = FeedParser.Parse(xml);
-                Assert.DoesNotContain("SEGREDO", feed.Items.FirstOrDefault()?.Title ?? "", StringComparison.Ordinal);
+                Assert.DoesNotContain("SEGREDO", (feed.Items.Count > 0 ? feed.Items[0].Title : "") ?? "", StringComparison.Ordinal);
             }
             catch (System.Xml.XmlException)
             {

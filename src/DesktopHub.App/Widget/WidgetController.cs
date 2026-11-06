@@ -4,6 +4,7 @@ using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Productivity;
 using DesktopHub.Core.Settings;
+using DesktopHub.Core.Weather;
 using Microsoft.Extensions.Logging;
 
 namespace DesktopHub.App.Widget;
@@ -20,6 +21,7 @@ internal sealed partial class WidgetController(
     IMasterVolume volume,
     ProductivityService productivity,
     AgendaService agenda,
+    WeatherService weather,
     ILogger<WidgetController> logger,
     ILoggerFactory loggerFactory) : IDisposable
 {
@@ -42,6 +44,10 @@ internal sealed partial class WidgetController(
             {
                 Refresh(WidgetVisibilityReason.User);
             }
+            else if (e.Section == SettingsSections.Weather)
+            {
+                _window?.ShowWeather();
+            }
             else if (e.Section == SettingsSections.Media)
             {
                 _window?.RefreshMedia();
@@ -53,6 +59,7 @@ internal sealed partial class WidgetController(
         _subscriptions.Add(bus.Subscribe<MasterVolumeChanged>(e => _window?.ShowVolume(e.State), ui));
         _subscriptions.Add(bus.Subscribe<ProductivityChanged>(e => _window?.ShowProductivity(e.Snapshot), ui));
         _subscriptions.Add(bus.Subscribe<AgendaChanged>(_ => _window?.ShowAgenda(), ui));
+        _subscriptions.Add(bus.Subscribe<WeatherUpdated>(_ => _window?.ShowWeather(), ui));
         Refresh(WidgetVisibilityReason.User);
     }
 
@@ -94,7 +101,7 @@ internal sealed partial class WidgetController(
         {
             if (_window is null)
             {
-                _window = new WidgetWindow(settings, bus, media, volume, productivity, agenda, loggerFactory.CreateLogger<WidgetWindow>());
+                _window = new WidgetWindow(settings, bus, media, volume, productivity, agenda, weather, loggerFactory.CreateLogger<WidgetWindow>());
                 LogCreated();
             }
             _window.Apply(s);

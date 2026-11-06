@@ -19,6 +19,9 @@ public partial class WidgetWindow
     private const int MaxAgendaRows = 5;
     private readonly AgendaService _agenda;
 
+    /// <summary>Clima novo ou opção alterada: só o texto do cabeçalho muda.</summary>
+    internal void ShowWeather() => UpdateClock();
+
     internal void ShowAgenda()
     {
         if (_appliedPanel == WidgetPanel.Agenda && _appliedLayout == WidgetLayout.Expanded)

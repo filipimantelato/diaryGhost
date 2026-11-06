@@ -1,0 +1,118 @@
+<UserControl x:Class="DesktopHub.App.Main.Pages.NewsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid Margin="32,28,24,24">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <DockPanel>
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+        <Button x:Name="RefreshButton" Style="{StaticResource SecondaryButton}" Content="Atualizar" Margin="0,0,8,0" Click="Refresh_Click" />
+        <Button x:Name="SourcesButton" Style="{StaticResource SecondaryButton}" Content="Fontes e assuntos" Click="Sources_Click" />
+      </StackPanel>
+      <StackPanel>
+        <TextBlock Text="Notícias" Style="{StaticResource TitleText}" />
+        <TextBlock x:Name="StatusText" Style="{StaticResource CaptionText}" Margin="0,6,0,0" />
+      </StackPanel>
+    </DockPanel>
+
+    <!-- Desativado: explicação e ativação explícita -->
+    <Border x:Name="DisabledCard" Grid.Row="1" Grid.RowSpan="2" Style="{StaticResource Card}" Margin="0,20,0,0" VerticalAlignment="Top" MaxWidth="720" HorizontalAlignment="Left" Visibility="Collapsed">
+      <StackPanel>
+        <TextBlock Text="Notícias de fontes confiáveis" Style="{StaticResource SubtitleText}" />
+        <TextBlock Style="{StaticResource BodyText}" Margin="0,8,0,0"
+                   Text="O Diary Ghost lê os feeds RSS/Atom oficiais de veículos e órgãos com redação identificada (Agência Brasil, BBC News Brasil, g1, Folha, Agências do Senado e da Câmara, FAPESP, NASA, Tecnoblog, Ars Technica e outros). Nada de raspagem de sites, nada de redes sociais." />
+        <TextBlock Style="{StaticResource CaptionText}" Margin="0,8,0,0"
+                   Text="Ao ativar, o app consulta essas fontes a cada 30 minutos (só o que mudou é baixado). Nenhum dado seu é enviado: as requisições se identificam apenas como &quot;DiaryGhost&quot;. Você pode ocultar fontes, adicionar as suas e desativar quando quiser." />
+        <Button Style="{StaticResource AccentButton}" Content="Ativar notícias" HorizontalAlignment="Left" Margin="0,14,0,0" Click="Enable_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Filtros -->
+    <StackPanel x:Name="FilterBar" Grid.Row="1" Margin="0,16,0,10">
+      <WrapPanel x:Name="CategoryChips" />
+      <Grid Margin="0,6,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MaxWidth="420" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBox x:Name="SearchBox" AutomationProperties.Name="Buscar notícias" TextChanged="Search_Changed" />
+        <TextBlock x:Name="SearchHint" Text="Buscar no título, resumo ou fonte…" IsHitTestVisible="False" Margin="10,0,0,0" VerticalAlignment="Center"
+                   Foreground="{StaticResource TextTertiaryBrush}" FontSize="13" />
+        <CheckBox x:Name="UnreadOnly" Grid.Column="1" Style="{StaticResource ToggleSwitch}" Content="Só não lidas" Margin="16,0,0,0"
+                  VerticalAlignment="Center" Checked="Filter_Changed" Unchecked="Filter_Changed" />
+        <Button Grid.Column="3" Style="{StaticResource SecondaryButton}" Content="Marcar como lidas" Padding="12,5" Click="MarkAllRead_Click"
+                ToolTip="Marca como lidas as notícias exibidas" />
+      </Grid>
+    </StackPanel>
+
+    <Grid x:Name="Body" Grid.Row="2">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <ScrollViewer x:Name="ListScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel x:Name="ListPanel" Margin="0,0,8,0" MaxWidth="900" HorizontalAlignment="Left" />
+      </ScrollViewer>
+
+      <!-- Fontes e assuntos -->
+      <Border x:Name="SourcesPanel" Grid.Column="1" Width="380" Margin="16,0,0,0" Style="{StaticResource Card}" Padding="0" Visibility="Collapsed">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="16">
+            <TextBlock Text="Assuntos que você segue" Style="{StaticResource SubtitleText}" />
+            <TextBlock Style="{StaticResource CaptionText}" Margin="0,4,0,8" Text="Notícias com essas palavras aparecem em &quot;Seguindo&quot; e ganham destaque." />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBox x:Name="TopicBox" MaxLength="60" AutomationProperties.Name="Novo assunto" KeyDown="Topic_KeyDown" />
+              <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Seguir" Margin="8,0,0,0" Click="AddTopic_Click" />
+            </Grid>
+            <WrapPanel x:Name="TopicChips" Margin="0,8,0,0" />
+            <CheckBox x:Name="NotifyTopics" Style="{StaticResource ToggleSwitch}" Content="Avisar quando aparecerem" Margin="0,4,0,0"
+                      Checked="NotifyTopics_Changed" Unchecked="NotifyTopics_Changed" />
+
+            <Border Height="1" Background="{StaticResource BorderTokenBrush}" Margin="0,14" />
+            <TextBlock Text="Atualização" Style="{StaticResource SubtitleText}" />
+            <Grid Margin="0,8,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <ComboBox x:Name="IntervalBox" AutomationProperties.Name="Intervalo de atualização" SelectionChanged="Interval_Changed" />
+              <ComboBox x:Name="RetentionBox" Grid.Column="2" AutomationProperties.Name="Guardar notícias por" SelectionChanged="Retention_Changed" />
+            </Grid>
+            <Button Style="{StaticResource SecondaryButton}" Content="Desativar notícias" HorizontalAlignment="Left" Margin="0,10,0,0" Click="Disable_Click" />
+
+            <Border Height="1" Background="{StaticResource BorderTokenBrush}" Margin="0,14" />
+            <TextBlock Text="Fontes" Style="{StaticResource SubtitleText}" />
+            <TextBlock Style="{StaticResource CaptionText}" Margin="0,4,0,4"
+                       Text="Curadas: feeds oficiais de veículos e órgãos com redação identificada. Desmarque para ocultar." />
+            <StackPanel x:Name="SourceList" />
+
+            <TextBlock Text="Adicionar fonte (RSS ou Atom)" Style="{StaticResource BodyText}" FontWeight="SemiBold" Margin="0,14,0,6" />
+            <TextBox x:Name="NewSourceUrl" AutomationProperties.Name="Endereço do feed" ToolTip="Ex.: https://github.com/dotnet/runtime/releases.atom" />
+            <Grid Margin="0,6,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ComboBox x:Name="NewSourceCategory" AutomationProperties.Name="Categoria da nova fonte" />
+              <Button x:Name="AddSourceButton" Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Adicionar" Margin="8,0,0,0" Click="AddSource_Click" />
+            </Grid>
+            <TextBlock x:Name="SourceMessage" Style="{StaticResource CaptionText}" Margin="0,6,0,0" Visibility="Collapsed" />
+            <TextBlock Style="{StaticResource CaptionText}" Margin="0,6,0,0"
+                       Text="Prefira o feed oficial publicado pelo próprio veículo. O endereço é validado antes de entrar na lista." />
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

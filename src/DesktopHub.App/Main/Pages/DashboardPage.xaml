@@ -3,32 +3,21 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="40,32,24,32">
-      <TextBlock x:Name="GreetingText" Style="{StaticResource TitleText}" />
-      <TextBlock x:Name="DateText" Margin="0,4,0,0" FontSize="15" Foreground="{StaticResource TextSecondaryBrush}" />
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+          <Button x:Name="ResetButton" Style="{StaticResource SecondaryButton}" Content="Restaurar padrão" Margin="0,0,8,0" Visibility="Collapsed" Click="Reset_Click" />
+          <Button x:Name="CustomizeButton" Style="{StaticResource SecondaryButton}" Content="Personalizar" Click="Customize_Click" />
+        </StackPanel>
+        <StackPanel>
+          <TextBlock x:Name="GreetingText" Style="{StaticResource TitleText}" />
+          <TextBlock x:Name="DateText" Margin="0,4,0,0" FontSize="15" Foreground="{StaticResource TextSecondaryBrush}" />
+        </StackPanel>
+      </DockPanel>
 
-      <ItemsControl x:Name="Cards" Margin="0,28,0,0" Focusable="False">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <WrapPanel />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <Border Style="{StaticResource Card}" Width="300" MinHeight="136" Margin="0,0,16,16">
-              <StackPanel>
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Text="{Binding Glyph}" Style="{StaticResource IconText}" FontSize="15" Foreground="{StaticResource TextSecondaryBrush}" />
-                  <TextBlock Text="{Binding Title}" Style="{StaticResource SubtitleText}" Margin="10,0,0,0" />
-                </StackPanel>
-                <TextBlock Text="{Binding Body}" Style="{StaticResource BodyText}" Margin="0,10,0,0" Foreground="{StaticResource TextSecondaryBrush}" />
-                <Border Style="{StaticResource Badge}" Margin="0,12,0,0" Visibility="{Binding BadgeVisibility}">
-                  <TextBlock Text="{Binding Badge}" FontSize="11.5" Foreground="{StaticResource TextPrimaryBrush}" />
-                </Border>
-              </StackPanel>
-            </Border>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
+      <TextBlock x:Name="CustomizeHint" Style="{StaticResource CaptionText}" Margin="0,16,0,0" Visibility="Collapsed"
+                 Text="Use as setas para reordenar, o botão de largura para alternar entre normal e largo, e o olho para ocultar. Cartões ocultos aparecem abaixo para trazer de volta." />
+      <WrapPanel x:Name="CardsPanel" Margin="0,24,0,0" />
+      <WrapPanel x:Name="HiddenPanel" Margin="0,4,0,0" Visibility="Collapsed" />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

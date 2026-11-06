@@ -9,6 +9,11 @@ using DesktopHub.Core;
 using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Events;
 using DesktopHub.Infrastructure.Agenda;
+using DesktopHub.Core.News;
+using DesktopHub.Core.Weather;
+using DesktopHub.Infrastructure.Net;
+using DesktopHub.Infrastructure.News;
+using DesktopHub.Infrastructure.Weather;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Notifications;
 using DesktopHub.Core.Productivity;
@@ -142,6 +147,11 @@ public partial class App : Application
         services.AddSingleton<INotificationSink>(sp => sp.GetRequiredService<WindowsToastSink>());
         services.AddSingleton<IAgendaStore, SqliteAgendaStore>();
         services.AddSingleton<IReminderLog, SqliteReminderLog>();
+        services.AddSingleton(_ => HttpClients.Create());
+        services.AddSingleton<IFeedFetcher, HttpFeedFetcher>();
+        services.AddSingleton<INewsStore, SqliteNewsStore>();
+        services.AddSingleton<IWeatherProvider, OpenMeteoProvider>();
+        services.AddSingleton<IWeatherCache, SqliteWeatherCache>();
 
         // Aplicação
         services.AddSingleton<SettingsService>();
@@ -150,6 +160,8 @@ public partial class App : Application
         services.AddSingleton<ProductivityService>();
         services.AddSingleton<AgendaService>();
         services.AddSingleton<ReminderScheduler>();
+        services.AddSingleton<NewsService>();
+        services.AddSingleton<WeatherService>();
 
         // Plataforma e apresentação
         services.AddSingleton<FullscreenMonitor>();

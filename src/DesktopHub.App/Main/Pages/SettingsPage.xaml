@@ -134,6 +134,29 @@
         </StackPanel>
       </Border>
 
+      <!-- Clima -->
+      <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+          <TextBlock Text="Clima" Style="{StaticResource SubtitleText}" Margin="0,0,0,4" />
+          <TextBlock Style="{StaticResource CaptionText}" Margin="0,0,0,8"
+                     Text="Previsão do Open-Meteo (gratuito, sem conta). Você escolhe a cidade pelo nome; a localização automática não é usada. Só as coordenadas da cidade são enviadas." />
+          <TextBlock Text="{Binding WeatherLocationText}" Style="{StaticResource BodyText}" Margin="0,0,0,8" />
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="CitySearchBox" AutomationProperties.Name="Buscar cidade" KeyDown="CitySearch_KeyDown" />
+            <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Buscar cidade" Margin="8,0,0,0" Click="CitySearch_Click" />
+            <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Remover local" Margin="8,0,0,0" Click="ClearLocation_Click" />
+          </Grid>
+          <TextBlock x:Name="CitySearchMessage" Style="{StaticResource CaptionText}" Margin="0,6,0,0" Visibility="Collapsed" />
+          <StackPanel x:Name="CityResults" Margin="0,6,0,0" />
+          <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding WeatherInWidget}" Content="Mostrar a temperatura no cabeçalho do widget" Margin="0,8,0,0" />
+        </StackPanel>
+      </Border>
+
       <!-- Agenda: categorias -->
       <Border Style="{StaticResource Card}" Margin="0,16,0,0">
         <StackPanel>

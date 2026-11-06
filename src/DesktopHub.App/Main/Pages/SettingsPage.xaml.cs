@@ -36,6 +36,53 @@ public partial class SettingsPage : UserControl, IDisposable
 
     private void Resume_Click(object sender, RoutedEventArgs e) => _viewModel.ResumeNotifications();
 
+    private void CitySearch_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter)
+        {
+            _ = SearchCityAsync();
+            e.Handled = true;
+        }
+    }
+
+    private void CitySearch_Click(object sender, RoutedEventArgs e) => _ = SearchCityAsync();
+
+    private async Task SearchCityAsync()
+    {
+        var query = CitySearchBox.Text.Trim();
+        CityResults.Children.Clear();
+        CitySearchMessage.Visibility = Visibility.Visible;
+        if (query.Length < 2)
+        {
+            CitySearchMessage.Text = "Digite pelo menos 2 letras.";
+            return;
+        }
+        CitySearchMessage.Text = "Buscando…";
+        try
+        {
+            var places = await _viewModel.Weather.SearchAsync(query);
+            CitySearchMessage.Text = places.Count == 0 ? "Nenhuma cidade encontrada." : "Escolha:";
+            foreach (var place in places)
+            {
+                var button = new Button { Style = (Style)FindResource("Chip"), Content = place.DisplayName, Margin = new Thickness(0, 0, 6, 6), HorizontalAlignment = HorizontalAlignment.Left };
+                button.Click += (_, _) =>
+                {
+                    _viewModel.Weather.SetLocation(place);
+                    CityResults.Children.Clear();
+                    CitySearchMessage.Text = $"Local definido: {place.DisplayName}. A previsão aparece no Dashboard e no widget.";
+                    CitySearchBox.Clear();
+                };
+                CityResults.Children.Add(button);
+            }
+        }
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
+        {
+            CitySearchMessage.Text = "Não foi possível buscar agora (sem conexão?). Tente de novo.";
+        }
+    }
+
+    private void ClearLocation_Click(object sender, RoutedEventArgs e) => _viewModel.Weather.SetLocation(null);
+
     private void AddCategory_Click(object sender, RoutedEventArgs e)
     {
         if (_viewModel.AddCategory(NewCategoryBox.Text))

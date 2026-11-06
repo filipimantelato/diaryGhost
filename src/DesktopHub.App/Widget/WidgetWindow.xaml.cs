@@ -12,6 +12,7 @@ using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Productivity;
 using DesktopHub.Core.Settings;
+using DesktopHub.Core.Weather;
 using DesktopHub.Core.Windowing;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
@@ -36,6 +37,7 @@ public partial class WidgetWindow : Window
     private readonly IEventBus _bus;
     private readonly ILogger _logger;
     private readonly DispatcherTimer _clock;
+    private readonly WeatherService _weather;
     private nint _hwnd;
     private WidgetLayout? _appliedLayout;
     private WidgetPanel? _appliedPanel;
@@ -50,8 +52,9 @@ public partial class WidgetWindow : Window
     private PixelRect _dragWindowStart;
 
     internal WidgetWindow(SettingsService settings, IEventBus bus, MediaService media, IMasterVolume volume, ProductivityService productivity,
-        AgendaService agenda, ILogger logger)
+        AgendaService agenda, WeatherService weather, ILogger logger)
     {
+        _weather = weather;
         _settings = settings;
         _logger = logger;
         _bus = bus;
@@ -290,7 +293,10 @@ public partial class WidgetWindow : Window
     private void UpdateClock()
     {
         var now = DateTime.Now;
-        HeaderClock.Text = $"{now.ToString("ddd, d MMM", PtBr)} · {now.ToString("HH:mm", PtBr)}";
+        var weather = _settings.Weather.ShowInWidget && _weather.Snapshot is { } w
+            ? $"{Math.Round(w.Current.Temperature):0}° {WeatherCodes.Describe(w.Current.Code).ToLower(PtBr)} · "
+            : "";
+        HeaderClock.Text = $"{weather}{now.ToString("ddd, d MMM", PtBr)} · {now.ToString("HH:mm", PtBr)}";
         if (_shownMedia is null)
         {
             RenderCompact();
