@@ -108,6 +108,44 @@ isso fica explicitamente fora de escopo.
 
 ---
 
+## ADR-009 — Seleção de sessão de mídia explícita, com histerese no modo automático
+**Data:** 2026-11-06 · **Status:** aceita
+
+Prioridade: sessão fixada pelo usuário → fonte preferencial → sessão que **acabou de começar** a tocar →
+sessão exibida anteriormente → qualquer sessão tocando → "atual" do Windows → primeira.
+Comandos levam sempre o ID da sessão exibida; se ela fechou, o comando falha (nunca é redirecionado).
+
+**Por que a histerese:** no teste ao vivo, com Spotify e uma segunda sessão tocando, pausar o Spotify fez a
+regra "mostrar quem toca" trocar a sessão exibida, e o clique seguinte ("retomar") pausou o outro app —
+exatamente o comportamento que a especificação proíbe. Agora a exibição só muda por uma transição
+"começou a tocar". Voltar ao chip **Auto** resolve do zero (pedido explícito do usuário).
+Coberto por testes de regressão em `MediaTests.cs`.
+
+## ADR-010 — Todo acesso ao GSMTC em threads MTA
+**Status:** aceita
+
+Observado: obter o `GlobalSystemMediaTransportControlsSessionManager` na thread de UI (STA) e usá-lo a
+partir de eventos (threads do pool) gerou `RPC_E_WRONG_THREAD` (0x8001010E). O adaptador agora obtém o
+gerenciador e executa comandos via `Task.Run`; eventos do Windows já chegam no pool. O Core Audio, ao
+contrário, fica inteiro na thread de UI (callbacks só leem a estrutura recebida, sem chamadas COM).
+
+## ADR-011 — Estrutura do widget a partir do vídeo; animação contínua opcional
+**Status:** aceita
+
+Adotada a estrutura observada (cabeçalho título + data/hora, corpo por painel, abas na base, altura que
+segue o conteúdo, chips de fonte) com identidade visual própria — ver `docs/VIDEO-ANALYSIS.md`.
+O equalizador animado do vídeo fica **desligado por padrão**: medido em ~0,18% de CPU contínuos contra
+~0,01% com o indicador estático. Progresso de mídia a 1 Hz só com o ponteiro sobre a ilha.
+
+## ADR-012 — Volume: global agora, por app depois
+**Status:** aceita
+
+Implementado o volume mestre do dispositivo padrão (`IAudioEndpointVolume`), como no vídeo, rotulado
+como "volume geral, não o de um app". Volume por app (`IAudioSessionManager2`/`ISimpleAudioVolume`)
+exige associar a sessão de mídia ao processo de áudio; para apps Win32 o AUMID é o nome do executável
+("Spotify.exe"), mas navegadores usam IDs próprios e vários processos — a associação seria heurística.
+Fica para quando houver um teste real com navegador, para não exibir um controle que atue no app errado.
+
 ## Decisões pendentes
 - **Notificações (Fase 3):** toasts via Windows App SDK `AppNotificationManager` (suporta apps não
   empacotados) vs. registro manual de AUMID com atalho no Menu Iniciar.

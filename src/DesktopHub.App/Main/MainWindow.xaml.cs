@@ -8,6 +8,7 @@ using DesktopHub.App.Shell;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Events;
+using DesktopHub.Core.Media;
 using DesktopHub.Core.Settings;
 
 namespace DesktopHub.App.Main;
@@ -24,10 +25,11 @@ public partial class MainWindow : Window
     private readonly GlobalHotkeys _hotkeys;
     private readonly StartupState _startup;
     private readonly AppPaths _paths;
+    private readonly MediaService _media;
     private readonly Dictionary<RadioButton, string> _navKeys;
 
     internal MainWindow(AppShell shell, SettingsService settings, IEventBus bus, WidgetController widget,
-        GlobalHotkeys hotkeys, StartupState startup, AppPaths paths)
+        GlobalHotkeys hotkeys, StartupState startup, AppPaths paths, MediaService media)
     {
         _ = shell;
         _settings = settings;
@@ -36,6 +38,7 @@ public partial class MainWindow : Window
         _hotkeys = hotkeys;
         _startup = startup;
         _paths = paths;
+        _media = media;
         InitializeComponent();
 
         _navKeys = new()
@@ -52,7 +55,7 @@ public partial class MainWindow : Window
         };
 
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 1";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 2";
 
         SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
         NavDashboard.IsChecked = true;
@@ -79,7 +82,7 @@ public partial class MainWindow : Window
 
     private FrameworkElement CreatePage(string key) => key switch
     {
-        MainPages.Dashboard => new DashboardPage(_settings, _widget, _startup, _paths),
+        MainPages.Dashboard => new DashboardPage(_settings, _widget, _startup, _paths, _media),
         MainPages.Settings => new SettingsPage(new SettingsViewModel(_settings, _bus, _widget, _hotkeys, _paths)),
         "news" => new PlaceholderPage("", "Notícias", 5,
             "Agregador com fontes confiáveis via RSS/Atom e APIs oficiais, sem scraping. Mostra fonte, autor, horário de publicação e horário da consulta.",
@@ -93,9 +96,7 @@ public partial class MainWindow : Window
         "reminders" => new PlaceholderPage("", "Lembretes", 4,
             "Lembretes persistentes que disparam mesmo com a janela fechada, enquanto o app estiver em execução.",
             ["Notificações nativas do Windows com ações: concluir, adiar 5/10/30/60 min", "Recorrência", "Recuperação correta após suspensão, hibernação e mudança de horário"]),
-        "media" => new PlaceholderPage("", "Mídia", 2,
-            "Controle universal pelas sessões de mídia do Windows (GlobalSystemMediaTransportControls). Funciona sem login no Spotify.",
-            ["Lista de sessões (Spotify, Brave, Chrome, Edge…) com seleção explícita", "Comandos enviados só para a sessão escolhida", "Metadados e capa apenas quando o app os fornece", "Spotify Web API opcional e separada (comandos exigem Premium)"]),
+        "media" => new MediaPage(_media, _settings, _bus),
         "productivity" => new PlaceholderPage("", "Produtividade", 3,
             "Cronômetro, temporizador e Pomodoro calculados por timestamps — sem deriva e corretos após suspensão.",
             ["Cronômetro com voltas", "Temporizador com presets de 5 a 60 minutos", "Pomodoro com ciclos, histórico e estatísticas"]),

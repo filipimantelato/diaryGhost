@@ -30,21 +30,22 @@ Atividades e integrações · Configurações. Módulos ainda não implementados
 em qual fase chegam — nunca dados de exemplo.
 
 ## Estados do widget (Modo B)
-| Estado | Tamanho da ilha | Conteúdo | Fase |
+Estrutura derivada do vídeo de referência ([análise](VIDEO-ANALYSIS.md)): cabeçalho (painel + data/hora),
+corpo e barra de abas na base. A altura acompanha o conteúdo, com transição de 180 ms.
+
+| Estado | Largura | Conteúdo | Fase |
 |---|---|---|---|
-| Compacto | 252 × 44 | ponto de atividade, ícone do painel, hora, status curto, expandir | 1 ✅ |
-| Expandido | 420 × 150 | abas (Mídia, Foco, Agenda, Hoje, Atividade) + fixar, bloquear, recolher, ocultar | 1 ✅ |
-| Player | expandido | capa, faixa, artista, fonte, controles, progresso, seletor de sessão | 2 |
-| Produtividade | expandido | cronômetro / temporizador / Pomodoro + iniciar, pausar, reiniciar, concluir | 3 |
-| Agenda | expandido | próximo evento, horário, tempo restante, lembretes | 4 |
-| Informações | expandido | data ✅; temperatura, condição, manchete, alertas | 5 |
-| Atividade | expandido | eventos de integrações (Claude Code etc.) | 6 |
+| Compacto | 140–340 (segue o texto) | capa circular + "título · artista" + indicador de reprodução; sem mídia: hora e data | 2 ✅ |
+| Início | 420 | cartões Mídia (real), Foco, Claude Code | 2 ✅ (Foco/Claude: fases 3/6) |
+| Mídia | 420 | capa, título, artista, fonte e estado, progresso (se o app informa), controles suportados, chips Auto + sessões | 2 ✅ |
+| Volume | 420 | silenciar, slider, valor; volume geral do Windows | 2 ✅ |
+| Foco | 420 | cronômetro / temporizador / Pomodoro | 3 |
+| Agenda | 420 | próximo evento, tempo restante, lembretes | 4 |
+| Atividade | 420 | eventos de integrações (Claude Code via hooks) | 6 |
 
-Interações: duplo clique alterna compacto/expandido; arrastar move (se desbloqueado); posição e
-painel são lembrados; o widget nunca recebe foco ao ser clicado.
+Interações: clique na ilha compacta expande; botão no cabeçalho recolhe; arrastar move (se
+desbloqueado; limiar de 4 px separa clique de arraste); clique direito abre o menu (sempre visível,
+bloquear, ocultar, abrir o app); posição, layout e painel são lembrados; o widget nunca recebe foco.
+Leitores de tela veem a ilha como botão "expandir ou recolher" (padrão Invoke).
 
-## Sobre a referência em vídeo
-O vídeo mencionado na especificação **não foi anexado** à conversa em que este documento foi escrito.
-Os estados acima derivam apenas da descrição textual (ilha escura horizontal, player, cronômetro curto,
-temporizador de ~25 min, barra ajustável, transições). Ao receber o vídeo, revisar proporções, tempos
-de transição e a barra ajustável.
+Indicador de reprodução: estático por padrão; equalizador animado opcional (custo medido no benchmark).

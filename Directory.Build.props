@@ -7,7 +7,7 @@
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
 
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>Personal Desktop Hub</Product>
     <Company>DesktopHub</Company>
     <Copyright>Uso pessoal</Copyright>

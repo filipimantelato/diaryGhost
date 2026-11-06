@@ -1,84 +1,257 @@
 <Window x:Class="DesktopHub.App.Widget.WidgetWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:DesktopHub.App.Widget"
         Title="Desktop Hub — Widget"
-        Width="440" Height="176"
+        Width="460" Height="300"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" ShowActivated="False"
         WindowStartupLocation="Manual" Left="0" Top="0"
         FontFamily="{StaticResource UiFont}" Foreground="{StaticResource TextPrimaryBrush}"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
   <!-- A janela é uma "tela" transparente de tamanho fixo. Pixels com alfa 0 não capturam cliques,
-       então só a ilha interage com o mouse. A ilha anima dentro da tela; o HWND nunca é redimensionado. -->
+       então só a ilha interage com o mouse. A ilha muda de tamanho dentro da tela; o HWND nunca é
+       redimensionado. Estrutura inspirada no vídeo de referência: cabeçalho, corpo e abas na base. -->
+  <Window.Resources>
+    <ContextMenu x:Key="IslandMenu" Opened="IslandMenu_Opened">
+      <MenuItem Tag="pin" Header="Sempre visível" IsCheckable="True" Click="MenuAlwaysOnTop_Click" />
+      <MenuItem Tag="lock" Header="Bloquear posição" IsCheckable="True" Click="MenuLocked_Click" />
+      <MenuItem Header="Ocultar widget" Click="MenuHide_Click" />
+      <Separator Style="{StaticResource MenuSeparator}" />
+      <MenuItem Header="Abrir Desktop Hub" Click="MenuOpenMain_Click" />
+    </ContextMenu>
+
+    <Style x:Key="CardLabel" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+    </Style>
+    <Style x:Key="IslandCard" TargetType="Border">
+      <Setter Property="CornerRadius" Value="14" />
+      <Setter Property="Height" Value="112" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+  </Window.Resources>
+
   <Grid>
-    <Border x:Name="Island"
+    <local:InvokableBorder x:Name="Island"
             HorizontalAlignment="Center" VerticalAlignment="Top"
-            Width="252" Height="44" CornerRadius="22"
+            Width="220" Height="40" CornerRadius="20"
             Background="{StaticResource IslandBrush}"
             BorderBrush="{StaticResource BorderTokenBrush}" BorderThickness="1"
-            AutomationProperties.Name="Widget do Desktop Hub"
+            AutomationProperties.Name="Widget do Desktop Hub: expandir ou recolher"
+            Invoked="Island_Invoked"
+            RenderOptions.BitmapScalingMode="Linear"
+            ContextMenu="{StaticResource IslandMenu}"
             MouseLeftButtonDown="Island_MouseLeftButtonDown"
             MouseMove="Island_MouseMove"
             MouseLeftButtonUp="Island_MouseLeftButtonUp"
             LostMouseCapture="Island_LostMouseCapture">
       <Grid>
-        <!-- Estado compacto -->
-        <Grid x:Name="CompactView" Margin="16,0,6,0">
+        <!-- ===== Compacto: capa/ícone · texto · indicador de reprodução ===== -->
+        <Grid x:Name="CompactView" Height="38" Margin="8,0,14,0" HorizontalAlignment="Left" VerticalAlignment="Top">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <Ellipse Width="7" Height="7" VerticalAlignment="Center" Fill="{DynamicResource AccentBrush}" />
-          <TextBlock x:Name="CompactGlyph" Grid.Column="1" Style="{StaticResource IconText}" FontSize="14"
-                     Margin="10,0,8,0" Foreground="{StaticResource TextSecondaryBrush}" />
-          <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock x:Name="CompactClock" FontSize="13" FontWeight="SemiBold" />
-            <TextBlock x:Name="CompactStatus" FontSize="12" Margin="8,0,0,0"
-                       Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+          <Grid Width="24" Height="24" VerticalAlignment="Center">
+            <Ellipse x:Name="CompactArt" Visibility="Collapsed" />
+            <TextBlock x:Name="CompactGlyph" Style="{StaticResource IconText}" FontSize="13" HorizontalAlignment="Center"
+                       Foreground="{StaticResource TextSecondaryBrush}" Text="&#xE823;" />
+          </Grid>
+          <TextBlock x:Name="CompactText" Grid.Column="1" Margin="9,0,12,0" FontSize="12.5" MaxWidth="240"
+                     TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+          <StackPanel x:Name="Equalizer" Grid.Column="2" Orientation="Horizontal" Height="12" VerticalAlignment="Center" Visibility="Collapsed">
+            <Rectangle x:Name="Bar1" Width="3" Height="12" RadiusX="1.5" RadiusY="1.5" Margin="0,0,2,0" Fill="{DynamicResource AccentBrush}" RenderTransformOrigin="0.5,1">
+              <Rectangle.RenderTransform><ScaleTransform ScaleY="0.45" /></Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle x:Name="Bar2" Width="3" Height="12" RadiusX="1.5" RadiusY="1.5" Margin="0,0,2,0" Fill="{DynamicResource AccentBrush}" RenderTransformOrigin="0.5,1">
+              <Rectangle.RenderTransform><ScaleTransform ScaleY="0.8" /></Rectangle.RenderTransform>
+            </Rectangle>
+            <Rectangle x:Name="Bar3" Width="3" Height="12" RadiusX="1.5" RadiusY="1.5" Fill="{DynamicResource AccentBrush}" RenderTransformOrigin="0.5,1">
+              <Rectangle.RenderTransform><ScaleTransform ScaleY="0.6" /></Rectangle.RenderTransform>
+            </Rectangle>
           </StackPanel>
-          <Button Grid.Column="3" Style="{StaticResource IconButton}" Content="&#xE70D;"
-                  ToolTip="Expandir" AutomationProperties.Name="Expandir widget" Click="Expand_Click" />
         </Grid>
 
-        <!-- Estado expandido -->
-        <Grid x:Name="ExpandedView" Margin="12,8,8,12" Visibility="Collapsed">
+        <!-- ===== Expandido ===== -->
+        <Grid x:Name="ExpandedView" Width="420" VerticalAlignment="Top" Visibility="Collapsed">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
-          <DockPanel>
+
+          <!-- Cabeçalho -->
+          <DockPanel Margin="16,10,8,0">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-              <ToggleButton x:Name="PinButton" Style="{StaticResource IconToggleButton}" Content="&#xE718;"
-                            ToolTip="Sempre visível sobre outras janelas" AutomationProperties.Name="Sempre visível"
-                            Checked="Pin_Changed" Unchecked="Pin_Changed" />
-              <ToggleButton x:Name="LockButton" Style="{StaticResource IconToggleButton}" Content="&#xE72E;"
-                            ToolTip="Bloquear posição" AutomationProperties.Name="Bloquear posição"
-                            Checked="Lock_Changed" Unchecked="Lock_Changed" />
-              <Button Style="{StaticResource IconButton}" Content="&#xE70E;"
+              <TextBlock x:Name="HeaderClock" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <Button Style="{StaticResource IconButton}" Width="26" Height="26" FontSize="11" Content="&#xE70E;"
                       ToolTip="Recolher" AutomationProperties.Name="Recolher widget" Click="Collapse_Click" />
-              <Button Style="{StaticResource IconButton}" Content="&#xE711;"
-                      ToolTip="Ocultar widget (o app continua na bandeja)" AutomationProperties.Name="Ocultar widget" Click="Hide_Click" />
             </StackPanel>
-            <StackPanel x:Name="PanelTabs" Orientation="Horizontal">
-              <RadioButton x:Name="TabMedia" GroupName="WidgetPanel" Style="{StaticResource IconToggleButton}" Content="&#xE8D6;" ToolTip="Mídia" AutomationProperties.Name="Mídia" Checked="Tab_Checked" />
-              <RadioButton x:Name="TabFocus" GroupName="WidgetPanel" Style="{StaticResource IconToggleButton}" Content="&#xE916;" ToolTip="Foco" AutomationProperties.Name="Foco" Checked="Tab_Checked" />
-              <RadioButton x:Name="TabAgenda" GroupName="WidgetPanel" Style="{StaticResource IconToggleButton}" Content="&#xE787;" ToolTip="Agenda" AutomationProperties.Name="Agenda" Checked="Tab_Checked" />
-              <RadioButton x:Name="TabInfo" GroupName="WidgetPanel" Style="{StaticResource IconToggleButton}" Content="&#xE946;" ToolTip="Hoje" AutomationProperties.Name="Hoje" Checked="Tab_Checked" />
-              <RadioButton x:Name="TabActivity" GroupName="WidgetPanel" Style="{StaticResource IconToggleButton}" Content="&#xE943;" ToolTip="Atividade" AutomationProperties.Name="Atividade de integrações" Checked="Tab_Checked" />
-            </StackPanel>
+            <TextBlock x:Name="PanelTitle" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
           </DockPanel>
 
-          <StackPanel x:Name="PanelContent" Grid.Row="1" Margin="6,10,6,0">
-            <TextBlock x:Name="PanelTitle" Style="{StaticResource SubtitleText}" />
-            <TextBlock x:Name="PanelBody" Style="{StaticResource CaptionText}" Margin="0,4,0,0" />
-            <Border Style="{StaticResource Badge}" Margin="0,10,0,0">
-              <TextBlock x:Name="PanelBadge" FontSize="11.5" Foreground="{StaticResource TextPrimaryBrush}" />
-            </Border>
+          <!-- Corpo -->
+          <Grid Grid.Row="1" Margin="16,8,16,0">
+            <!-- Início: cartões -->
+            <UniformGrid x:Name="HomeBody" Rows="1" Columns="3">
+              <Border x:Name="HomeMediaCard" Style="{StaticResource IslandCard}" Margin="0,0,6,0" Background="{StaticResource SurfaceBrush}"
+                      AutomationProperties.Name="Cartão de mídia">
+                <Grid>
+                  <Border x:Name="HomeMediaArt" CornerRadius="14" />
+                  <Border x:Name="HomeMediaShade" CornerRadius="14" Background="#A6000000" Visibility="Collapsed" />
+                  <TextBlock Text="Mídia" Style="{StaticResource CardLabel}" Margin="10,8" VerticalAlignment="Top" />
+                  <StackPanel Margin="10,0,38,10" VerticalAlignment="Bottom">
+                    <TextBlock x:Name="HomeMediaTitle" FontSize="12.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="HomeMediaArtist" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                  <Button x:Name="HomeMediaPlay" Style="{StaticResource IconButton}" Width="28" Height="28" FontSize="11"
+                          Background="#40FFFFFF" Foreground="{StaticResource TextPrimaryBrush}" Content="&#xE768;"
+                          HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,8,8"
+                          AutomationProperties.Name="Tocar ou pausar" Click="PlayPause_Click" />
+                </Grid>
+              </Border>
+              <Border x:Name="HomeFocusCard" Style="{StaticResource IslandCard}" Margin="3,0" AutomationProperties.Name="Cartão de foco">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#3A2D6B" Offset="0" />
+                    <GradientStop Color="#221A3D" Offset="1" />
+                  </LinearGradientBrush>
+                </Border.Background>
+                <Grid Margin="10,8,10,10">
+                  <TextBlock Text="Foco" Style="{StaticResource CardLabel}" VerticalAlignment="Top" />
+                  <StackPanel VerticalAlignment="Bottom">
+                    <TextBlock Text="&#xE916;" Style="{StaticResource IconText}" FontSize="18" Margin="0,0,0,4" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Left" />
+                    <TextBlock Text="Chega na Fase 3" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+              <Border x:Name="HomeActivityCard" Style="{StaticResource IslandCard}" Margin="6,0,0,0" AutomationProperties.Name="Cartão de atividade">
+                <Border.Background>
+                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="#5A3424" Offset="0" />
+                    <GradientStop Color="#2C1D18" Offset="1" />
+                  </LinearGradientBrush>
+                </Border.Background>
+                <Grid Margin="10,8,10,10">
+                  <TextBlock Text="Claude Code" Style="{StaticResource CardLabel}" VerticalAlignment="Top" />
+                  <StackPanel VerticalAlignment="Bottom">
+                    <TextBlock Text="&#xE943;" Style="{StaticResource IconText}" FontSize="18" Margin="0,0,0,4" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Left" />
+                    <TextBlock Text="Chega na Fase 6" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                  </StackPanel>
+                </Grid>
+              </Border>
+            </UniformGrid>
+
+            <!-- Mídia -->
+            <StackPanel x:Name="MediaBody" Visibility="Collapsed">
+              <Grid x:Name="MediaNowPlaying">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="56" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Width="56" Height="56" CornerRadius="10" Background="{StaticResource SurfaceElevatedBrush}">
+                  <Grid>
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE8D6;" HorizontalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}" />
+                    <Border x:Name="MediaArt" CornerRadius="10" />
+                  </Grid>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                  <TextBlock x:Name="MediaTitle" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                  <TextBlock x:Name="MediaArtist" FontSize="12" Margin="0,1,0,0" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock x:Name="MediaSource" FontSize="11" Margin="0,1,0,0" Foreground="{StaticResource TextTertiaryBrush}" />
+                </StackPanel>
+              </Grid>
+
+              <Grid x:Name="MediaProgress" Margin="0,8,0,0">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Slider x:Name="ProgressSlider" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="1"
+                        AutomationProperties.Name="Posição da faixa" PreviewMouseLeftButtonUp="ProgressSlider_MouseUp" />
+                <DockPanel Grid.Row="1">
+                  <TextBlock x:Name="DurationText" DockPanel.Dock="Right" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                  <TextBlock x:Name="ElapsedText" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                </DockPanel>
+              </Grid>
+
+              <StackPanel x:Name="MediaButtons" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                <Button x:Name="PrevButton" Style="{StaticResource IconButton}" Content="&#xE892;" ToolTip="Anterior"
+                        AutomationProperties.Name="Faixa anterior" Click="Previous_Click" />
+                <Button x:Name="PlayPauseButton" Style="{StaticResource IconButton}" Width="40" Height="40" FontSize="18" Margin="12,0"
+                        Content="&#xE768;" AutomationProperties.Name="Tocar ou pausar" Click="PlayPause_Click" />
+                <Button x:Name="NextButton" Style="{StaticResource IconButton}" Content="&#xE893;" ToolTip="Próxima"
+                        AutomationProperties.Name="Próxima faixa" Click="Next_Click" />
+              </StackPanel>
+
+              <StackPanel x:Name="MediaEmpty" Visibility="Collapsed" Margin="0,4,0,6">
+                <TextBlock x:Name="MediaEmptyTitle" FontSize="13" FontWeight="SemiBold" />
+                <TextBlock x:Name="MediaEmptyBody" Style="{StaticResource CaptionText}" Margin="0,3,0,0" />
+              </StackPanel>
+
+              <ItemsControl x:Name="SourceChips" Margin="0,8,0,0" HorizontalAlignment="Center" Focusable="False">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Button Style="{StaticResource Chip}" Tag="{Binding}" Click="SourceChip_Click" ToolTip="{Binding Tooltip}"
+                            AutomationProperties.Name="{Binding AutomationName}">
+                      <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Glyph}" FontFamily="{StaticResource IconFont}" FontSize="10" Margin="0,0,5,0" VerticalAlignment="Center"
+                                   Visibility="{Binding GlyphVisibility}" />
+                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                      </StackPanel>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+            <!-- Volume -->
+            <StackPanel x:Name="VolumeBody" Visibility="Collapsed">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="40" />
+                </Grid.ColumnDefinitions>
+                <Button x:Name="MuteButton" Style="{StaticResource IconButton}" Content="&#xE767;" ToolTip="Silenciar"
+                        AutomationProperties.Name="Silenciar ou reativar o som" Click="Mute_Click" />
+                <Slider x:Name="VolumeSlider" Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="100"
+                        SmallChange="2" LargeChange="10" Margin="8,0" VerticalAlignment="Center"
+                        AutomationProperties.Name="Volume do sistema" ValueChanged="VolumeSlider_ValueChanged" />
+                <TextBlock x:Name="VolumeText" Grid.Column="2" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" />
+              </Grid>
+              <TextBlock x:Name="VolumeCaption" Style="{StaticResource CaptionText}" Margin="40,2,0,4"
+                         Text="Saída de áudio padrão do Windows — volume geral, não o de um app" />
+            </StackPanel>
+
+            <!-- Módulos ainda não implementados -->
+            <StackPanel x:Name="PlaceholderBody" Visibility="Collapsed" Margin="0,0,0,4">
+              <TextBlock x:Name="PlaceholderText" Style="{StaticResource CaptionText}" />
+              <Border Style="{StaticResource Badge}" Margin="0,8,0,0">
+                <TextBlock x:Name="PlaceholderBadge" FontSize="11.5" Foreground="{StaticResource TextPrimaryBrush}" />
+              </Border>
+            </StackPanel>
+          </Grid>
+
+          <!-- Abas -->
+          <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,10">
+            <RadioButton x:Name="TabHome" Style="{StaticResource IslandTab}" Content="&#xE80F;" ToolTip="Início" AutomationProperties.Name="Início" Checked="Tab_Checked" />
+            <RadioButton x:Name="TabMedia" Style="{StaticResource IslandTab}" Content="&#xE8D6;" ToolTip="Mídia" AutomationProperties.Name="Mídia" Checked="Tab_Checked" />
+            <RadioButton x:Name="TabFocus" Style="{StaticResource IslandTab}" Content="&#xE916;" ToolTip="Foco" AutomationProperties.Name="Foco" Checked="Tab_Checked" />
+            <RadioButton x:Name="TabAgenda" Style="{StaticResource IslandTab}" Content="&#xE787;" ToolTip="Agenda" AutomationProperties.Name="Agenda" Checked="Tab_Checked" />
+            <RadioButton x:Name="TabActivity" Style="{StaticResource IslandTab}" Content="&#xE943;" ToolTip="Atividade" AutomationProperties.Name="Atividade de integrações" Checked="Tab_Checked" />
+            <RadioButton x:Name="TabVolume" Style="{StaticResource IslandTab}" Content="&#xE767;" ToolTip="Volume" AutomationProperties.Name="Volume" Checked="Tab_Checked" />
           </StackPanel>
         </Grid>
       </Grid>
-    </Border>
+    </local:InvokableBorder>
   </Grid>
 </Window>

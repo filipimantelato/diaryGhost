@@ -1,16 +1,23 @@
 using DesktopHub.App.Platform;
 using DesktopHub.Core.Events;
+using DesktopHub.Core.Media;
 using DesktopHub.Core.Settings;
 using Microsoft.Extensions.Logging;
 
 namespace DesktopHub.App.Widget;
 
 /// <summary>
-/// Decide quando o widget aparece: preferência do usuário + política de tela cheia + supressão da sessão
-/// (<c>--no-widget</c>). A janela é criada só na primeira exibição.
+/// Decide quando o widget aparece (preferência do usuário + política de tela cheia + supressão da sessão
+/// via <c>--no-widget</c>) e repassa a ele os eventos de mídia e volume. A janela é criada só na primeira exibição.
 /// </summary>
 internal sealed partial class WidgetController(
-    SettingsService settings, IEventBus bus, FullscreenMonitor fullscreen, ILogger<WidgetController> logger) : IDisposable
+    SettingsService settings,
+    IEventBus bus,
+    FullscreenMonitor fullscreen,
+    MediaService media,
+    IMasterVolume volume,
+    ILogger<WidgetController> logger,
+    ILoggerFactory loggerFactory) : IDisposable
 {
     private readonly List<IDisposable> _subscriptions = [];
     private WidgetWindow? _window;
@@ -31,8 +38,15 @@ internal sealed partial class WidgetController(
             {
                 Refresh(WidgetVisibilityReason.User);
             }
+            else if (e.Section == SettingsSections.Media)
+            {
+                _window?.RefreshMedia();
+            }
         }, ui));
         _subscriptions.Add(bus.Subscribe<ForegroundFullscreenChanged>(_ => Refresh(WidgetVisibilityReason.FullscreenPolicy), ui));
+        // Eventos de mídia/volume chegam de threads do Windows; o contexto de UI serializa a entrega.
+        _subscriptions.Add(bus.Subscribe<ActiveMediaChanged>(e => _window?.ShowMedia(e), ui));
+        _subscriptions.Add(bus.Subscribe<MasterVolumeChanged>(e => _window?.ShowVolume(e.State), ui));
         Refresh(WidgetVisibilityReason.User);
     }
 
@@ -74,7 +88,7 @@ internal sealed partial class WidgetController(
         {
             if (_window is null)
             {
-                _window = new WidgetWindow(settings);
+                _window = new WidgetWindow(settings, bus, media, volume, loggerFactory.CreateLogger<WidgetWindow>());
                 LogCreated();
             }
             _window.Apply(s);

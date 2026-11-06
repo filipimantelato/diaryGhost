@@ -7,74 +7,94 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using DesktopHub.App.Platform;
 using DesktopHub.App.Theme;
+using DesktopHub.Core.Events;
+using DesktopHub.Core.Media;
 using DesktopHub.Core.Settings;
 using DesktopHub.Core.Windowing;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
 namespace DesktopHub.App.Widget;
 
 /// <summary>
 /// A "ilha" flutuante. Não rouba foco (<c>WS_EX_NOACTIVATE</c>), não aparece no Alt+Tab
-/// (<c>WS_EX_TOOLWINDOW</c>) e só renderiza quando algo muda: o relógio acorda uma vez por minuto
-/// e somente enquanto o widget está visível.
+/// (<c>WS_EX_TOOLWINDOW</c>) e só renderiza quando algo muda. Este arquivo cuida da janela
+/// (posição, arrastar, layout, abas); <c>WidgetWindow.Media.cs</c> cuida dos painéis de mídia e volume.
 /// </summary>
 public partial class WidgetWindow : Window
 {
     private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
     private static readonly Duration ResizeDuration = TimeSpan.FromMilliseconds(180);
     private const int TopMargin = 8;
+    private const double ExpandedWidth = 420;
+    private const double MaxCompactWidth = 340;
+    private const double DragThreshold = 4;
 
     private readonly SettingsService _settings;
+    private readonly IEventBus _bus;
+    private readonly ILogger _logger;
     private readonly DispatcherTimer _clock;
     private nint _hwnd;
     private WidgetLayout? _appliedLayout;
     private WidgetPanel? _appliedPanel;
     private bool? _appliedCaptureExclusion;
     private bool _syncingTabs;
+    private bool _resizePending;
 
+    private bool _pressed;
     private bool _dragging;
+    private object? _pressSource;
     private (int X, int Y) _dragCursorStart;
     private PixelRect _dragWindowStart;
 
-    internal WidgetWindow(SettingsService settings)
+    internal WidgetWindow(SettingsService settings, IEventBus bus, MediaService media, IMasterVolume volume, ILogger logger)
     {
         _settings = settings;
+        _logger = logger;
+        _bus = bus;
+        _media = media;
+        _volume = volume;
         InitializeComponent();
         _clock = new DispatcherTimer(DispatcherPriority.Background);
         _clock.Tick += (_, _) => UpdateClock();
+        _progressTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
+        _progressTimer.Tick += (_, _) => UpdateProgress();
         IsVisibleChanged += OnIsVisibleChanged;
         SourceInitialized += OnSourceInitialized;
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        InitializeMedia();
     }
 
     /// <summary>Falso quando o Windows recusou a exclusão de capturas (ex.: versão anterior ao 2004).</summary>
     public bool CaptureExclusionSupported { get; private set; } = true;
 
+    private bool AnimationsAllowed => ThemeManager.AnimationsAllowed(_settings.Widget.AnimationsEnabled);
+
     internal void Apply(WidgetSettings s)
     {
         Topmost = s.AlwaysOnTop;
         Opacity = s.Opacity;
-        PinButton.IsChecked = s.AlwaysOnTop;
-        LockButton.IsChecked = s.Locked;
-        LockButton.Content = s.Locked ? "" : "";
         Island.Cursor = s.Locked ? null : Cursors.SizeAll;
 
-        if (_appliedPanel != s.Panel)
+        var layoutChanged = _appliedLayout != s.Layout;
+        var animate = _appliedLayout is not null && AnimationsAllowed;
+        if (layoutChanged && _appliedLayout is not null)
+        {
+            LogLayoutApplied(_logger, s.Layout);
+        }
+        if (_appliedPanel != s.Panel || layoutChanged)
         {
             _appliedPanel = s.Panel;
-            ShowPanel(s.Panel);
-        }
-        if (_appliedLayout != s.Layout)
-        {
-            var animate = _appliedLayout is not null && ThemeManager.AnimationsAllowed(s.AnimationsEnabled);
             _appliedLayout = s.Layout;
-            ApplyLayout(s.Layout, animate);
+            ShowPanel(s.Panel, s.Layout);
+            ResizeIsland(animate);
         }
         if (_hwnd != 0 && _appliedCaptureExclusion != s.ExcludeFromCapture)
         {
             _appliedCaptureExclusion = s.ExcludeFromCapture;
             CaptureExclusionSupported = WindowInterop.SetExcludeFromCapture(_hwnd, s.ExcludeFromCapture) || !s.ExcludeFromCapture;
         }
+        UpdateTimers();
     }
 
     /// <summary>Recoloca o widget no topo central do monitor principal e esquece a posição salva.</summary>
@@ -124,23 +144,81 @@ public partial class WidgetWindow : Window
             }
         });
 
-    // ---------- Layout e animação ----------
+    // ---------- Painéis e tamanho da ilha ----------
 
-    private void ApplyLayout(WidgetLayout layout, bool animate)
+    private static readonly Dictionary<WidgetPanel, (string Title, string? Placeholder, string? Badge)> PanelInfo = new()
+    {
+        [WidgetPanel.Home] = ("Início", null, null),
+        [WidgetPanel.Media] = ("Mídia", null, null),
+        [WidgetPanel.Volume] = ("Volume", null, null),
+        [WidgetPanel.Focus] = ("Foco", "Cronômetro, temporizador com presets (5 a 60 min) e Pomodoro com ciclos.", "Chega na Fase 3"),
+        [WidgetPanel.Agenda] = ("Agenda", "Próximo compromisso, horário, tempo restante e lembretes.", "Chega na Fase 4"),
+        [WidgetPanel.Activity] = ("Atividade", "Eventos autorizados do Claude Code (via hooks oficiais) e de outras ferramentas.", "Chega na Fase 6"),
+    };
+
+    private void ShowPanel(WidgetPanel panel, WidgetLayout layout)
     {
         var expanded = layout == WidgetLayout.Expanded;
-        var (width, height, radius) = expanded ? (420.0, 150.0, 24.0) : (252.0, 44.0, 22.0);
         CompactView.Visibility = expanded ? Visibility.Collapsed : Visibility.Visible;
         ExpandedView.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
-        Island.CornerRadius = new CornerRadius(radius);
 
-        if (animate)
+        var (title, placeholder, badge) = PanelInfo.GetValueOrDefault(panel, PanelInfo[WidgetPanel.Home]);
+        PanelTitle.Text = title;
+        HomeBody.Visibility = panel == WidgetPanel.Home ? Visibility.Visible : Visibility.Collapsed;
+        MediaBody.Visibility = panel == WidgetPanel.Media ? Visibility.Visible : Visibility.Collapsed;
+        VolumeBody.Visibility = panel == WidgetPanel.Volume ? Visibility.Visible : Visibility.Collapsed;
+        PlaceholderBody.Visibility = placeholder is null ? Visibility.Collapsed : Visibility.Visible;
+        PlaceholderText.Text = placeholder ?? "";
+        PlaceholderBadge.Text = badge ?? "";
+
+        _syncingTabs = true;
+        TabFor(panel).IsChecked = true;
+        _syncingTabs = false;
+
+        if (expanded && AnimationsAllowed)
+        {
+            ExpandedView.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140)) { BeginTime = TimeSpan.FromMilliseconds(40) });
+        }
+        UpdateClock();
+        RenderCompact();
+    }
+
+    /// <summary>Pede um redimensionamento da ilha para caber no conteúdo atual (agrupa vários pedidos).</summary>
+    private void RequestResize()
+    {
+        if (_resizePending)
+        {
+            return;
+        }
+        _resizePending = true;
+        Dispatcher.BeginInvoke(() =>
+        {
+            _resizePending = false;
+            ResizeIsland(AnimationsAllowed);
+        }, DispatcherPriority.Loaded);
+    }
+
+    private void ResizeIsland(bool animate)
+    {
+        var expanded = _appliedLayout == WidgetLayout.Expanded;
+        FrameworkElement view = expanded ? ExpandedView : CompactView;
+        view.Measure(new Size(expanded ? ExpandedWidth : MaxCompactWidth, double.PositiveInfinity));
+        var border = Island.BorderThickness.Left + Island.BorderThickness.Right;
+        var width = expanded
+            ? ExpandedWidth + border
+            : Math.Clamp(view.DesiredSize.Width + view.Margin.Left + view.Margin.Right + border, 140, MaxCompactWidth);
+        var height = Math.Ceiling(view.DesiredSize.Height + view.Margin.Top + view.Margin.Bottom + border);
+        Island.CornerRadius = new CornerRadius(expanded ? 22 : height / 2);
+
+        if (Math.Abs(Island.ActualWidth - width) < 0.5 && Math.Abs(Island.ActualHeight - height) < 0.5)
+        {
+            return;
+        }
+        if (animate && Island.IsLoaded)
         {
             var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-            Island.BeginAnimation(WidthProperty, new DoubleAnimation(width, ResizeDuration) { EasingFunction = ease });
-            Island.BeginAnimation(HeightProperty, new DoubleAnimation(height, ResizeDuration) { EasingFunction = ease });
-            var content = expanded ? (UIElement)ExpandedView : CompactView;
-            content.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140)) { BeginTime = TimeSpan.FromMilliseconds(60) });
+            Island.BeginAnimation(WidthProperty, new DoubleAnimation(Island.ActualWidth, width, ResizeDuration) { EasingFunction = ease });
+            Island.BeginAnimation(HeightProperty, new DoubleAnimation(Island.ActualHeight, height, ResizeDuration) { EasingFunction = ease });
         }
         else
         {
@@ -152,37 +230,33 @@ public partial class WidgetWindow : Window
         }
     }
 
-    private static readonly Dictionary<WidgetPanel, (string Glyph, string Title, string Body, string Badge)> Panels = new()
-    {
-        [WidgetPanel.Media] = ("", "Mídia", "Sessões do Windows (Spotify, Brave, Chrome…) com escolha explícita da fonte.", "Disponível na Fase 2"),
-        [WidgetPanel.Focus] = ("", "Foco", "Cronômetro, temporizador com presets e Pomodoro.", "Disponível na Fase 3"),
-        [WidgetPanel.Agenda] = ("", "Agenda", "Próximo compromisso, tempo restante e lembretes.", "Disponível na Fase 4"),
-        [WidgetPanel.Info] = ("", "Hoje", "", "Clima e manchetes na Fase 5"),
-        [WidgetPanel.Activity] = ("", "Atividade", "Eventos do Claude Code (via hooks) e de outras ferramentas.", "Disponível na Fase 6"),
-    };
-
-    private void ShowPanel(WidgetPanel panel)
-    {
-        var (glyph, title, body, badge) = Panels[panel];
-        CompactGlyph.Text = glyph;
-        PanelTitle.Text = title;
-        PanelBody.Text = panel == WidgetPanel.Info ? FormatToday() : body;
-        PanelBadge.Text = badge;
-
-        _syncingTabs = true;
-        TabFor(panel).IsChecked = true;
-        _syncingTabs = false;
-        UpdateClock();
-    }
-
     private RadioButton TabFor(WidgetPanel panel) => panel switch
     {
         WidgetPanel.Media => TabMedia,
         WidgetPanel.Focus => TabFocus,
         WidgetPanel.Agenda => TabAgenda,
-        WidgetPanel.Info => TabInfo,
-        _ => TabActivity,
+        WidgetPanel.Activity => TabActivity,
+        WidgetPanel.Volume => TabVolume,
+        _ => TabHome,
     };
+
+    private void Tab_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_syncingTabs)
+        {
+            return;
+        }
+        var panel = sender switch
+        {
+            _ when ReferenceEquals(sender, TabMedia) => WidgetPanel.Media,
+            _ when ReferenceEquals(sender, TabFocus) => WidgetPanel.Focus,
+            _ when ReferenceEquals(sender, TabAgenda) => WidgetPanel.Agenda,
+            _ when ReferenceEquals(sender, TabActivity) => WidgetPanel.Activity,
+            _ when ReferenceEquals(sender, TabVolume) => WidgetPanel.Volume,
+            _ => WidgetPanel.Home,
+        };
+        _settings.UpdateWidget(w => w with { Panel = panel });
+    }
 
     // ---------- Relógio (acorda 1x por minuto, apenas visível) ----------
 
@@ -196,21 +270,17 @@ public partial class WidgetWindow : Window
         {
             _clock.Stop();
         }
+        UpdateTimers();
     }
 
     private void UpdateClock()
     {
         var now = DateTime.Now;
-        CompactClock.Text = now.ToString("HH:mm", PtBr);
-        if (_appliedPanel is { } panel)
+        HeaderClock.Text = $"{now.ToString("ddd, d MMM", PtBr)} · {now.ToString("HH:mm", PtBr)}";
+        if (_shownMedia is null)
         {
-            CompactStatus.Text = panel == WidgetPanel.Info ? now.ToString("ddd, d MMM", PtBr) : $"{Panels[panel].Title} · {Panels[panel].Badge.Replace("Disponível na ", "", StringComparison.Ordinal)}";
-            if (panel == WidgetPanel.Info)
-            {
-                PanelBody.Text = FormatToday();
-            }
+            RenderCompact();
         }
-
         if (IsVisible)
         {
             // Próxima virada de minuto (+50 ms de folga), em vez de um tick por segundo.
@@ -219,54 +289,63 @@ public partial class WidgetWindow : Window
         }
     }
 
-    private static string FormatToday()
-    {
-        var text = DateTime.Now.ToString("dddd, d 'de' MMMM", PtBr);
-        return char.ToUpper(text[0], PtBr) + text[1..];
-    }
-
-    // ---------- Arrastar (pixels físicos, sem ativar a janela) ----------
+    // ---------- Mouse: clique expande; arrastar move (pixels físicos, sem ativar a janela) ----------
 
     private void Island_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ClickCount == 2)
-        {
-            ToggleLayout();
-            e.Handled = true;
-            return;
-        }
-        if (_settings.Widget.Locked || _hwnd == 0)
+        if (_hwnd == 0)
         {
             return;
         }
+        _pressSource = e.OriginalSource;
         _dragCursorStart = WindowInterop.GetCursor();
         _dragWindowStart = WindowInterop.GetRect(_hwnd);
-        _dragging = Island.CaptureMouse();
+        _pressed = Island.CaptureMouse();
         e.Handled = true;
     }
 
     private void Island_MouseMove(object sender, MouseEventArgs e)
     {
-        if (!_dragging)
+        if (!_pressed)
         {
             return;
         }
         var (x, y) = WindowInterop.GetCursor();
-        WindowInterop.MoveTo(_hwnd, _dragWindowStart.Left + (x - _dragCursorStart.X), _dragWindowStart.Top + (y - _dragCursorStart.Y));
+        var dx = x - _dragCursorStart.X;
+        var dy = y - _dragCursorStart.Y;
+        if (!_dragging && (Math.Abs(dx) > DragThreshold || Math.Abs(dy) > DragThreshold) && !_settings.Widget.Locked)
+        {
+            _dragging = true;
+        }
+        if (_dragging)
+        {
+            WindowInterop.MoveTo(_hwnd, _dragWindowStart.Left + dx, _dragWindowStart.Top + dy);
+        }
     }
 
     private void Island_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (_dragging)
+        if (!_pressed)
         {
-            Island.ReleaseMouseCapture(); // dispara LostMouseCapture → EndDrag
+            return;
+        }
+        var wasDrag = _dragging;
+        Island.ReleaseMouseCapture(); // dispara LostMouseCapture → EndPress
+        if (!wasDrag)
+        {
+            OnIslandClick(_pressSource as DependencyObject);
         }
     }
 
-    private void Island_LostMouseCapture(object sender, MouseEventArgs e) => EndDrag();
+    private void Island_LostMouseCapture(object sender, MouseEventArgs e) => EndPress();
 
-    private void EndDrag()
+    private void EndPress()
     {
+        if (!_pressed)
+        {
+            return;
+        }
+        _pressed = false;
         if (!_dragging)
         {
             return;
@@ -284,44 +363,92 @@ public partial class WidgetWindow : Window
         }
     }
 
-    // ---------- Comandos ----------
-
-    private void ToggleLayout() =>
-        _settings.UpdateWidget(w => w with { Layout = w.Layout == WidgetLayout.Compact ? WidgetLayout.Expanded : WidgetLayout.Compact });
-
-    private void Expand_Click(object sender, RoutedEventArgs e) => _settings.UpdateWidget(w => w with { Layout = WidgetLayout.Expanded });
-
-    private void Collapse_Click(object sender, RoutedEventArgs e) => _settings.UpdateWidget(w => w with { Layout = WidgetLayout.Compact });
-
-    // Checked/Unchecked (e não Click) para funcionar também por teclado e UI Automation.
-    // Quando Apply() sincroniza o estado, a atualização resultante é idêntica e o SettingsService a ignora.
-    private void Pin_Changed(object sender, RoutedEventArgs e) => _settings.UpdateWidget(w => w with { AlwaysOnTop = PinButton.IsChecked == true });
-
-    private void Lock_Changed(object sender, RoutedEventArgs e) => _settings.UpdateWidget(w => w with { Locked = LockButton.IsChecked == true });
-
-    private void Hide_Click(object sender, RoutedEventArgs e) => _settings.UpdateWidget(w => w with { Visible = false });
-
-    private void Tab_Checked(object sender, RoutedEventArgs e)
+    private void OnIslandClick(DependencyObject? source)
     {
-        if (_syncingTabs)
+        if (_appliedLayout == WidgetLayout.Compact)
         {
+            LogLayoutRequest(_logger, WidgetLayout.Expanded, "clique na ilha");
+            _settings.UpdateWidget(w => w with { Layout = WidgetLayout.Expanded });
             return;
         }
-        var panel = sender switch
+        // Cartões do Início levam ao painel correspondente.
+        if (IsWithin(source, HomeMediaCard))
         {
-            _ when ReferenceEquals(sender, TabMedia) => WidgetPanel.Media,
-            _ when ReferenceEquals(sender, TabFocus) => WidgetPanel.Focus,
-            _ when ReferenceEquals(sender, TabAgenda) => WidgetPanel.Agenda,
-            _ when ReferenceEquals(sender, TabInfo) => WidgetPanel.Info,
-            _ => WidgetPanel.Activity,
-        };
-        _settings.UpdateWidget(w => w with { Panel = panel });
+            _settings.UpdateWidget(w => w with { Panel = WidgetPanel.Media });
+        }
+        else if (IsWithin(source, HomeFocusCard))
+        {
+            _settings.UpdateWidget(w => w with { Panel = WidgetPanel.Focus });
+        }
+        else if (IsWithin(source, HomeActivityCard))
+        {
+            _settings.UpdateWidget(w => w with { Panel = WidgetPanel.Activity });
+        }
     }
+
+    private static bool IsWithin(DependencyObject? element, DependencyObject ancestor)
+    {
+        for (var current = element; current is not null; current = System.Windows.Media.VisualTreeHelper.GetParent(current) ?? LogicalTreeHelper.GetParent(current))
+        {
+            if (ReferenceEquals(current, ancestor))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ---------- Comandos e menu ----------
+
+    private void Collapse_Click(object sender, RoutedEventArgs e)
+    {
+        LogLayoutRequest(_logger, WidgetLayout.Compact, "botão Recolher");
+        _settings.UpdateWidget(w => w with { Layout = WidgetLayout.Compact });
+    }
+
+    /// <summary>Acionado por UI Automation/leitor de tela: alterna compacto ⇄ expandido.</summary>
+    private void Island_Invoked(object? sender, EventArgs e)
+    {
+        var target = _settings.Widget.Layout == WidgetLayout.Compact ? WidgetLayout.Expanded : WidgetLayout.Compact;
+        LogLayoutRequest(_logger, target, "UI Automation (Invoke)");
+        _settings.UpdateWidget(w => w with { Layout = target });
+    }
+
+    private void IslandMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        foreach (var item in ((ContextMenu)sender).Items.OfType<MenuItem>())
+        {
+            item.IsChecked = item.Tag switch
+            {
+                "pin" => _settings.Widget.AlwaysOnTop,
+                "lock" => _settings.Widget.Locked,
+                _ => item.IsChecked,
+            };
+        }
+    }
+
+    private void MenuAlwaysOnTop_Click(object sender, RoutedEventArgs e) =>
+        _settings.UpdateWidget(w => w with { AlwaysOnTop = ((MenuItem)sender).IsChecked });
+
+    private void MenuLocked_Click(object sender, RoutedEventArgs e) =>
+        _settings.UpdateWidget(w => w with { Locked = ((MenuItem)sender).IsChecked });
+
+    private void MenuHide_Click(object sender, RoutedEventArgs e) => _settings.UpdateWidget(w => w with { Visible = false });
+
+    private void MenuOpenMain_Click(object sender, RoutedEventArgs e) => _bus.Publish(new OpenMainRequested(null));
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Widget: pedido para {Layout} (origem: {Origin})")]
+    private static partial void LogLayoutRequest(ILogger logger, WidgetLayout layout, string origin);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Widget: layout aplicado {Layout}")]
+    private static partial void LogLayoutApplied(ILogger logger, WidgetLayout layout);
 
     protected override void OnClosed(EventArgs e)
     {
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged; // evento estático: evita vazamento
         _clock.Stop();
+        _progressTimer.Stop();
+        StopEqualizer();
         base.OnClosed(e);
     }
 }

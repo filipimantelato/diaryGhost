@@ -66,6 +66,9 @@
           <TextBlock Text="O Windows recusou a exclusão de capturas neste sistema." Style="{StaticResource CaptionText}" Foreground="{StaticResource WarningBrush}"
                      Visibility="{Binding CaptureExclusionUnsupported, Converter={StaticResource BoolToVisibility}}" />
           <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AnimationsEnabled}" Content="Animações de transição" />
+          <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AnimatedPlaybackIndicator}" Content="Equalizador animado enquanto toca (modo compacto)" />
+          <TextBlock Style="{StaticResource CaptionText}" Margin="0,0,0,4"
+                     Text="Animação contínua: medida em ~0,18% de CPU, contra ~0,01% com o indicador estático." />
           <TextBlock Text="Os efeitos de animação estão desativados no Windows; o widget não anima independentemente desta opção."
                      Style="{StaticResource CaptionText}" Visibility="{Binding SystemAnimationsDisabled, Converter={StaticResource BoolToVisibility}}" />
 

@@ -6,6 +6,19 @@ public static class SettingsSections
 {
     public const string General = "general";
     public const string Widget = "widget";
+    public const string Media = "media";
+}
+
+public sealed record MediaSettings
+{
+    /// <summary>ID (AUMID) da fonte preferencial, ex.: "Spotify.exe". null = automático.</summary>
+    public string? PreferredSourceId { get; init; }
+    public bool ShowArtwork { get; init; } = true;
+
+    public MediaSettings Sanitize() => this with
+    {
+        PreferredSourceId = string.IsNullOrWhiteSpace(PreferredSourceId) ? null : PreferredSourceId.Trim(),
+    };
 }
 
 public enum CloseBehavior
@@ -29,7 +42,11 @@ public enum WidgetLayout
     Expanded,
 }
 
-/// <summary>Painéis do widget. Os não implementados ainda exibem explicitamente a fase prevista.</summary>
+/// <summary>
+/// Painéis do widget (abas na base da ilha). Os não implementados exibem explicitamente a fase prevista.
+/// Valores são persistidos pelo nome — não renomeie; <see cref="Info"/> existe só por compatibilidade
+/// com a Fase 1 e é convertido em <see cref="Home"/>.
+/// </summary>
 public enum WidgetPanel
 {
     Media,
@@ -37,6 +54,8 @@ public enum WidgetPanel
     Agenda,
     Info,
     Activity,
+    Home,
+    Volume,
 }
 
 /// <summary>Posição da janela do widget em pixels físicos da área de trabalho virtual.</summary>
@@ -74,6 +93,12 @@ public sealed record WidgetSettings
     public bool Locked { get; init; }
     public double Opacity { get; init; } = 1.0;
     public bool AnimationsEnabled { get; init; } = true;
+
+    /// <summary>
+    /// Equalizador animado no modo compacto enquanto toca. Desligado por padrão: animação contínua numa
+    /// janela em camadas custa ~0,18% de CPU contra ~0,01% com o indicador estático (benchmark Fase 2).
+    /// </summary>
+    public bool AnimatedPlaybackIndicator { get; init; }
     public FullscreenBehavior Fullscreen { get; init; } = FullscreenBehavior.Hide;
     public bool ExcludeFromCapture { get; init; }
     public WidgetLayout Layout { get; init; } = WidgetLayout.Compact;
@@ -85,6 +110,6 @@ public sealed record WidgetSettings
         Opacity = double.IsFinite(Opacity) ? Math.Clamp(Opacity, MinOpacity, 1.0) : 1.0,
         Fullscreen = Enum.IsDefined(Fullscreen) ? Fullscreen : FullscreenBehavior.Hide,
         Layout = Enum.IsDefined(Layout) ? Layout : WidgetLayout.Compact,
-        Panel = Enum.IsDefined(Panel) ? Panel : WidgetPanel.Media,
+        Panel = !Enum.IsDefined(Panel) || Panel == WidgetPanel.Info ? WidgetPanel.Home : Panel,
     };
 }

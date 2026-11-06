@@ -22,6 +22,7 @@ public sealed partial class SettingsService(ISettingsStore store, IEventBus bus,
 
     public GeneralSettings General { get; private set; } = new();
     public WidgetSettings Widget { get; private set; } = new();
+    public MediaSettings Media { get; private set; } = new();
 
     public void Load()
     {
@@ -29,8 +30,25 @@ public sealed partial class SettingsService(ISettingsStore store, IEventBus bus,
         {
             General = (store.Read<GeneralSettings>(SettingsSections.General) ?? new GeneralSettings()).Sanitize();
             Widget = (store.Read<WidgetSettings>(SettingsSections.Widget) ?? new WidgetSettings()).Sanitize();
+            Media = (store.Read<MediaSettings>(SettingsSections.Media) ?? new MediaSettings()).Sanitize();
         }
         LogLoaded();
+    }
+
+    public void UpdateMedia(Func<MediaSettings, MediaSettings> change)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        lock (_gate)
+        {
+            var updated = change(Media).Sanitize();
+            if (updated == Media)
+            {
+                return;
+            }
+            store.Write(SettingsSections.Media, updated);
+            Media = updated;
+        }
+        bus.Publish(new SettingsChanged(SettingsSections.Media));
     }
 
     public void UpdateGeneral(Func<GeneralSettings, GeneralSettings> change)

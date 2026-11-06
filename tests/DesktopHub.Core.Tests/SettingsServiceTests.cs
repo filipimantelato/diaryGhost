@@ -81,6 +81,17 @@ public sealed class SettingsServiceTests
     }
 
     [Fact]
+    public void Phase1_info_panel_is_migrated_to_home()
+    {
+        var (service, store, _) = Create();
+        store.Data[SettingsSections.Widget] = new WidgetSettings { Panel = WidgetPanel.Info };
+
+        service.Load();
+
+        Assert.Equal(WidgetPanel.Home, service.Widget.Panel);
+    }
+
+    [Fact]
     public void Position_record_uses_value_equality()
     {
         var (service, store, _) = Create();

@@ -14,5 +14,8 @@ public enum WidgetVisibilityReason
     FullscreenPolicy,
 }
 
+/// <summary>Alguma superfície (widget, bandeja) pediu para abrir a janela principal, opcionalmente numa página.</summary>
+public sealed record OpenMainRequested(string? Page) : IAppEvent;
+
 /// <summary>A janela em primeiro plano entrou ou saiu de tela cheia (jogos, vídeos, apresentações).</summary>
 public sealed record ForegroundFullscreenChanged(bool IsFullscreen) : IAppEvent;

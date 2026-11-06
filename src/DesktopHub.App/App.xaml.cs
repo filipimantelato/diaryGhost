@@ -7,7 +7,9 @@ using DesktopHub.App.Theme;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Events;
+using DesktopHub.Core.Media;
 using DesktopHub.Core.Security;
+using DesktopHub.Infrastructure.Media;
 using DesktopHub.Core.Settings;
 using DesktopHub.Infrastructure.Logging;
 using DesktopHub.Infrastructure.Persistence;
@@ -26,6 +28,7 @@ public partial class App : Application
     private ServiceProvider? _services;
     private JsonFileLoggerProvider? _logProvider;
     private ILogger<App>? _log;
+    private string? _crashDirectory;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -42,6 +45,7 @@ public partial class App : Application
 
         var paths = options.DataDir is { } dir ? new AppPaths(dir) : AppPaths.Default();
         paths.EnsureCreated();
+        _crashDirectory = paths.Logs;
         _logProvider = new JsonFileLoggerProvider(paths.Logs);
 
         _services = ConfigureServices(paths, options, _logProvider).BuildServiceProvider();
@@ -107,8 +111,12 @@ public partial class App : Application
         services.AddSingleton<ISettingsStore, SqliteSettingsStore>();
         services.AddSingleton<ISecretStore, DpapiSecretStore>();
 
+        services.AddSingleton<IMediaSessionSource, GsmtcMediaSource>();
+        services.AddSingleton<IMasterVolume, CoreAudioMasterVolume>();
+
         // Aplicação
         services.AddSingleton<SettingsService>();
+        services.AddSingleton<MediaService>();
 
         // Plataforma e apresentação
         services.AddSingleton<FullscreenMonitor>();
@@ -135,6 +143,9 @@ public partial class App : Application
             {
                 LogFatal(_log, args.ExceptionObject as Exception, args.IsTerminating);
             }
+            // O processo vai morrer e o logger assíncrono pode não gravar (ou já ter sido descartado
+            // no encerramento): grava de forma síncrona, sem depender de nenhum serviço.
+            WriteCrashFile(args.ExceptionObject);
         };
         TaskScheduler.UnobservedTaskException += (_, args) =>
         {
@@ -144,6 +155,26 @@ public partial class App : Application
             }
             args.SetObserved();
         };
+    }
+
+    private void WriteCrashFile(object exception)
+    {
+        if (_crashDirectory is null)
+        {
+            return;
+        }
+        try
+        {
+            File.AppendAllText(Path.Combine(_crashDirectory, "crash.log"),
+                $"{DateTimeOffset.Now:O} [{Environment.CurrentManagedThreadId}] {exception}{Environment.NewLine}{Environment.NewLine}");
+        }
+        catch (IOException)
+        {
+            // Último recurso: não há mais onde registrar.
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

@@ -105,6 +105,12 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         set => _settings.UpdateWidget(w => w with { AnimationsEnabled = value });
     }
 
+    public bool AnimatedPlaybackIndicator
+    {
+        get => Widget.AnimatedPlaybackIndicator;
+        set => _settings.UpdateWidget(w => w with { AnimatedPlaybackIndicator = value });
+    }
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822", Justification = "Precisa ser de instância para o binding do WPF.")]
     public bool SystemAnimationsDisabled => !System.Windows.SystemParameters.ClientAreaAnimation;
 

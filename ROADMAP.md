@@ -30,15 +30,30 @@ atalhos globais, instância única, `--quit`, inicialização com o Windows, 28 
 Critérios de aceitação do MVP atendidos nesta fase: 2, 3, 4, 5\*, 13, 14, 15.
 \* Mover entre monitores: lógica testada; validação manual com dois monitores pendente.
 
-## Fase 2 — Widget e mídia
-- Adaptador `GsmtcMediaSource` (`Windows.Media.Control`): sessões, metadados, capa, estado, linha do tempo.
-- `MediaService`: sessão **selecionada** explicitamente; comandos só para ela; sessão padrão configurável;
-  tratamento de sessões encerradas; botões só para comandos suportados (`PlaybackInfo.Controls`).
-- Widget: estado Player (capa, faixa, artista, fonte, play/pause/anterior/próxima, progresso quando houver).
-- Volume por app via Core Audio (`ISimpleAudioVolume`) quando o processo for identificável — distinto do volume global.
-- Navegação por teclado no widget (foco explícito por atalho).
-- **Aceite:** com Spotify e Brave tocando, listar ambos, pausar Spotify, depois controlar Brave, sem
-  comando ir para a sessão errada; metadados ausentes não são inventados. Testes de seleção de sessão.
+## Fase 2 — Widget e mídia ✅ (2026-11-06)
+Entregue:
+- Adaptador `GsmtcMediaSource` (`Windows.Media.Control`): sessões, metadados, capa (≤ 4 MB), estado,
+  linha do tempo, comandos; orientado a eventos, com debounce e sem republicar o que não mudou.
+- `MediaService` + `MediaSelection`: seleção explícita (chips), fonte preferencial, histerese no automático
+  (ADR-009), comandos só para a sessão exibida, apenas comandos suportados.
+- Volume geral do Windows via Core Audio, acompanhando mudanças externas e troca de dispositivo.
+- Widget redesenhado a partir do vídeo (`docs/VIDEO-ANALYSIS.md`): cabeçalho, abas na base, painéis
+  Início / Mídia / Volume reais; Foco, Agenda e Atividade indicam a fase.
+- Página Mídia na janela principal, submenu de mídia na bandeja, cartão "Em reprodução" no dashboard.
+- Ilha acionável por UI Automation (leitores de tela), log de causas de mudança de layout,
+  arquivo `crash.log` síncrono para falhas fatais.
+- 52 testes (24 novos, quase todos de mídia, incluindo a regressão do ADR-009); benchmark com mídia tocando.
+
+Critérios do MVP: **6 ✅** (controlar sessão real: pausar, retomar e avançar no Spotify verificados).
+**7 ⚠️ parcial**: a troca entre sessões está implementada e testada em unidade, e foi exercitada ao vivo com
+duas sessões, mas não houve um teste controlado Spotify + Brave lado a lado (o Brave não estava tocando).
+
+Pendências levadas adiante:
+- Teste manual Spotify + Brave (ver "Como testar" no README).
+- Volume por app (ADR-012).
+- Navegação por teclado dentro do widget expandido (hoje: UI Automation sim, foco por teclado não).
+- Investigar com profiler o custo residual do painel Mídia (benchmark da Fase 2).
+- Botão "abrir no app" da fonte.
 
 ## Fase 3 — Produtividade e notificações
 - Cronômetro (voltas), temporizador (presets 5/10/15/25/30/60), Pomodoro (ciclos, histórico, estatísticas).

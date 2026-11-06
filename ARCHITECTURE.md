@@ -123,7 +123,10 @@ Eventos planejados (catálogo em `src/DesktopHub.Core/Events/`):
 | `SettingsChanged` | SettingsService | 1 |
 | `WidgetVisibilityChanged` | WidgetController | 1 |
 | `ForegroundFullscreenChanged` | FullscreenMonitor | 1 |
-| `MediaSessionsChanged`, `PlaybackStateChanged` | GsmtcMediaSource | 2 |
+| `MediaSessionsChanged` | GsmtcMediaSource | 2 ✅ |
+| `ActiveMediaChanged` | MediaService | 2 ✅ |
+| `MasterVolumeChanged` | CoreAudioMasterVolume | 2 ✅ |
+| `OpenMainRequested` | widget, bandeja | 2 ✅ |
 | `TimerCompleted`, `TimerStateChanged` | TimerService | 3 |
 | `ReminderDue` | ReminderScheduler | 4 |
 | `CalendarEventChanged` | CalendarService/Sync | 4 |
@@ -218,7 +221,8 @@ fuso original importa (eventos de calendário). A Fase 1 cria apenas `settings` 
 
 | Área | Mecanismo oficial | Limitações conhecidas |
 |---|---|---|
-| Mídia local | `Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager` (WinRT) — lista sessões, metadados, capa, estado, linha do tempo, play/pause/próxima/anterior/seek, eventos de mudança | Depende do app expor SMTC. Navegadores Chromium (Brave/Chrome/Edge) tendem a expor **uma sessão por navegador**, não por aba. Linha do tempo e capa variam por app. **Não controla volume.** |
+| Mídia local ✅ | `Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager` (WinRT) — lista sessões, metadados, capa, estado, linha do tempo, play/pause/próxima/anterior/seek, eventos de mudança | Depende do app expor SMTC. Navegadores Chromium (Brave/Chrome/Edge) tendem a expor **uma sessão por navegador**, só enquanto há mídia numa aba. Linha do tempo e capa variam por app. **Não controla volume.** Verificado: Spotify desktop aparece como `Spotify.exe`, e `AppInfo.GetFromAppUserModelId` falha para ele (app Win32) — nome amigável vem de heurística. Objetos devem ser usados no MTA (ADR-010). |
+| Volume geral ✅ | Core Audio `IAudioEndpointVolume` + `IMMNotificationClient` | Volume do dispositivo padrão; troca de dispositivo acompanhada. |
 | Volume por app | Core Audio (`IAudioSessionManager2`, `ISimpleAudioVolume`) via COM | Associação sessão de mídia → sessão de áudio é por processo (heurística via AUMID/PID). Global: `IAudioEndpointVolume`. |
 | Spotify (complementar) | Web API com OAuth Authorization Code + PKCE | **Comandos de reprodução exigem Premium.** Apps em modo de desenvolvimento têm limite de usuários. Opcional e claramente separado do controle local. |
 | Clima | Open-Meteo (sem chave, atual/horária/diária, UV, prob. de chuva) | Uso não comercial, atribuição CC BY 4.0. **Não fornece alertas oficiais**; alertas do INMET a investigar na Fase 5 (feeds RSS/CAP). |
