@@ -8,9 +8,18 @@
 param([string]$Runtime = 'win-x64')
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$dotnet = (Get-Command dotnet -ErrorAction SilentlyContinue).Source
-if (-not $dotnet) { $dotnet = Join-Path $env:LOCALAPPDATA 'Microsoft\dotnet\dotnet.exe' }
-if (-not (Test-Path $dotnet)) { throw '.NET SDK 10 nao encontrado. Instale com: winget install Microsoft.DotNet.SDK.10' }
+# Procura um dotnet que tenha o SDK 10 (o do PATH pode ser só o runtime).
+$candidates = @(
+  (Get-Command dotnet -ErrorAction SilentlyContinue).Source,
+  (Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Microsoft\dotnet\dotnet.exe'),
+  (Join-Path $env:USERPROFILE 'AppData\Local\Microsoft\dotnet\dotnet.exe'),
+  (Join-Path $env:USERPROFILE '.dotnet\dotnet.exe'),
+  (Join-Path $env:ProgramFiles 'dotnet\dotnet.exe')
+) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+$dotnet = $candidates | Where-Object { (& $_ --list-sdks 2>$null) -match '^10\.' } | Select-Object -First 1
+if (-not $dotnet) { throw ".NET SDK 10 nao encontrado (procurado em: $($candidates -join ', ')). Instale com: winget install Microsoft.DotNet.SDK.10" }
+$env:DOTNET_ROOT = Split-Path -Parent $dotnet
+Write-Host "Usando $dotnet"
 
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $out = Join-Path $root "artifacts\publish\$Runtime"
