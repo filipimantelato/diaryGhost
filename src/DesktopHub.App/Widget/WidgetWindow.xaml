@@ -116,8 +116,8 @@
               <Border x:Name="HomeFocusCard" Style="{StaticResource IslandCard}" Margin="3,0" AutomationProperties.Name="Cartão de foco">
                 <Border.Background>
                   <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#3A2D6B" Offset="0" />
-                    <GradientStop Color="#221A3D" Offset="1" />
+                    <GradientStop Color="#2B2B2B" Offset="0" />
+                    <GradientStop Color="#1D1D1D" Offset="1" />
                   </LinearGradientBrush>
                 </Border.Background>
                 <Grid Margin="10,8,10,10">
@@ -131,8 +131,8 @@
               <Border x:Name="HomeActivityCard" Style="{StaticResource IslandCard}" Margin="6,0,0,0" AutomationProperties.Name="Cartão de atividade">
                 <Border.Background>
                   <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#5A3424" Offset="0" />
-                    <GradientStop Color="#2C1D18" Offset="1" />
+                    <GradientStop Color="#2D2A24" Offset="0" />
+                    <GradientStop Color="#1E1C19" Offset="1" />
                   </LinearGradientBrush>
                 </Border.Background>
                 <Grid Margin="10,8,10,10">

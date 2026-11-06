@@ -81,6 +81,40 @@ public sealed class SettingsServiceTests
     }
 
     [Fact]
+    public void Legacy_purple_default_is_migrated_once_to_the_new_palette()
+    {
+        var (service, store, _) = Create();
+        store.Data[SettingsSections.General] = new GeneralSettings { AccentColor = GeneralSettings.LegacyDefaultAccent, PaletteVersion = 0 };
+
+        service.Load();
+
+        Assert.Equal(GeneralSettings.DefaultAccent, service.General.AccentColor);
+        Assert.Equal(GeneralSettings.CurrentPaletteVersion, service.General.PaletteVersion);
+    }
+
+    [Fact]
+    public void Purple_chosen_after_the_migration_is_kept()
+    {
+        var (service, store, _) = Create();
+        store.Data[SettingsSections.General] = new GeneralSettings { AccentColor = GeneralSettings.LegacyDefaultAccent, PaletteVersion = GeneralSettings.CurrentPaletteVersion };
+
+        service.Load();
+
+        Assert.Equal(GeneralSettings.LegacyDefaultAccent, service.General.AccentColor);
+    }
+
+    [Fact]
+    public void Custom_accent_from_old_versions_is_kept()
+    {
+        var (service, store, _) = Create();
+        store.Data[SettingsSections.General] = new GeneralSettings { AccentColor = "#3B82F6", PaletteVersion = 0 };
+
+        service.Load();
+
+        Assert.Equal("#3B82F6", service.General.AccentColor);
+    }
+
+    [Fact]
     public void Phase1_info_panel_is_migrated_to_home()
     {
         var (service, store, _) = Create();

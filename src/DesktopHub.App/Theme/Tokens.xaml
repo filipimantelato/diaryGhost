@@ -2,19 +2,19 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!-- Tokens do design system. A cor de destaque é substituída em tempo de execução (ThemeManager);
        por isso é sempre referenciada com DynamicResource. -->
-  <Color x:Key="BgColor">#111318</Color>
-  <Color x:Key="SurfaceColor">#1B1E25</Color>
-  <Color x:Key="SurfaceElevatedColor">#252A34</Color>
-  <Color x:Key="BorderColor">#2C313C</Color>
-  <Color x:Key="BorderStrongColor">#3A404D</Color>
-  <Color x:Key="TextPrimaryColor">#F1F3F7</Color>
-  <Color x:Key="TextSecondaryColor">#9BA3B2</Color>
-  <Color x:Key="TextTertiaryColor">#6B7383</Color>
+  <Color x:Key="BgColor">#141414</Color>
+  <Color x:Key="SurfaceColor">#1C1C1C</Color>
+  <Color x:Key="SurfaceElevatedColor">#262626</Color>
+  <Color x:Key="BorderColor">#2E2E2E</Color>
+  <Color x:Key="BorderStrongColor">#3D3D3D</Color>
+  <Color x:Key="TextPrimaryColor">#EDEDED</Color>
+  <Color x:Key="TextSecondaryColor">#A1A1A1</Color>
+  <Color x:Key="TextTertiaryColor">#6E6E6E</Color>
   <Color x:Key="SuccessColor">#34D399</Color>
-  <Color x:Key="WarningColor">#FBBF24</Color>
+  <Color x:Key="WarningColor">#F0985A</Color>
   <Color x:Key="DangerColor">#F87171</Color>
   <!-- Fundo da ilha: quase opaco; a opacidade configurável é aplicada na janela inteira. -->
-  <Color x:Key="IslandColor">#F50D0F13</Color>
+  <Color x:Key="IslandColor">#F50F0F0F</Color>
 
   <SolidColorBrush x:Key="BgBrush" Color="{StaticResource BgColor}" />
   <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
@@ -29,8 +29,8 @@
   <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource DangerColor}" />
   <SolidColorBrush x:Key="IslandBrush" Color="{StaticResource IslandColor}" />
 
-  <SolidColorBrush x:Key="AccentBrush" Color="#8B5CF6" />
-  <SolidColorBrush x:Key="AccentSoftBrush" Color="#8B5CF6" Opacity="0.18" />
+  <SolidColorBrush x:Key="AccentBrush" Color="#C9A94E" />
+  <SolidColorBrush x:Key="AccentSoftBrush" Color="#C9A94E" Opacity="0.16" />
 
   <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
   <FontFamily x:Key="DisplayFont">Segoe UI Variable Display, Segoe UI</FontFamily>

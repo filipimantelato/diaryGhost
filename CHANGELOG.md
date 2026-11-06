@@ -21,6 +21,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); 
 - `RPC_E_WRONG_THREAD` ao ler sessões de mídia de threads do pool.
 
 ### Alterado
+- Nova paleta padrão: cinzas neutros com destaque amarelo suave (`#C9A94E`), no app, no widget, na bandeja
+  e no ícone. Quem tinha o roxo antigo salvo como padrão é migrado uma única vez; roxo continua disponível
+  como opção. Avisos passam a laranja para não se confundirem com o destaque.
 - Projetos de infraestrutura e app passam a `net10.0-windows10.0.19041.0` (projeções WinRT); pacote
   publicado: 159 → 213 MB.
 - Painel "Hoje" da Fase 1 virou "Início" (configuração antiga migrada automaticamente).

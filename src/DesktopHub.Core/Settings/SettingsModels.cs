@@ -63,9 +63,23 @@ public sealed record WidgetPosition(int X, int Y);
 
 public sealed partial record GeneralSettings
 {
-    public const string DefaultAccent = "#8B5CF6";
+    /// <summary>Amarelo dessaturado ("dourado discreto") sobre cinzas neutros.</summary>
+    public const string DefaultAccent = "#C9A94E";
+
+    /// <summary>Padrão das versões 0.1–0.2 (roxo), substituído por <see cref="DefaultAccent"/>.</summary>
+    public const string LegacyDefaultAccent = "#8B5CF6";
+
+    /// <summary>Versão atual da paleta padrão; usada para migrar quem ainda tem o padrão antigo salvo.</summary>
+    public const int CurrentPaletteVersion = 2;
 
     public bool StartWithWindows { get; init; }
+
+    /// <summary>
+    /// 0 em configurações salvas antes da troca de paleta (o campo não existia). Como o app grava a seção
+    /// inteira a cada mudança, o roxo antigo aparece salvo mesmo para quem nunca o escolheu — por isso a
+    /// migração acontece uma única vez, e uma escolha posterior de roxo é respeitada.
+    /// </summary>
+    public int PaletteVersion { get; init; }
     public bool StartMinimized { get; init; }
     public CloseBehavior CloseBehavior { get; init; } = CloseBehavior.MinimizeToTray;
     public string AccentColor { get; init; } = DefaultAccent;
@@ -75,7 +89,12 @@ public sealed partial record GeneralSettings
     /// <summary>Corrige valores inválidos (ex.: vindos de um banco editado à mão).</summary>
     public GeneralSettings Sanitize() => this with
     {
-        AccentColor = HexColor().IsMatch(AccentColor ?? "") ? AccentColor! : DefaultAccent,
+        AccentColor = !HexColor().IsMatch(AccentColor ?? "")
+            ? DefaultAccent
+            : PaletteVersion < CurrentPaletteVersion && string.Equals(AccentColor, LegacyDefaultAccent, StringComparison.OrdinalIgnoreCase)
+                ? DefaultAccent
+                : AccentColor!,
+        PaletteVersion = CurrentPaletteVersion,
         Language = string.IsNullOrWhiteSpace(Language) ? "pt-BR" : Language,
         CloseBehavior = Enum.IsDefined(CloseBehavior) ? CloseBehavior : CloseBehavior.MinimizeToTray,
     };

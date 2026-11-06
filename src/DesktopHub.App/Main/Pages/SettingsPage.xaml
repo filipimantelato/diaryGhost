@@ -79,7 +79,7 @@
               <ColumnDefinition Width="52" />
             </Grid.ColumnDefinitions>
             <TextBlock Text="Opacidade" Style="{StaticResource BodyText}" VerticalAlignment="Center" Margin="0,0,16,0" />
-            <Slider Grid.Column="1" Minimum="35" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True"
+            <Slider Grid.Column="1" Style="{StaticResource ThinSlider}" Minimum="35" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True"
                     SmallChange="5" LargeChange="10" Value="{Binding OpacityPercent}" VerticalAlignment="Center"
                     AutomationProperties.Name="Opacidade do widget" />
             <TextBlock Grid.Column="2" Text="{Binding OpacityPercent, StringFormat={}{0:0}%}" Style="{StaticResource BodyText}"

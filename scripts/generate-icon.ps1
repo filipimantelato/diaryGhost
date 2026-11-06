@@ -7,7 +7,7 @@
 #>
 param(
   [string]$OutFile = (Join-Path $PSScriptRoot '..\assets\app.ico'),
-  [string]$Accent = '#8B5CF6'
+  [string]$Accent = '#C9A94E'
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
@@ -33,7 +33,7 @@ foreach ($s in $sizes) {
   $g.Clear([System.Drawing.Color]::Transparent)
 
   $bg = New-RoundedPath 0 0 ($s - 0.5) ($s - 0.5) ([single]($s * 0.22))
-  $g.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#1B1E25'))), $bg)
+  $g.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#1C1C1C'))), $bg)
 
   # Ilha: pílula horizontal no terço superior + ponto de atividade
   $iw = [single]($s * 0.70); $ih = [single]([Math]::Max(3, $s * 0.26))
@@ -43,11 +43,11 @@ foreach ($s in $sizes) {
 
   if ($s -ge 24) {
     $dot = [single]($ih * 0.42)
-    $g.FillEllipse((New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#F1F3F7'))),
+    $g.FillEllipse((New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#EDEDED'))),
       [single]($ix + $iw - $ih * 0.5 - $dot / 2), [single]($iy + ($ih - $dot) / 2), $dot, $dot)
     # Linhas de "conteúdo" abaixo da ilha
     $lh = [single]([Math]::Max(1, $s * 0.07))
-    $lineBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#9BA3B2'))
+    $lineBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#A1A1A1'))
     $g.FillPath($lineBrush, (New-RoundedPath $ix ([single]($s * 0.66)) ([single]($iw * 0.8)) $lh ([single]($lh / 2))))
     $g.FillPath($lineBrush, (New-RoundedPath $ix ([single]($s * 0.78)) ([single]($iw * 0.5)) $lh ([single]($lh / 2))))
   }

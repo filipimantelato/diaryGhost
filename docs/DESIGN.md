@@ -8,13 +8,21 @@ seleção, interruptores). Animações curtas (≤ 200 ms), desativáveis, e aut
 ## Tokens (`src/DesktopHub.App/Theme/Tokens.xaml`)
 | Token | Valor | Uso |
 |---|---|---|
-| Bg | `#111318` | fundo da janela |
-| Surface | `#1B1E25` | barra lateral, cartões |
-| SurfaceElevated | `#252A34` | hover, seleção, menus |
-| Border / BorderStrong | `#2C313C` / `#3A404D` | contornos |
-| TextPrimary / Secondary / Tertiary | `#F1F3F7` / `#9BA3B2` / `#6B7383` | hierarquia de texto |
-| Accent | `#8B5CF6` (trocável: roxo, azul, ciano, verde, âmbar, rosa) | destaque |
-| Island | `#0D0F13` a 96% | fundo do widget |
+Paleta: **cinzas neutros** (sem tom azulado) com **amarelo dessaturado** como destaque — discreto, usado
+só em indicadores, seleção, interruptores e barras de progresso.
+
+| Token | Valor | Uso |
+|---|---|---|
+| Bg | `#141414` | fundo da janela |
+| Surface | `#1C1C1C` | barra lateral, cartões |
+| SurfaceElevated | `#262626` | hover, seleção, menus |
+| Border / BorderStrong | `#2E2E2E` / `#3D3D3D` | contornos |
+| TextPrimary / Secondary / Tertiary | `#EDEDED` / `#A1A1A1` / `#6E6E6E` | hierarquia de texto |
+| Accent | `#C9A94E` amarelo suave (trocável: azul, ciano, verde, grafite, rosa, roxo) | destaque |
+| Warning | `#F0985A` | avisos (laranja, para não se confundir com o destaque amarelo) |
+| Island | `#0F0F0F` a 96% | fundo do widget |
+
+Interruptor ligado: trilho no destaque com o botão escuro (contraste melhor sobre o amarelo que o branco).
 
 Tipografia: Segoe UI Variable (Display para títulos, Text para corpo). Ícones: Segoe Fluent Icons
 (fallback MDL2). Raios: 8 (controles), 12 (cartões), 22–24 (ilha).

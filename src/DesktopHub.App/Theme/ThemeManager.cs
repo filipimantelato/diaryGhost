@@ -11,12 +11,13 @@ internal static class ThemeManager
     /// </summary>
     public static IReadOnlyList<(string Name, string Hex)> AccentPresets { get; } =
     [
-        ("Roxo", "#8B5CF6"),
+        ("Amarelo", "#C9A94E"),
         ("Azul", "#3B82F6"),
         ("Ciano", "#06B6D4"),
         ("Verde", "#10B981"),
-        ("Âmbar", "#F59E0B"),
+        ("Grafite", "#A3A3A3"),
         ("Rosa", "#EC4899"),
+        ("Roxo", "#8B5CF6"),
     ];
 
     public static void ApplyAccent(string hex)

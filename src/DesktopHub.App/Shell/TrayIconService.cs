@@ -139,10 +139,10 @@ internal sealed class TrayIconService : IDisposable
 
     private sealed class DarkMenuColors : ProfessionalColorTable
     {
-        public static readonly Color Surface = ColorTranslator.FromHtml("#1B1E25");
-        public static readonly Color Elevated = ColorTranslator.FromHtml("#252A34");
-        public static readonly Color Border = ColorTranslator.FromHtml("#2C313C");
-        public static readonly Color Text = ColorTranslator.FromHtml("#F1F3F7");
+        public static readonly Color Surface = ColorTranslator.FromHtml("#1C1C1C");
+        public static readonly Color Elevated = ColorTranslator.FromHtml("#262626");
+        public static readonly Color Border = ColorTranslator.FromHtml("#2E2E2E");
+        public static readonly Color Text = ColorTranslator.FromHtml("#EDEDED");
 
         public override Color ToolStripDropDownBackground => Surface;
         public override Color ImageMarginGradientBegin => Surface;

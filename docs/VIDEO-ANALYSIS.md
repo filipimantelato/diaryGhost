@@ -51,5 +51,5 @@ Windows; o Foco conta regressivamente a partir de 25:00 e pode ser pausado.
 | Botão "abrir no app" | ❌ adiado | não há forma confiável de trazer um app Win32 ao primeiro plano a partir de uma janela que não ativa |
 | Clique na ilha expande | ✅ | o vídeo não mostra o gatilho; recolher é pelo botão do cabeçalho |
 
-Identidade visual própria: paleta do projeto (destaque configurável, roxo por padrão em vez do laranja do
-vídeo), tipografia Segoe UI Variable, ícones Segoe Fluent.
+Identidade visual própria: cinzas neutros com destaque amarelo suave (configurável) em vez do laranja do
+vídeo, tipografia Segoe UI Variable, ícones Segoe Fluent.
