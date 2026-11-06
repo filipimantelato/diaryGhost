@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>DesktopHub.App</RootNamespace>
+    <AssemblyName>DesktopHub</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <!-- Apenas para NotifyIcon (bandeja) e Screen (monitores). Ver ADR-005. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
+    <!-- Os cálculos de tempo usam o fuso real; não queremos invariant globalization. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- WFO0003: o analisador do WinForms sugere configurar DPI via API do WinForms, mas este é um app WPF;
+         o DPI do processo (PerMonitorV2) é definido corretamente no app.manifest. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+  </PropertyGroup>
+
+  <!-- Publicação: self-contained (usuário não instala runtime) + ReadyToRun (inicialização mais rápida). -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WPF e WinForms juntos: removemos usings globais do WinForms para evitar ambiguidades (Application, MessageBox...). -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <!-- O SDK do WPF omite System.IO dos usings implícitos (ambiguidade com Shapes.Path); nós não usamos Shapes. -->
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DesktopHub.Core\DesktopHub.Core.csproj" />
+    <ProjectReference Include="..\DesktopHub.Infrastructure\DesktopHub.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="..\..\assets\app.ico" Link="Assets\app.ico" />
+  </ItemGroup>
+
+</Project>

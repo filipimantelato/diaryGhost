@@ -1,0 +1,21 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{xml,xaml,csproj,props,targets,manifest,json,yml}]
+indent_size = 2
+
+[*.cs]
+# Strings de UI ficam em português direto no código até a fase de internacionalização (ver ROADMAP).
+dotnet_diagnostic.CA1303.severity = none
+# Aplicativo desktop: não usamos ConfigureAwait(false) em código de UI.
+dotnet_diagnostic.CA2007.severity = none
+
+[tests/**.cs]
+# Nomes de teste descritivos com sublinhado.
+dotnet_diagnostic.CA1707.severity = none

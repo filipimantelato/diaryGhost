@@ -1,0 +1,5 @@
+# Normaliza fins de linha no repositório (LF) e deixa o checkout seguir a plataforma.
+* text=auto
+*.ps1 text eol=crlf
+*.ico binary
+*.png binary

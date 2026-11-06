@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+
+    <Version>0.1.0</Version>
+    <Product>Personal Desktop Hub</Product>
+    <Company>DesktopHub</Company>
+    <Copyright>Uso pessoal</Copyright>
+    <NeutralLanguage>pt-BR</NeutralLanguage>
+    <!-- Evita copiar recursos satélite de todos os idiomas dos pacotes. -->
+    <SatelliteResourceLanguages>pt-BR</SatelliteResourceLanguages>
+  </PropertyGroup>
+</Project>

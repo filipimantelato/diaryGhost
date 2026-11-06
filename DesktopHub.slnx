@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DesktopHub.App/DesktopHub.App.csproj" />
+    <Project Path="src/DesktopHub.Core/DesktopHub.Core.csproj" />
+    <Project Path="src/DesktopHub.Infrastructure/DesktopHub.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DesktopHub.Core.Tests/DesktopHub.Core.Tests.csproj" />
+    <Project Path="tests/DesktopHub.Infrastructure.Tests/DesktopHub.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

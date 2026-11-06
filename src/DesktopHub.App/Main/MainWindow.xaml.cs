@@ -1,0 +1,114 @@
+using System.Reflection;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Interop;
+using DesktopHub.App.Main.Pages;
+using DesktopHub.App.Platform;
+using DesktopHub.App.Shell;
+using DesktopHub.App.Widget;
+using DesktopHub.Core;
+using DesktopHub.Core.Events;
+using DesktopHub.Core.Settings;
+
+namespace DesktopHub.App.Main;
+
+/// <summary>
+/// Janela completa (Modo A). As páginas são criadas a cada navegação e descartadas ao sair delas,
+/// para que nada fique assinado ou ocupando memória enquanto não é exibido.
+/// </summary>
+public partial class MainWindow : Window
+{
+    private readonly SettingsService _settings;
+    private readonly IEventBus _bus;
+    private readonly WidgetController _widget;
+    private readonly GlobalHotkeys _hotkeys;
+    private readonly StartupState _startup;
+    private readonly AppPaths _paths;
+    private readonly Dictionary<RadioButton, string> _navKeys;
+
+    internal MainWindow(AppShell shell, SettingsService settings, IEventBus bus, WidgetController widget,
+        GlobalHotkeys hotkeys, StartupState startup, AppPaths paths)
+    {
+        _ = shell;
+        _settings = settings;
+        _bus = bus;
+        _widget = widget;
+        _hotkeys = hotkeys;
+        _startup = startup;
+        _paths = paths;
+        InitializeComponent();
+
+        _navKeys = new()
+        {
+            [NavDashboard] = MainPages.Dashboard,
+            [NavNews] = "news",
+            [NavCalendar] = "calendar",
+            [NavTasks] = "tasks",
+            [NavReminders] = "reminders",
+            [NavMedia] = "media",
+            [NavProductivity] = "productivity",
+            [NavIntegrations] = "integrations",
+            [NavSettings] = MainPages.Settings,
+        };
+
+        var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 1";
+
+        SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
+        NavDashboard.IsChecked = true;
+    }
+
+    public void Navigate(string key)
+    {
+        var target = _navKeys.FirstOrDefault(p => p.Value == key).Key;
+        if (target is not null)
+        {
+            target.IsChecked = true;
+        }
+    }
+
+    private void Nav_Checked(object sender, RoutedEventArgs e)
+    {
+        if (sender is not RadioButton button || !_navKeys.TryGetValue(button, out var key))
+        {
+            return;
+        }
+        (PageHost.Content as IDisposable)?.Dispose();
+        PageHost.Content = CreatePage(key);
+    }
+
+    private FrameworkElement CreatePage(string key) => key switch
+    {
+        MainPages.Dashboard => new DashboardPage(_settings, _widget, _startup, _paths),
+        MainPages.Settings => new SettingsPage(new SettingsViewModel(_settings, _bus, _widget, _hotkeys, _paths)),
+        "news" => new PlaceholderPage("", "Notícias", 5,
+            "Agregador com fontes confiáveis via RSS/Atom e APIs oficiais, sem scraping. Mostra fonte, autor, horário de publicação e horário da consulta.",
+            ["Categorias: política, tecnologia, games, ciência e meio ambiente, geral", "Deduplicação e agrupamento por acontecimento", "Salvar, favoritar, marcar como lida, seguir assuntos", "Destaques para desenvolvedores: releases do GitHub, CVEs críticas (NVD/CISA)", "Atualização em intervalos configuráveis com cache e ETag"]),
+        "calendar" => new PlaceholderPage("", "Calendário", 4,
+            "Calendário local completo, com sincronização opcional por OAuth — nenhuma senha é solicitada.",
+            ["Visões de dia, semana, mês e lista", "Eventos recorrentes (RFC 5545) e de dia inteiro, com fuso horário", "Google Calendar (sync incremental), Outlook (Microsoft Graph) e ICS"]),
+        "tasks" => new PlaceholderPage("", "Agenda e tarefas", 4,
+            "Tarefas com prioridade, categoria e prazo, ligadas a lembretes.",
+            ["Criar, editar, concluir e reagendar", "Filtros por prazo, prioridade e categoria"]),
+        "reminders" => new PlaceholderPage("", "Lembretes", 4,
+            "Lembretes persistentes que disparam mesmo com a janela fechada, enquanto o app estiver em execução.",
+            ["Notificações nativas do Windows com ações: concluir, adiar 5/10/30/60 min", "Recorrência", "Recuperação correta após suspensão, hibernação e mudança de horário"]),
+        "media" => new PlaceholderPage("", "Mídia", 2,
+            "Controle universal pelas sessões de mídia do Windows (GlobalSystemMediaTransportControls). Funciona sem login no Spotify.",
+            ["Lista de sessões (Spotify, Brave, Chrome, Edge…) com seleção explícita", "Comandos enviados só para a sessão escolhida", "Metadados e capa apenas quando o app os fornece", "Spotify Web API opcional e separada (comandos exigem Premium)"]),
+        "productivity" => new PlaceholderPage("", "Produtividade", 3,
+            "Cronômetro, temporizador e Pomodoro calculados por timestamps — sem deriva e corretos após suspensão.",
+            ["Cronômetro com voltas", "Temporizador com presets de 5 a 60 minutos", "Pomodoro com ciclos, histórico e estatísticas"]),
+        "integrations" => new PlaceholderPage("", "Atividades e integrações", 6,
+            "Eventos autorizados de ferramentas. Para o Claude Code, via hooks oficiais que chamam um pequeno executável local; conversas privadas nunca são lidas.",
+            ["Canal local (named pipe restrito ao seu usuário) com contrato JSON versionado", "Claude Code: tarefa concluída, aguardando confirmação, falha", "Estado de cada integração e último erro"]),
+        _ => new PlaceholderPage("", key, 0, "", []),
+    };
+
+    protected override void OnClosed(EventArgs e)
+    {
+        (PageHost.Content as IDisposable)?.Dispose();
+        PageHost.Content = null;
+        base.OnClosed(e);
+    }
+}
