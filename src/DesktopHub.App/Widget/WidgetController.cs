@@ -1,4 +1,5 @@
 using DesktopHub.App.Platform;
+using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Productivity;
@@ -18,6 +19,7 @@ internal sealed partial class WidgetController(
     MediaService media,
     IMasterVolume volume,
     ProductivityService productivity,
+    AgendaService agenda,
     ILogger<WidgetController> logger,
     ILoggerFactory loggerFactory) : IDisposable
 {
@@ -50,6 +52,7 @@ internal sealed partial class WidgetController(
         _subscriptions.Add(bus.Subscribe<ActiveMediaChanged>(e => _window?.ShowMedia(e), ui));
         _subscriptions.Add(bus.Subscribe<MasterVolumeChanged>(e => _window?.ShowVolume(e.State), ui));
         _subscriptions.Add(bus.Subscribe<ProductivityChanged>(e => _window?.ShowProductivity(e.Snapshot), ui));
+        _subscriptions.Add(bus.Subscribe<AgendaChanged>(_ => _window?.ShowAgenda(), ui));
         Refresh(WidgetVisibilityReason.User);
     }
 
@@ -91,7 +94,7 @@ internal sealed partial class WidgetController(
         {
             if (_window is null)
             {
-                _window = new WidgetWindow(settings, bus, media, volume, productivity, loggerFactory.CreateLogger<WidgetWindow>());
+                _window = new WidgetWindow(settings, bus, media, volume, productivity, agenda, loggerFactory.CreateLogger<WidgetWindow>());
                 LogCreated();
             }
             _window.Apply(s);

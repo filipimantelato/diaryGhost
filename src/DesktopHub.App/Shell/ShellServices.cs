@@ -1,6 +1,7 @@
 using DesktopHub.App.Platform;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
+using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Notifications;
@@ -19,4 +20,6 @@ internal sealed record ShellServices(
     AppPaths Paths,
     MediaService Media,
     ProductivityService Productivity,
-    NotificationCenter Notifications);
+    NotificationCenter Notifications,
+    AgendaService Agenda,
+    ReminderScheduler Reminders);

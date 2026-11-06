@@ -1,8 +1,10 @@
 using System.Diagnostics;
+using DesktopHub.App.Agenda;
 using DesktopHub.App.Platform;
 using DesktopHub.App.Theme;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
+using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Notifications;
 using DesktopHub.Core.Settings;
@@ -14,6 +16,8 @@ public sealed record AccentOption(string Name, string Hex, bool IsSelected);
 public sealed record HotkeyRow(string Gesture, string Label, string Status, bool Ok);
 
 public sealed record NotificationRow(string When, string Title, string Outcome);
+
+public sealed record CategoryRow(Guid Id, string Name, System.Windows.Media.Brush Brush, string DeleteLabel);
 
 /// <summary>
 /// Cada setter aplica a mudança de verdade (registro do Windows, janela do widget, tema) e a persiste.
@@ -29,16 +33,64 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     private string? _statusMessage;
 
     internal SettingsViewModel(SettingsService settings, IEventBus bus, WidgetController widget, GlobalHotkeys hotkeys, AppPaths paths,
-        NotificationCenter notifications)
+        NotificationCenter notifications, AgendaService agenda)
     {
         _settings = settings;
         _widget = widget;
         _paths = paths;
         _notifications = notifications;
+        _agenda = agenda;
         Hotkeys = [.. hotkeys.Bindings.Select(b => new HotkeyRow(b.Gesture, b.Label, b.Registered ? "Ativo" : "Indisponível — em uso por outro programa", b.Registered))];
         var ui = SynchronizationContext.Current;
         _subscriptions.Add(bus.Subscribe<SettingsChanged>(_ => OnPropertyChanged(string.Empty), ui));
         _subscriptions.Add(bus.Subscribe<NotificationProcessed>(_ => OnPropertyChanged(nameof(RecentNotifications)), ui));
+        _subscriptions.Add(bus.Subscribe<AgendaChanged>(_ => OnPropertyChanged(nameof(Categories)), ui));
+    }
+
+    // ---------- Agenda ----------
+
+    private readonly AgendaService _agenda;
+    private string? _categoryError;
+
+    public IReadOnlyList<CategoryRow> Categories =>
+        [.. _agenda.Categories.Select(c => new CategoryRow(c.Id, c.Name, AgendaUi.ColorBrush(c.Color), $"Excluir categoria {c.Name}"))];
+
+    public string? CategoryError
+    {
+        get => _categoryError;
+        private set
+        {
+            _categoryError = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Cria uma categoria com a próxima cor da paleta ainda não usada.</summary>
+    public bool AddCategory(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 40)
+        {
+            CategoryError = "Digite um nome de 1 a 40 caracteres.";
+            return false;
+        }
+        if (_agenda.Categories.Any(c => string.Equals(c.Name, name.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            CategoryError = "Já existe uma categoria com esse nome.";
+            return false;
+        }
+        var used = _agenda.Categories.Select(c => c.Color.ToUpperInvariant()).ToHashSet();
+        var color = AgendaUi.CategoryPalette.FirstOrDefault(c => !used.Contains(c)) ?? AgendaUi.CategoryPalette[_agenda.Categories.Count % AgendaUi.CategoryPalette.Length];
+        _agenda.SaveCategory(new AgendaCategory(Guid.CreateVersion7(), name.Trim(), color));
+        CategoryError = null;
+        return true;
+    }
+
+    public void DeleteCategory(Guid id) => _agenda.DeleteCategory(id);
+
+    public bool AgendaNotifications
+    {
+        get => Notify.AgendaNotifications;
+        set => _settings.UpdateNotifications(n => n with { AgendaNotifications = value });
     }
 
     // ---------- Notificações ----------

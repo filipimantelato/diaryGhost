@@ -82,12 +82,35 @@ Pendências levadas adiante:
 - Custo de redesenho do widget expandido (benchmark da Fase 3) → Fase 7.
 - Reabrir o app a partir de um toast antigo (precisa de ativador COM) → Fase 7, junto do instalador.
 
-## Fase 4 — Agenda e lembretes
-- Calendário local (dia/semana/mês/lista), eventos recorrentes (RRULE) com fuso, categorias e cores.
-- Tarefas e lembretes com prioridade, recorrência, adiar 5/10/30/60, reagendar.
-- `ReminderScheduler` que dorme até o próximo vencimento; reavalia em retomada/mudança de horário.
-- **Aceite:** lembrete criado sobrevive a reinício e dispara; vencimento perdido durante suspensão é
-  entregue ao retomar como "atrasado"; testes de recorrência (DST, fim de mês, exceções).
+## Fase 4 — Agenda e lembretes ✅ (2026-11-06)
+Entregue:
+- Calendário local: visões **dia e semana** (grade de horas, eventos sobrepostos lado a lado, linha do
+  "agora"), **mês** e **lista** (60 dias); criar com clique duplo num horário/dia; editor em gaveta.
+- Eventos: dia inteiro ou com horário (inclusive atravessando a meia-noite), recorrência com presets
+  (todo dia, dias úteis, semanal, quinzenal, mensal no dia / na Nª semana / última semana / último dia,
+  anual) ou RRULE personalizado, término por vezes ou data, até 2 avisos, local, notas, categoria.
+  Séries: editar a série inteira ou **só esta ocorrência**; excluir só esta / esta e as próximas / tudo.
+- Recorrência própria (subconjunto do RFC 5545) com horário de parede + fuso (ADR-017).
+- Tarefas: criação rápida, prazo com ou sem hora, prioridade, categoria, aviso, recorrência (concluir
+  avança para a próxima data, sem empilhar atrasadas), filtros, grupos por prazo, adiar/reagendar.
+- Lembretes: página com criação rápida ("daqui a 5 min", "às 15:30"), próximos 7 dias e histórico com o
+  resultado de cada aviso. Toast com **adiar 5/10/30/60** (lista de escolha) e **concluir** (ADR-019).
+- `ReminderScheduler` com chave estável e marca d'água (ADR-018). Categorias com cores (Configurações).
+- Widget: painel **Agenda** (em andamento/próximos de hoje e amanhã, tarefas de hoje com concluir).
+  Dashboard: "Próximo compromisso" e "Tarefas pendentes" com dados reais.
+- Migração de banco 3; 139 testes (51 novos).
+
+Aceite: **lembrete sobrevive a reinício e dispara ✅** (teste + verificado ao vivo: entregue às 16:30:00);
+**vencimento perdido é entregue ao voltar como "atrasado" ✅** (teste + verificado ao vivo fechando o app
+durante o horário do aviso); **recorrência com DST, fim de mês e exceções ✅** (testes).
+
+**Não verificado ao vivo:** suspensão real do PC (mesmo caminho do app fechado + `Resume`); clicar em
+"Adiar"/"Concluir" no toast (coberto por testes com sink falso; a lista de escolha depende do Windows).
+
+Pendências levadas adiante:
+- Arrastar eventos na grade para mudar horário/duração.
+- Importar/exportar `.ics` (o modelo já é iCalendar) → junto da sincronização, Fase 6.
+- Toast antigo que reabre o app fechado (ativador COM) → Fase 7.
 
 ## Fase 5 — Informações
 - Fontes RSS/Atom curadas + do usuário, ETag/If-Modified-Since, backoff, limites por fonte.

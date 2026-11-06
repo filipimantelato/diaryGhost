@@ -29,6 +29,12 @@ public enum NotificationPriority
 
 public sealed record NotificationAction(string Id, string Label);
 
+/// <summary>
+/// Lista de escolha exibida na notificação (ex.: "Adiar por: 5/10/30/60 min"). O valor escolhido chega
+/// junto da ação como <c>"{acao}:{valor}"</c> em <see cref="NotificationActivated.ActionId"/>.
+/// </summary>
+public sealed record NotificationSelection(string Id, string DefaultOptionId, IReadOnlyList<NotificationAction> Options);
+
 /// <param name="Tag">Identifica a origem para tratar ações (ex.: "timer", "pomodoro").</param>
 /// <param name="DedupKey">Notificações com a mesma chave em 10 min são descartadas como duplicadas.</param>
 public sealed record NotificationRequest(
@@ -38,7 +44,8 @@ public sealed record NotificationRequest(
     string? Body,
     string Tag,
     string? DedupKey = null,
-    IReadOnlyList<NotificationAction>? Actions = null);
+    IReadOnlyList<NotificationAction>? Actions = null,
+    NotificationSelection? Selection = null);
 
 public enum DeliveryOutcome
 {

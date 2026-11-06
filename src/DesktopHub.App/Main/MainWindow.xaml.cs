@@ -50,7 +50,7 @@ public partial class MainWindow : Window
         };
 
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 3";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 4";
 
         SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
         NavDashboard.IsChecked = true;
@@ -77,21 +77,15 @@ public partial class MainWindow : Window
 
     private FrameworkElement CreatePage(string key) => key switch
     {
-        MainPages.Dashboard => new DashboardPage(_settings, _widget, _startup, _paths, _media, _services.Productivity),
-        MainPages.Settings => new SettingsPage(new SettingsViewModel(_settings, _bus, _widget, _hotkeys, _paths, _services.Notifications)),
+        MainPages.Dashboard => new DashboardPage(_settings, _widget, _startup, _paths, _media, _services.Productivity, _services.Agenda),
+        MainPages.Settings => new SettingsPage(new SettingsViewModel(_settings, _bus, _widget, _hotkeys, _paths, _services.Notifications, _services.Agenda)),
         "productivity" => new ProductivityPage(_services.Productivity, _settings, _bus),
         "news" => new PlaceholderPage("", "Notícias", 5,
             "Agregador com fontes confiáveis via RSS/Atom e APIs oficiais, sem scraping. Mostra fonte, autor, horário de publicação e horário da consulta.",
             ["Categorias: política, tecnologia, games, ciência e meio ambiente, geral", "Deduplicação e agrupamento por acontecimento", "Salvar, favoritar, marcar como lida, seguir assuntos", "Destaques para desenvolvedores: releases do GitHub, CVEs críticas (NVD/CISA)", "Atualização em intervalos configuráveis com cache e ETag"]),
-        "calendar" => new PlaceholderPage("", "Calendário", 4,
-            "Calendário local completo, com sincronização opcional por OAuth — nenhuma senha é solicitada.",
-            ["Visões de dia, semana, mês e lista", "Eventos recorrentes (RFC 5545) e de dia inteiro, com fuso horário", "Google Calendar (sync incremental), Outlook (Microsoft Graph) e ICS"]),
-        "tasks" => new PlaceholderPage("", "Agenda e tarefas", 4,
-            "Tarefas com prioridade, categoria e prazo, ligadas a lembretes.",
-            ["Criar, editar, concluir e reagendar", "Filtros por prazo, prioridade e categoria"]),
-        "reminders" => new PlaceholderPage("", "Lembretes", 4,
-            "Lembretes persistentes que disparam mesmo com a janela fechada, enquanto o app estiver em execução.",
-            ["Notificações nativas do Windows com ações: concluir, adiar 5/10/30/60 min", "Recorrência", "Recuperação correta após suspensão, hibernação e mudança de horário"]),
+        "calendar" => new CalendarPage(_services.Agenda, _bus),
+        "tasks" => new TasksPage(_services.Agenda, _bus),
+        "reminders" => new RemindersPage(_services.Agenda, _services.Reminders, _services.Notifications, _bus),
         "media" => new MediaPage(_media, _settings, _bus),
         "integrations" => new PlaceholderPage("", "Atividades e integrações", 6,
             "Eventos autorizados de ferramentas. Para o Claude Code, via hooks oficiais que chamam um pequeno executável local; conversas privadas nunca são lidas.",

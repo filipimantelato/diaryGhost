@@ -6,7 +6,9 @@ using DesktopHub.App.Shell;
 using DesktopHub.App.Theme;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
+using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Events;
+using DesktopHub.Infrastructure.Agenda;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Notifications;
 using DesktopHub.Core.Productivity;
@@ -138,12 +140,16 @@ public partial class App : Application
         services.AddSingleton<INotificationHistory, SqliteNotificationHistory>();
         services.AddSingleton<WindowsToastSink>();
         services.AddSingleton<INotificationSink>(sp => sp.GetRequiredService<WindowsToastSink>());
+        services.AddSingleton<IAgendaStore, SqliteAgendaStore>();
+        services.AddSingleton<IReminderLog, SqliteReminderLog>();
 
         // Aplicação
         services.AddSingleton<SettingsService>();
         services.AddSingleton<MediaService>();
         services.AddSingleton<NotificationCenter>();
         services.AddSingleton<ProductivityService>();
+        services.AddSingleton<AgendaService>();
+        services.AddSingleton<ReminderScheduler>();
 
         // Plataforma e apresentação
         services.AddSingleton<FullscreenMonitor>();

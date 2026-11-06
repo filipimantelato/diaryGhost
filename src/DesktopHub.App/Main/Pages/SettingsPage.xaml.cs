@@ -36,6 +36,22 @@ public partial class SettingsPage : UserControl, IDisposable
 
     private void Resume_Click(object sender, RoutedEventArgs e) => _viewModel.ResumeNotifications();
 
+    private void AddCategory_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.AddCategory(NewCategoryBox.Text))
+        {
+            NewCategoryBox.Clear();
+        }
+    }
+
+    private void DeleteCategory_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: Guid id })
+        {
+            _viewModel.DeleteCategory(id);
+        }
+    }
+
     private void OpenData_Click(object sender, RoutedEventArgs e) => _viewModel.OpenDataFolder();
 
     private void OpenLogs_Click(object sender, RoutedEventArgs e) => _viewModel.OpenLogsFolder();

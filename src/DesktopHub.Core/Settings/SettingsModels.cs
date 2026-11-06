@@ -21,6 +21,8 @@ public sealed record NotificationSettings
     public DateTimeOffset? PausedUntil { get; init; }
     public bool SuppressInFullscreen { get; init; } = true;
     public bool TimerNotifications { get; init; } = true;
+    /// <summary>Lembretes de tarefas e avisos de eventos do calendário.</summary>
+    public bool AgendaNotifications { get; init; } = true;
 
     public NotificationSettings Sanitize() => this with
     {

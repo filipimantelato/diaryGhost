@@ -36,6 +36,10 @@ public static class NotificationPolicy
         {
             return DeliveryOutcome.SuppressedCategoryOff;
         }
+        if (request.Category is NotificationCategory.Reminder or NotificationCategory.CalendarEvent && !settings.AgendaNotifications && !critical)
+        {
+            return DeliveryOutcome.SuppressedCategoryOff;
+        }
         if (context.DuplicateRecently)
         {
             return DeliveryOutcome.Duplicate;

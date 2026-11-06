@@ -129,8 +129,8 @@ Eventos planejados (catálogo em `src/DesktopHub.Core/Events/`):
 | `OpenMainRequested` | widget, bandeja | 2 ✅ |
 | `ProductivityChanged`, `TimerCompleted` | ProductivityService | 3 ✅ |
 | `NotificationProcessed`, `NotificationActivated` | NotificationCenter | 3 ✅ |
-| `ReminderDue` | ReminderScheduler | 4 |
-| `CalendarEventChanged` | CalendarService/Sync | 4 |
+| `AgendaChanged` | AgendaService (eventos, tarefas, categorias) | 4 ✅ |
+| `RemindersChanged` | ReminderScheduler (entregue, adiado, dispensado) | 4 ✅ |
 | `NewsUpdated`, `WeatherUpdated` | NewsService/WeatherService | 5 |
 | `IntegrationStatusChanged`, `IntegrationEventReceived` | IntegrationHost | 6 |
 
@@ -143,9 +143,13 @@ Usamos o `System.TimeProvider` do próprio .NET (sem abstração caseira; nos te
 - `TimeProvider.GetTimestamp()` / `GetElapsedTime()` (monotônico) para durações curtas.
 - Temporizadores **não** contam ticks: guardam `startedAtUtc` + `accumulated`. O tempo exibido é
   calculado na hora de exibir. A UI só agenda um redesenho por segundo **enquanto visível**.
-- Lembretes: um único `ReminderScheduler` dorme até o próximo vencimento (`Task.Delay` cancelável)
-  e é reavaliado em `SystemEvents.PowerModeChanged` (retomada), `TimeChanged` e mudança de fuso.
-  Vencimentos perdidos durante suspensão são entregues ao retomar, marcados como atrasados.
+- Lembretes (Fase 4 ✅, ADR-018): um único `ReminderScheduler` dorme até o próximo aviso (timer do
+  `TimeProvider`, no máximo 6 h) e é reavaliado em `SystemEvents.PowerModeChanged` (retomada),
+  `TimeChanged` (também limpa o cache de fuso) e a cada `AgendaChanged`. Cada avaliação cobre o intervalo
+  desde a última (marca d'água persistida): vencimentos perdidos com o app fechado ou o PC suspenso são
+  entregues ao voltar, marcados como atrasados, e nunca repetidos.
+- Recorrência (ADR-017): `RecurrenceExpander` gera inícios em horário de parede; `ZonedTime` converte para
+  UTC com as regras de horário de verão do RFC 5545.
 
 ## 6. Janelas, foco e z-order (Windows)
 
@@ -191,8 +195,10 @@ Persistente (SQLite) vs. transitório (memória):
 | `NewsArticle` | tabela, retenção configurável | `UNIQUE(source_id, guid)`, `canonical_url_hash`, `cluster_id` |
 | `SavedArticle` / estado de leitura | `article_state` | sobrevive à limpeza do cache |
 | `CalendarAccount` | tabela | tokens **não** ficam aqui, só referência a `secrets` |
-| `CalendarEvent` | tabela | `UNIQUE(account_id, remote_id)`, `rrule`, `tzid`, `etag`, `deleted` |
-| `Task`, `Reminder` | tabelas | lembrete pode apontar para tarefa ou evento |
+| `CalendarEvent` | `calendar_events` ✅ | início em horário de parede + `time_zone`, `rrule`, `exdates`, avisos; conta/`remote_id`/`etag` chegam com a sincronização (Fase 6) |
+| `Task` | `tasks` ✅ | prazo opcional (com ou sem hora), prioridade, recorrência ancorada, aviso |
+| `AgendaCategory` | `agenda_categories` ✅ | nome + cor; FK `ON DELETE SET NULL` |
+| `Reminder` | calculado + `reminder_log` ✅ | registro por chave estável e marca d'água em `agenda_meta` (ADR-018) |
 | `TimerSession`, `ProductivitySession` | tabelas | só sessões encerradas + sessão ativa para recuperação |
 | `Notification` | tabela, retenção 30 dias | `dedup_key` para prevenir duplicatas |
 | `IntegrationConfiguration` | tabela | habilitada/escopos/último sync/último erro |

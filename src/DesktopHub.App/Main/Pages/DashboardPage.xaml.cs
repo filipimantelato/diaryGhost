@@ -6,6 +6,7 @@ using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.App.Productivity;
 using DesktopHub.Core.Media;
+using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Productivity;
 using DesktopHub.Core.Settings;
 
@@ -24,7 +25,7 @@ public partial class DashboardPage : UserControl
 {
     private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
 
-    internal DashboardPage(SettingsService settings, WidgetController widget, StartupState startup, AppPaths paths, MediaService media, ProductivityService productivity)
+    internal DashboardPage(SettingsService settings, WidgetController widget, StartupState startup, AppPaths paths, MediaService media, ProductivityService productivity, AgendaService agenda)
     {
         InitializeComponent();
         var now = DateTime.Now;
@@ -43,13 +44,47 @@ public partial class DashboardPage : UserControl
         Cards.ItemsSource = new List<DashboardCard>
         {
             new("", "Clima", "Previsão real (Open-Meteo) para a localização que você definir.", "Não configurado · Fase 5"),
-            new("", "Próximo compromisso", "Calendário local e contas sincronizadas.", "Não configurado · Fase 4"),
-            new("", "Tarefas pendentes", "Tarefas e lembretes persistentes.", "Não configurado · Fase 4"),
+            new("", "Próximo compromisso", NextEventText(agenda), null),
+            new("", "Tarefas pendentes", TasksText(agenda), null),
             new("", "Notícias importantes", "Fontes confiáveis por RSS e APIs oficiais.", "Não configurado · Fase 5"),
             new("", "Em reprodução", NowPlayingText(media), null),
             new("", "Temporizadores ativos", FocusText(productivity), null),
             new("", "Sistema", system, db?.RecoveredFromCorruption == true ? "Banco recuperado: cópia preservada em 'corrupt'" : null),
         };
+    }
+
+    private static string NextEventText(AgendaService agenda)
+    {
+        var now = agenda.Now;
+        var today = agenda.LocalNow;
+        var next = agenda.OccurrencesBetween(now, now.AddDays(14)).Where(o => !o.Event.AllDay || o.StartUtc >= now.AddDays(-1)).Take(3).ToList();
+        if (next.Count == 0)
+        {
+            return "Nada nos próximos 14 dias.";
+        }
+        return string.Join("\n", next.Select(o =>
+        {
+            var start = ZonedTime.ToWall(o.StartUtc, agenda.LocalZone);
+            var when = o.Event.AllDay ? $"{AgendaFormat.Day(start, today)}, dia inteiro"
+                : o.StartUtc <= now ? $"agora (até {AgendaFormat.Time(ZonedTime.ToWall(o.EndUtc, agenda.LocalZone))})"
+                : $"{AgendaFormat.Day(start, today)} às {AgendaFormat.Time(start)}";
+            return $"{o.Event.Title} — {when}";
+        }));
+    }
+
+    private static string TasksText(AgendaService agenda)
+    {
+        var open = agenda.Tasks.Where(t => !t.IsCompleted).ToList();
+        if (open.Count == 0)
+        {
+            return "Nenhuma tarefa pendente.";
+        }
+        var today = agenda.LocalNow.Date;
+        var overdue = open.Count(agenda.IsOverdue);
+        var dueToday = open.Count(t => t.Due?.Date == today && !agenda.IsOverdue(t));
+        var top = open.Where(t => t.Due is not null).OrderBy(t => agenda.DueUtc(t)).ThenByDescending(t => t.Priority).Take(2)
+            .Select(t => $"• {t.Title} ({(agenda.IsOverdue(t) ? "atrasada" : AgendaFormat.Day(t.Due!.Value, today))})");
+        return string.Join("\n", new[] { $"{open.Count} pendente(s) · {overdue} atrasada(s) · {dueToday} para hoje" }.Concat(top));
     }
 
     /// <summary>Retrato no momento em que o dashboard abre; a página Mídia e o widget mostram ao vivo.</summary>

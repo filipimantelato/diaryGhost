@@ -96,6 +96,7 @@
           <TextBlock Text="Notificações" Style="{StaticResource SubtitleText}" Margin="0,0,0,6" />
           <TextBlock Text="{Binding WindowsNotificationStatus}" Style="{StaticResource CaptionText}" Margin="0,0,0,6" />
           <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding TimerNotifications}" Content="Avisar quando temporizadores e fases do Pomodoro terminarem" />
+          <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AgendaNotifications}" Content="Avisos de eventos do calendário e lembretes de tarefas" />
           <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding SuppressInFullscreen}" Content="Não interromper jogos e apps em tela cheia (só avisos importantes passam)" />
           <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding QuietHoursEnabled}" Content="Horário de silêncio (só avisos importantes passam)" />
           <StackPanel Orientation="Horizontal" Margin="0,4,0,8" IsEnabled="{Binding QuietHoursEnabled}">
@@ -130,6 +131,37 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <!-- Agenda: categorias -->
+      <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+          <TextBlock Text="Categorias da agenda" Style="{StaticResource SubtitleText}" Margin="0,0,0,4" />
+          <TextBlock Style="{StaticResource CaptionText}" Margin="0,0,0,8"
+                     Text="Cores de eventos e tarefas. Excluir uma categoria não apaga nada: os itens ficam sem categoria." />
+          <ItemsControl ItemsSource="{Binding Categories}" Focusable="False">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <DockPanel Margin="0,2">
+                  <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE74D;" Width="28" Height="28" FontSize="12"
+                          Tag="{Binding Id}" Click="DeleteCategory_Click" ToolTip="Excluir categoria"
+                          AutomationProperties.Name="{Binding DeleteLabel}" />
+                  <Ellipse Width="12" Height="12" Fill="{Binding Brush}" VerticalAlignment="Center" Margin="2,0,10,0" />
+                  <TextBlock Text="{Binding Name}" Style="{StaticResource BodyText}" VerticalAlignment="Center" />
+                </DockPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <Grid Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="NewCategoryBox" MaxLength="40" AutomationProperties.Name="Nome da nova categoria" />
+            <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Adicionar categoria" Margin="8,0,0,0" Click="AddCategory_Click" />
+          </Grid>
+          <TextBlock Text="{Binding CategoryError}" Style="{StaticResource CaptionText}" Foreground="{StaticResource DangerBrush}" Margin="0,4,0,0" />
         </StackPanel>
       </Border>
 

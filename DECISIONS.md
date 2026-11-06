@@ -190,6 +190,48 @@ silêncio e tela cheia (só High/Critical) → limite por categoria (Low/Normal 
 Tudo vai para o histórico (30 dias), inclusive o que foi suprimido, com o motivo — visível em
 Configurações. Textos de notificação são escapados no XML do toast (testado contra injeção).
 
+## ADR-017 — Recorrência: subconjunto próprio do RRULE, horário de parede + fuso
+**Status:** aceita (resolve a pendência "Ical.Net vs. implementação mínima")
+
+Implementamos o subconjunto do RFC 5545 que um calendário pessoal usa — FREQ diário/semanal/mensal/anual,
+INTERVAL, BYDAY (com ordinal: "2ª terça", "última sexta"), BYMONTHDAY (negativos = do fim do mês),
+BYMONTH, BYSETPOS ("último dia útil"), COUNT, UNTIL e exceções (EXDATE) — em ~300 linhas puras e testadas,
+em vez de adicionar o Ical.Net (dependência grande, com fusos próprios). Regras não suportadas (por hora,
+por minuto, WKST ≠ MO) são **recusadas com mensagem**, nunca interpretadas pela metade.
+
+- Eventos guardam o início em **horário de parede** + ID de fuso: "toda segunda às 09:00" continua às 09:00
+  depois de uma mudança de horário de verão (testado com um fuso de teste com DST).
+- Conversão para UTC segue o RFC: horário inexistente (salto) usa o deslocamento de antes (02:30 → 03:30);
+  horário ambíguo usa a primeira ocorrência.
+- Datas inválidas são puladas (31 de abril, 29/02 em ano comum), como no RFC; "último dia do mês" é
+  `BYMONTHDAY=-1`, oferecido na interface.
+- Eventos de dia inteiro e tarefas sem hora são "flutuantes" (valem no fuso atual do usuário).
+- O formato é o do iCalendar, então importação/sincronização (Fase 6) reaproveita o mesmo modelo; se
+  aparecer uma regra fora do subconjunto, a decisão será revista ali.
+
+## ADR-018 — Lembretes calculados, com registro e marca d'água
+**Status:** aceita
+
+Avisos não são materializados: são calculados a partir de eventos e tarefas (`ReminderScheduler.TriggersBetween`).
+Cada aviso tem uma **chave estável** (origem + instante da ocorrência + antecedência). O registro
+(`reminder_log`) guarda o que já foi entregue/adiado/dispensado, e a **marca d'água** guarda até quando
+os avisos foram avaliados. Cada avaliação cobre (marca d'água, agora]:
+
+- Nada se repete após reiniciar (chave já registrada) e nada se perde com o app fechado ou o PC suspenso:
+  o que venceu é entregue ao voltar, como **atrasado** (com o horário original). Limite de 7 dias para trás;
+  mais de 3 atrasados viram um resumo único.
+- Aviso criado depois do seu horário (ex.: reunião em 5 min com aviso de 10) sai na hora, sem "atrasado";
+  se o compromisso já começou, é ignorado.
+- Um único timer dorme até o próximo aviso (máx. 6 h, por segurança) e a avaliação é refeita ao retomar
+  da suspensão, quando o relógio/fuso muda e quando a agenda muda. Sem varredura periódica.
+- Editar o horário de um evento gera chaves novas: o aviso do novo horário é entregue normalmente.
+
+## ADR-019 — Adiar pelo próprio toast com lista de escolha
+**Status:** aceita
+
+Cinco botões ("5 min", "10 min", …, "Concluir") ficam ilegíveis no toast. Usamos o elemento `<input
+type="selection">` do Windows (adiar por 5/10/30/60 min) + botões "Adiar" e "Concluir"; o valor escolhido
+chega em `UserInput` e é repassado como `snooze:10`. O XML continua montado com escape (testado).
+
 ## Decisões pendentes
 - **Instalador e atualizações (Fase 7):** Velopack vs. MSIX vs. Inno Setup.
-- **Parser iCalendar (Fase 4):** Ical.Net vs. implementação mínima de RRULE.

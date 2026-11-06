@@ -282,6 +282,18 @@
               </WrapPanel>
             </StackPanel>
 
+            <!-- Agenda: compromissos e tarefas de hoje -->
+            <StackPanel x:Name="AgendaBody" Visibility="Collapsed">
+              <StackPanel x:Name="AgendaList" />
+              <TextBlock x:Name="AgendaEmpty" Style="{StaticResource CaptionText}" Margin="0,0,0,4" Visibility="Collapsed"
+                         Text="Nada na agenda para hoje e amanhã." />
+              <WrapPanel Margin="0,6,0,0">
+                <Button Style="{StaticResource Chip}" Content="Calendário" Tag="calendar" Click="AgendaOpen_Click" />
+                <Button Style="{StaticResource Chip}" Content="Tarefas" Tag="tasks" Click="AgendaOpen_Click" />
+                <Button Style="{StaticResource Chip}" Content="Lembretes" Tag="reminders" Click="AgendaOpen_Click" />
+              </WrapPanel>
+            </StackPanel>
+
             <!-- Módulos ainda não implementados -->
             <StackPanel x:Name="PlaceholderBody" Visibility="Collapsed" Margin="0,0,0,4">
               <TextBlock x:Name="PlaceholderText" Style="{StaticResource CaptionText}" />

@@ -30,7 +30,7 @@
           <RadioButton x:Name="NavDashboard" Style="{StaticResource NavItem}" Tag="&#xE80F;" Content="Dashboard" Checked="Nav_Checked" />
           <RadioButton x:Name="NavNews" Style="{StaticResource NavItem}" Tag="&#xE774;" Content="Notícias" Checked="Nav_Checked" />
           <RadioButton x:Name="NavCalendar" Style="{StaticResource NavItem}" Tag="&#xE787;" Content="Calendário" Checked="Nav_Checked" />
-          <RadioButton x:Name="NavTasks" Style="{StaticResource NavItem}" Tag="&#xE9D5;" Content="Agenda e tarefas" Checked="Nav_Checked" />
+          <RadioButton x:Name="NavTasks" Style="{StaticResource NavItem}" Tag="&#xE9D5;" Content="Tarefas" Checked="Nav_Checked" />
           <RadioButton x:Name="NavReminders" Style="{StaticResource NavItem}" Tag="&#xEA8F;" Content="Lembretes" Checked="Nav_Checked" />
           <RadioButton x:Name="NavMedia" Style="{StaticResource NavItem}" Tag="&#xE8D6;" Content="Mídia" Checked="Nav_Checked" />
           <RadioButton x:Name="NavProductivity" Style="{StaticResource NavItem}" Tag="&#xE916;" Content="Produtividade" Checked="Nav_Checked" />

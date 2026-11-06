@@ -88,8 +88,10 @@ public sealed partial class WindowsToastSink(ILogger<WindowsToastSink> logger) :
         {
             var xml = new XmlDocument();
             xml.LoadXml(BuildXml(id, request));
-            var toast = new ToastNotification(xml) { Tag = id.ToString("N")[..16], Group = request.Tag };
-            toast.Activated += (_, args) => OnActivated(id, args);
+            // Group tem limite de 64 caracteres no Windows; o tag completo fica no NotificationCenter.
+            var toast = new ToastNotification(xml) { Tag = id.ToString("N")[..16], Group = request.Tag.Length <= 64 ? request.Tag : request.Tag[..64] };
+            var selectionId = request.Selection?.Id;
+            toast.Activated += (_, args) => OnActivated(id, args, selectionId);
             toast.Dismissed += (_, _) => _live.TryRemove(id, out _);
             toast.Failed += (_, e) =>
             {
@@ -125,6 +127,18 @@ public sealed partial class WindowsToastSink(ILogger<WindowsToastSink> logger) :
         if (request.Actions is { Count: > 0 } actions)
         {
             sb.Append("<actions>");
+            if (request.Selection is { Options.Count: > 0 } selection)
+            {
+                // Entradas vêm antes dos botões; o valor escolhido chega em UserInput[Id].
+                sb.Append("<input id=\"").Append(SecurityElement.Escape(selection.Id)).Append("\" type=\"selection\" defaultInput=\"")
+                  .Append(SecurityElement.Escape(selection.DefaultOptionId)).Append("\">");
+                foreach (var option in selection.Options.Take(5))
+                {
+                    sb.Append("<selection id=\"").Append(SecurityElement.Escape(option.Id)).Append("\" content=\"")
+                      .Append(SecurityElement.Escape(option.Label)).Append("\"/>");
+                }
+                sb.Append("</input>");
+            }
             foreach (var action in actions.Take(5)) // limite do Windows
             {
                 sb.Append("<action content=\"").Append(SecurityElement.Escape(action.Label))
@@ -136,10 +150,16 @@ public sealed partial class WindowsToastSink(ILogger<WindowsToastSink> logger) :
         return sb.ToString();
     }
 
-    private void OnActivated(Guid id, object args)
+    private void OnActivated(Guid id, object args, string? selectionId)
     {
-        var arguments = (args as ToastActivatedEventArgs)?.Arguments ?? "";
+        var activated = args as ToastActivatedEventArgs;
+        var arguments = activated?.Arguments ?? "";
         var actionId = arguments.StartsWith("action=", StringComparison.Ordinal) ? arguments["action=".Length..] : null;
+        if (actionId is not null && selectionId is not null &&
+            activated?.UserInput is { } input && input.TryGetValue(selectionId, out var chosen) && chosen is string value)
+        {
+            actionId = $"{actionId}:{value}";
+        }
         Activated?.Invoke(id, actionId);
     }
 

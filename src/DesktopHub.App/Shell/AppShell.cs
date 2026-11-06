@@ -4,6 +4,7 @@ using DesktopHub.App.Main;
 using DesktopHub.App.Platform;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
+using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Notifications;
@@ -39,6 +40,8 @@ internal sealed partial class AppShell(
     ProductivityService productivity,
     NotificationCenter notifications,
     WindowsToastSink toasts,
+    AgendaService agenda,
+    ReminderScheduler reminders,
     ILogger<AppShell> logger) : IDisposable
 {
     private readonly List<IDisposable> _subscriptions = [];
@@ -49,13 +52,15 @@ internal sealed partial class AppShell(
 
     public bool IsExiting => _exiting;
 
-    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications);
+    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders);
 
     public void Start()
     {
         toasts.Register("Diary Ghost", ExtractNotificationIcon());
         notifications.PruneHistory();
         productivity.Start(); // antes do widget: ele já nasce com o estado recuperado
+        agenda.Start();
+        reminders.Start();    // entrega o que venceu com o app fechado e agenda o próximo aviso
 
         _tray = new TrayIconService(this, Services);
         _subscriptions.Add(bus.Subscribe<OpenMainRequested>(e => OpenMain(e.Page), SynchronizationContext.Current));
@@ -93,10 +98,17 @@ internal sealed partial class AppShell(
         {
             LogResumed();
             productivity.Reschedule();
+            reminders.Reschedule();
         }
     }
 
-    private void OnTimeChanged(object? sender, EventArgs e) => productivity.Reschedule();
+    private void OnTimeChanged(object? sender, EventArgs e)
+    {
+        // O fuso pode ter mudado: TimeZoneInfo.Local é guardado em cache pelo .NET.
+        TimeZoneInfo.ClearCachedData();
+        productivity.Reschedule();
+        reminders.Reschedule();
+    }
 
     /// <summary>O Windows exibe o ícone do toast a partir de um arquivo: grava o logo embutido na pasta de dados.</summary>
     private string ExtractNotificationIcon()

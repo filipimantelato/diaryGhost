@@ -7,6 +7,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using DesktopHub.App.Platform;
 using DesktopHub.App.Theme;
+using DesktopHub.Core.Agenda;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Productivity;
@@ -48,7 +49,8 @@ public partial class WidgetWindow : Window
     private (int X, int Y) _dragCursorStart;
     private PixelRect _dragWindowStart;
 
-    internal WidgetWindow(SettingsService settings, IEventBus bus, MediaService media, IMasterVolume volume, ProductivityService productivity, ILogger logger)
+    internal WidgetWindow(SettingsService settings, IEventBus bus, MediaService media, IMasterVolume volume, ProductivityService productivity,
+        AgendaService agenda, ILogger logger)
     {
         _settings = settings;
         _logger = logger;
@@ -56,6 +58,7 @@ public partial class WidgetWindow : Window
         _media = media;
         _volume = volume;
         _productivity = productivity;
+        _agenda = agenda;
         InitializeComponent();
         _clock = new DispatcherTimer(DispatcherPriority.Background);
         _clock.Tick += (_, _) => UpdateClock();
@@ -157,7 +160,7 @@ public partial class WidgetWindow : Window
         [WidgetPanel.Media] = ("Mídia", null, null),
         [WidgetPanel.Volume] = ("Volume", null, null),
         [WidgetPanel.Focus] = ("Foco", null, null),
-        [WidgetPanel.Agenda] = ("Agenda", "Próximo compromisso, horário, tempo restante e lembretes.", "Chega na Fase 4"),
+        [WidgetPanel.Agenda] = ("Agenda", null, null),
         [WidgetPanel.Activity] = ("Atividade", "Eventos autorizados do Claude Code (via hooks oficiais) e de outras ferramentas.", "Chega na Fase 6"),
     };
 
@@ -173,6 +176,11 @@ public partial class WidgetWindow : Window
         MediaBody.Visibility = panel == WidgetPanel.Media ? Visibility.Visible : Visibility.Collapsed;
         VolumeBody.Visibility = panel == WidgetPanel.Volume ? Visibility.Visible : Visibility.Collapsed;
         FocusBody.Visibility = panel == WidgetPanel.Focus ? Visibility.Visible : Visibility.Collapsed;
+        AgendaBody.Visibility = panel == WidgetPanel.Agenda ? Visibility.Visible : Visibility.Collapsed;
+        if (panel == WidgetPanel.Agenda && expanded)
+        {
+            RenderAgenda();
+        }
         PlaceholderBody.Visibility = placeholder is null ? Visibility.Collapsed : Visibility.Visible;
         PlaceholderText.Text = placeholder ?? "";
         PlaceholderBadge.Text = badge ?? "";
@@ -286,6 +294,10 @@ public partial class WidgetWindow : Window
         if (_shownMedia is null)
         {
             RenderCompact();
+        }
+        if (IsVisible && _appliedPanel == WidgetPanel.Agenda && _appliedLayout == WidgetLayout.Expanded)
+        {
+            RenderAgenda(); // "em 25 min" anda junto com o relógio do cabeçalho, uma vez por minuto
         }
         if (IsVisible)
         {

@@ -1,0 +1,87 @@
+<UserControl x:Class="DesktopHub.App.Agenda.TaskEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <UserControl.Resources>
+    <Style x:Key="FieldLabel" TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+      <Setter Property="Margin" Value="0,12,0,4" />
+    </Style>
+  </UserControl.Resources>
+  <Border Style="{StaticResource Card}" Padding="18,16">
+    <DockPanel>
+      <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+        <TextBlock x:Name="ErrorText" Style="{StaticResource CaptionText}" Foreground="{StaticResource DangerBrush}" Visibility="Collapsed" Margin="0,0,0,8" />
+        <DockPanel>
+          <Button x:Name="DeleteButton" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE74D;" ToolTip="Excluir"
+                  AutomationProperties.Name="Excluir tarefa" Click="Delete_Click" />
+          <WrapPanel>
+            <Button Style="{StaticResource AccentButton}" Content="Salvar" Margin="0,0,8,6" Click="Save_Click" IsDefault="True" />
+            <Button Style="{StaticResource SecondaryButton}" Content="Cancelar" Margin="0,0,8,6" Click="Cancel_Click" IsCancel="True" />
+          </WrapPanel>
+        </DockPanel>
+      </StackPanel>
+
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,0,6,0">
+          <TextBlock x:Name="HeaderText" Style="{StaticResource SubtitleText}" />
+
+          <TextBlock Text="Título" Style="{StaticResource FieldLabel}" />
+          <TextBox x:Name="TitleBox" MaxLength="200" AutomationProperties.Name="Título da tarefa" />
+
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="90" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="Prazo (opcional)" Style="{StaticResource FieldLabel}" />
+              <TextBox x:Name="DateBox" AutomationProperties.Name="Data do prazo" ToolTip="dd/mm/aaaa, &quot;hoje&quot; ou &quot;amanhã&quot;; vazio = sem prazo"
+                       LostFocus="Date_LostFocus" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Hora" Style="{StaticResource FieldLabel}" />
+              <TextBox x:Name="TimeBox" AutomationProperties.Name="Hora do prazo" ToolTip="Opcional. Ex.: 18:00" />
+            </StackPanel>
+          </Grid>
+          <WrapPanel Margin="0,6,0,0">
+            <Button Style="{StaticResource Chip}" Content="Hoje" Tag="0" Margin="0,0,6,6" Click="QuickDate_Click" />
+            <Button Style="{StaticResource Chip}" Content="Amanhã" Tag="1" Margin="0,0,6,6" Click="QuickDate_Click" />
+            <Button Style="{StaticResource Chip}" Content="Próxima semana" Tag="7" Margin="0,0,6,6" Click="QuickDate_Click" />
+            <Button Style="{StaticResource Chip}" Content="Sem prazo" Tag="none" Margin="0,0,6,6" Click="QuickDate_Click" />
+          </WrapPanel>
+
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="Prioridade" Style="{StaticResource FieldLabel}" />
+              <ComboBox x:Name="PriorityBox" AutomationProperties.Name="Prioridade" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Categoria" Style="{StaticResource FieldLabel}" />
+              <ComboBox x:Name="CategoryBox" AutomationProperties.Name="Categoria" />
+            </StackPanel>
+          </Grid>
+
+          <TextBlock Text="Aviso" Style="{StaticResource FieldLabel}" />
+          <ComboBox x:Name="ReminderBox" AutomationProperties.Name="Aviso" />
+          <TextBlock Style="{StaticResource CaptionText}" Margin="0,4,0,0"
+                     Text="Sem hora no prazo, o aviso conta a partir das 09:00 do dia. Na notificação: adiar 5/10/30/60 min ou concluir." />
+
+          <TextBlock Text="Repetição" Style="{StaticResource FieldLabel}" />
+          <ComboBox x:Name="RepeatBox" AutomationProperties.Name="Repetição" SelectionChanged="Repeat_Changed" />
+          <TextBox x:Name="CustomRuleBox" Margin="0,6,0,0" Visibility="Collapsed" AutomationProperties.Name="Regra RRULE" />
+          <TextBlock x:Name="RepeatHint" Style="{StaticResource CaptionText}" Margin="0,4,0,0" Visibility="Collapsed"
+                     Text="Ao concluir, o prazo avança para a próxima data da repetição." />
+
+          <TextBlock Text="Notas" Style="{StaticResource FieldLabel}" />
+          <TextBox x:Name="NotesBox" MaxLength="4000" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" VerticalContentAlignment="Top"
+                   AutomationProperties.Name="Notas" />
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</UserControl>

@@ -1,0 +1,61 @@
+<UserControl x:Class="DesktopHub.App.Main.Pages.RemindersPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="40,32,40,40" MaxWidth="900" HorizontalAlignment="Left">
+      <TextBlock Text="Lembretes" Style="{StaticResource TitleText}" />
+      <TextBlock Style="{StaticResource CaptionText}" Margin="0,6,0,0"
+                 Text="Avisos de tarefas e eventos. Disparam com a janela fechada enquanto o app roda na bandeja; o que vencer com o app fechado ou o PC suspenso é entregue ao voltar, marcado como atrasado." />
+
+      <Border x:Name="ChannelWarning" Style="{StaticResource Card}" Margin="0,16,0,0" BorderBrush="{StaticResource WarningBrush}" Visibility="Collapsed">
+        <TextBlock x:Name="ChannelWarningText" Style="{StaticResource BodyText}" />
+      </Border>
+
+      <!-- Novo lembrete -->
+      <Border Style="{StaticResource Card}" Margin="0,20,0,0">
+        <StackPanel>
+          <TextBlock Text="Novo lembrete" Style="{StaticResource SubtitleText}" />
+          <Grid Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="90" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="TitleBox" MaxLength="200" AutomationProperties.Name="Lembrar de" KeyDown="Field_KeyDown" />
+            <TextBlock x:Name="TitleHint" Text="Lembrar de…" IsHitTestVisible="False" Margin="10,0,0,0" VerticalAlignment="Center"
+                       Foreground="{StaticResource TextTertiaryBrush}" FontSize="13" />
+            <TextBox x:Name="TimeBox" Grid.Column="2" AutomationProperties.Name="Horário (hh:mm)" ToolTip="Hoje neste horário (ou amanhã, se já passou)" KeyDown="Field_KeyDown" />
+            <Button Grid.Column="4" Style="{StaticResource AccentButton}" Content="Criar" Click="Create_Click" />
+          </Grid>
+          <WrapPanel Margin="0,8,0,0">
+            <TextBlock Text="Ou daqui a:" Style="{StaticResource CaptionText}" VerticalAlignment="Center" Margin="0,0,8,6" />
+            <Button Style="{StaticResource Chip}" Content="5 min" Tag="5" Margin="0,0,6,6" Click="In_Click" />
+            <Button Style="{StaticResource Chip}" Content="15 min" Tag="15" Margin="0,0,6,6" Click="In_Click" />
+            <Button Style="{StaticResource Chip}" Content="30 min" Tag="30" Margin="0,0,6,6" Click="In_Click" />
+            <Button Style="{StaticResource Chip}" Content="1 hora" Tag="60" Margin="0,0,6,6" Click="In_Click" />
+            <Button Style="{StaticResource Chip}" Content="3 horas" Tag="180" Margin="0,0,6,6" Click="In_Click" />
+          </WrapPanel>
+          <TextBlock x:Name="CreateMessage" Style="{StaticResource CaptionText}" Margin="0,4,0,0" Visibility="Collapsed" />
+        </StackPanel>
+      </Border>
+
+      <!-- Próximos -->
+      <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+          <TextBlock Text="Próximos 7 dias" Style="{StaticResource SubtitleText}" />
+          <StackPanel x:Name="UpcomingList" Margin="0,8,0,0" />
+        </StackPanel>
+      </Border>
+
+      <!-- Histórico -->
+      <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+          <TextBlock Text="Recentes" Style="{StaticResource SubtitleText}" />
+          <StackPanel x:Name="RecentList" Margin="0,8,0,0" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -2,6 +2,23 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.4.0] — 2026-11-06 — Fase 4: agenda e lembretes
+### Adicionado
+- Calendário local com visões de dia, semana (grade de horas), mês e lista; eventos de dia inteiro ou com
+  horário, recorrentes (presets ou RRULE), com exceções, até 2 avisos, local, notas e categoria.
+- Edição e exclusão de séries: só esta ocorrência, esta e as próximas, ou a série inteira.
+- Tarefas com prazo opcional, prioridade, categoria, aviso e recorrência; criação rápida, filtros,
+  grupos por prazo, adiar/reagendar.
+- Lembretes: criação rápida, próximos 7 dias, histórico com o resultado de cada aviso; toast com adiar
+  5/10/30/60 min e concluir; entrega dos avisos perdidos com o app fechado ou o PC suspenso, como "atrasados".
+- Painel Agenda no widget; cartões reais de compromissos e tarefas no dashboard.
+- Categorias com cores em Configurações; opção para desligar avisos da agenda.
+- Migração de banco 3: `calendar_events`, `tasks`, `agenda_categories`, `reminder_log`, `agenda_meta`.
+- Estilo escuro para listas suspensas; ADR-017 a ADR-019; benchmark da Fase 4.
+
+### Alterado
+- Item de menu "Agenda e tarefas" virou "Tarefas" (o calendário tem item próprio).
+
 ## [0.3.0] — 2026-11-06 — Diary Ghost e Fase 3: produtividade e notificações
 ### Adicionado
 - Nome **Diary Ghost** e logo original (fantasminha desenhado por código); ícone, executável, pasta de

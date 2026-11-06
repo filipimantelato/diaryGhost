@@ -5,13 +5,14 @@
 Central pessoal residente para Windows 11: widget flutuante estilo "ilha", bandeja do sistema e
 aplicação completa — leve, local-first e sem telemetria.
 
-> **Estado:** Fases 1 (fundação), 2 (widget e mídia) e 3 (produtividade e notificações) concluídas.
-> Agenda, notícias, clima e integrações chegam nas próximas fases — ver [ROADMAP.md](ROADMAP.md).
+> **Estado:** Fases 1 (fundação), 2 (widget e mídia), 3 (produtividade e notificações) e 4 (agenda e
+> lembretes) concluídas.
+> Notícias, clima e integrações chegam nas próximas fases — ver [ROADMAP.md](ROADMAP.md).
 > Módulos ainda não implementados dizem isso explicitamente na interface.
 
 ## O que já funciona
 - **Widget flutuante** (estrutura baseada no [vídeo de referência](docs/VIDEO-ANALYSIS.md)): compacto
-  com o timer em andamento ou a mídia atual; expandido com abas Início, Mídia, Foco, Volume (e Agenda/Atividade indicando a fase);
+  com o timer em andamento ou a mídia atual; expandido com abas Início, Mídia, Foco, Agenda, Volume (e Atividade indicando a fase);
   clique expande, arrastar move, clique direito abre o menu; posição memorizada e validada entre
   monitores; sempre visível opcional, bloqueio, opacidade, não rouba foco, some em tela cheia, pode ser
   excluído de capturas de tela.
@@ -21,7 +22,12 @@ aplicação completa — leve, local-first e sem telemetria.
   (presets de 5 a 60 min ou minutos livres) e cronômetro com voltas; estatísticas e histórico. Tudo
   continua com a janela fechada e é retomado após reiniciar ou suspender — prazos vencidos com o app
   fechado são avisados como "atrasados", com o horário real.
-- **Notificações nativas do Windows** com botões (Repetir, Iniciar), pausa manual, horário de silêncio,
+- **Calendário local**: dia e semana em grade de horas, mês e lista; eventos de dia inteiro ou com
+  horário, recorrentes (todo dia, dias úteis, semanal, "2ª terça do mês", "último dia do mês", anual ou
+  RRULE), com exceções e até 2 avisos. Horário de verão e fusos tratados corretamente.
+- **Tarefas e lembretes**: prazo com ou sem hora, prioridade, categoria com cor, recorrência, aviso;
+  lembrete rápido ("daqui a 15 min", "às 15:30"). O toast permite adiar 5/10/30/60 min ou concluir.
+  Avisos que vencem com o app fechado ou o PC suspenso chegam ao voltar, marcados como atrasados.- **Notificações nativas do Windows** com botões (Repetir, Iniciar), pausa manual, horário de silêncio,
   sem interromper jogos em tela cheia, deduplicação, limite de frequência e histórico.
 - **Bandeja**: abrir, mostrar/ocultar widget, sempre visível, mídia, Pomodoro, cronômetro, pausar notificações, configurações, sair.
 - **Janela principal** com navegação lateral, dashboard e configurações funcionais.
