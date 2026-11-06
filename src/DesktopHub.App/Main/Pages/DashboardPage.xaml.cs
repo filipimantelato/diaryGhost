@@ -311,8 +311,9 @@ public partial class DashboardPage : UserControl, IDisposable
             title.TextWrapping = TextWrapping.Wrap;
             title.MaxHeight = 40;
             item.Children.Add(title);
-            var when = lead.PublishedAt ?? lead.FetchedAt;
-            item.Children.Add(AgendaUi.Text($"{source.Name} · {when.ToLocalTime():HH:mm}{(count > 1 ? $" · +{count - 1} fontes" : "")}", "CaptionText", 11));
+            var when = (lead.PublishedAt ?? lead.FetchedAt).ToLocalTime().DateTime;
+            var whenText = when.Date == DateTime.Today ? AgendaFormat.Time(when) : $"{AgendaFormat.Day(when, DateTime.Today)} {AgendaFormat.Time(when)}";
+            item.Children.Add(AgendaUi.Text($"{source.Name} · {whenText}{(count > 1 ? $" · +{count - 1} fontes" : "")}", "CaptionText", 11));
             item.MouseLeftButtonUp += (_, _) => Open(lead);
             item.ToolTip = "Abrir no navegador";
             AutomationProperties.SetName(item, $"{lead.Title}, {source.Name}");

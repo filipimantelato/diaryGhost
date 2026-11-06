@@ -112,14 +112,31 @@ Pendências levadas adiante:
 - Importar/exportar `.ics` (o modelo já é iCalendar) → junto da sincronização, Fase 6.
 - Toast antigo que reabre o app fechado (ativador COM) → Fase 7.
 
-## Fase 5 — Informações
-- Fontes RSS/Atom curadas + do usuário, ETag/If-Modified-Since, backoff, limites por fonte.
-- Deduplicação (URL canônica + título normalizado) e agrupamento por acontecimento.
-- Leitor: salvar, favoritar, lida, busca, filtros, seguir assuntos, ocultar fontes; HTML convertido em texto.
-- Clima Open-Meteo (localização manual; automática só com consentimento); investigar alertas INMET.
-- Dashboard com cartões reorganizáveis e redimensionáveis.
-- **Aceite:** lista de notícias reais com fonte e horários de publicação e de consulta; clima real;
-  offline mostra o último horário de atualização.
+## Fase 5 — Informações ✅ (2026-11-06)
+Entregue:
+- **Notícias** só de feeds oficiais curados (24 fontes em 6 categorias, critérios em `docs/NEWS-SOURCES.md`,
+  ADR-020), desligadas até o usuário ativar. GET condicional (ETag/If-Modified-Since), recuo exponencial,
+  Retry-After, intervalo mínimo e limite de itens por fonte, retenção configurável.
+- Parser RSS 0.9x/2.0, RSS 1.0 e Atom sem DTD/entidades externas; HTML → texto; links só http(s).
+- Deduplicação por URL canônica e título normalizado; agrupamento por acontecimento (ADR-021).
+- Página Notícias: categorias, Seguindo, Salvas, Favoritas, busca, só não lidas, marcar como lidas; cartões
+  com fonte, autor, publicação e consulta; "Também em"; fontes (ocultar, adicionar validando, remover),
+  assuntos seguidos com aviso opcional, intervalo e retenção.
+- **Clima** Open-Meteo com cidade escolhida pelo nome (ADR-022): atual, hoje e 6 dias; última previsão
+  guardada e exibida offline com o horário; temperatura no cabeçalho do widget.
+- **Dashboard** com dados reais em todos os cartões; reordenar, largura normal/larga, ocultar e restaurar.
+- Migração 4; 179 testes (40 novos).
+
+Aceite: **notícias reais com fonte e horários de publicação e de consulta ✅** (verificado ao vivo: 1.152
+artigos de 24 fontes); **clima real ✅** (verificado ao vivo); **offline mostra o último horário ✅** (teste;
+o cartão exibe "Sem atualização recente — dados de … às …").
+
+**Não verificado ao vivo:** comportamento com a rede desligada (coberto por testes); aviso de assunto seguido.
+
+Pendências levadas adiante:
+- Alertas meteorológicos oficiais (INMET/Defesa Civil) se surgir fonte pública documentada.
+- Localização automática com consentimento.
+- Arrastar cartões do dashboard (hoje: botões, acessíveis por teclado).
 
 ## Fase 6 — Integrações
 - Google Calendar e Outlook (OAuth no navegador do sistema, PKCE, sync incremental, conflitos).

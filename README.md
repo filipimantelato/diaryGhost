@@ -5,9 +5,9 @@
 Central pessoal residente para Windows 11: widget flutuante estilo "ilha", bandeja do sistema e
 aplicação completa — leve, local-first e sem telemetria.
 
-> **Estado:** Fases 1 (fundação), 2 (widget e mídia), 3 (produtividade e notificações) e 4 (agenda e
-> lembretes) concluídas.
-> Notícias, clima e integrações chegam nas próximas fases — ver [ROADMAP.md](ROADMAP.md).
+> **Estado:** Fases 1 (fundação), 2 (widget e mídia), 3 (produtividade e notificações), 4 (agenda e
+> lembretes) e 5 (notícias, clima e dashboard) concluídas.
+> Integrações (Google/Outlook, Claude Code) e o instalador chegam nas próximas fases — ver [ROADMAP.md](ROADMAP.md).
 > Módulos ainda não implementados dizem isso explicitamente na interface.
 
 ## O que já funciona
@@ -22,6 +22,12 @@ aplicação completa — leve, local-first e sem telemetria.
   (presets de 5 a 60 min ou minutos livres) e cronômetro com voltas; estatísticas e histórico. Tudo
   continua com a janela fechada e é retomado após reiniciar ou suspender — prazos vencidos com o app
   fechado são avisados como "atrasados", com o horário real.
+- **Notícias de fontes confiáveis**: só feeds oficiais de veículos e órgãos com redação identificada
+  ([lista e critérios](docs/NEWS-SOURCES.md)); desligadas até você ativar. Fonte, autor, horário de
+  publicação e de consulta; repetidas aparecem uma vez e o mesmo fato em vários veículos fica agrupado.
+  Salvar, favoritar, buscar, seguir assuntos, ocultar ou adicionar fontes.
+- **Clima** (Open-Meteo, sem conta) para a cidade que você escolher; funciona offline com a última previsão.
+- **Dashboard** com dados reais, cartões reordenáveis, largos ou ocultos.
 - **Calendário local**: dia e semana em grade de horas, mês e lista; eventos de dia inteiro ou com
   horário, recorrentes (todo dia, dias úteis, semanal, "2ª terça do mês", "último dia do mês", anual ou
   RRULE), com exceções e até 2 avisos. Horário de verão e fusos tratados corretamente.
@@ -102,4 +108,7 @@ Saída em `artifacts/publish/win-x64/DiaryGhost.exe`. O instalador vem na Fase 7
 - [CHANGELOG.md](CHANGELOG.md)
 
 ## Privacidade
-Sem telemetria. Nenhuma integração externa ativa na Fase 1. Tokens futuros serão cifrados com DPAPI.
+Sem telemetria. O app só acessa a internet para o que você ativar: notícias (feeds oficiais, depois de
+"Ativar notícias") e clima (Open-Meteo, depois de escolher uma cidade — só as coordenadas da cidade são
+enviadas). As requisições se identificam apenas como "DiaryGhost". Tokens de integrações futuras serão
+cifrados com DPAPI.

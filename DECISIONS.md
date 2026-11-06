@@ -233,5 +233,39 @@ Cinco botões ("5 min", "10 min", …, "Concluir") ficam ilegíveis no toast. Us
 type="selection">` do Windows (adiar por 5/10/30/60 min) + botões "Adiar" e "Concluir"; o valor escolhido
 chega em `UserInput` e é repassado como `snooze:10`. O XML continua montado com escape (testado).
 
+## ADR-020 — Notícias: só feeds oficiais curados, ativação explícita
+**Status:** aceita
+
+- Fontes curadas por critérios públicos (docs/NEWS-SOURCES.md): veículos com redação identificada e órgãos
+  públicos/científicos, sempre pelo **feed RSS/Atom oficial**. Nada de raspagem, agregadores ou redes sociais.
+  O usuário pode ocultar curadas e adicionar as suas (validadas antes de entrar).
+- O módulo começa **desligado**: buscar notícias é acesso à rede e só acontece depois que o usuário ativa.
+  As requisições se identificam como "DiaryGhost", sem dados do usuário.
+- Conteúdo de feed é tratado como não confiável: XML sem DTD/entidades externas (sem XXE), limite de 5 MB e
+  20 s por resposta, HTML convertido em texto (nada é renderizado), links só http(s), abertos no navegador.
+- Coleta: um timer até a próxima fonte vencida; GET condicional (ETag/If-Modified-Since; 304 não baixa nada);
+  recuo exponencial 15 min → 6 h em falhas, respeitando Retry-After; "Atualizar" manual não repete uma fonte
+  consultada há menos de 2 min; até 100 itens por busca; retenção configurável (padrão 14 dias; salvos e
+  favoritos ficam).
+
+## ADR-021 — Deduplicação e agrupamento conservadores
+**Status:** aceita
+
+Repetido = mesma chave do item na fonte, mesma **URL canônica** (sem esquema, "www.", fragmento, barra final e
+parâmetros de rastreamento) ou mesmo **título normalizado** (sem acentos/pontuação) nas últimas 48 h → não entra.
+Mesmo acontecimento = fontes diferentes, 48 h, ≥ 3 palavras relevantes em comum e Jaccard ≥ 0,45 → mesmo grupo.
+Limiar alto de propósito: juntar notícias diferentes é pior que mostrar duas separadas. Sem modelos de
+linguagem nem serviços externos — tudo local e testado.
+
+## ADR-022 — Clima: Open-Meteo com local escolhido pelo usuário
+**Status:** aceita
+
+Open-Meteo: gratuito, sem chave nem conta, previsão atual/horária/7 dias e busca de cidades. O usuário busca
+a cidade pelo nome; **não** usamos localização automática (exigiria consentimento e uma API de localização do
+Windows — fica para quando houver demanda). Sem local, nenhuma requisição. Atualiza a cada 30 min; a última
+previsão fica guardada e é exibida offline com o horário da consulta e aviso de desatualizada (> 2 h).
+**Alertas do INMET:** investigados; o portal não respondeu durante o desenvolvimento e não há API pública
+documentada e estável para avisos — não implementado para não exibir alertas de procedência frágil.
+
 ## Decisões pendentes
 - **Instalador e atualizações (Fase 7):** Velopack vs. MSIX vs. Inno Setup.

@@ -2,6 +2,20 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.5.0] — 2026-11-06 — Fase 5: notícias, clima e dashboard
+### Adicionado
+- Notícias de 24 fontes confiáveis (feeds oficiais), em Geral, Política, Tecnologia, Games, Ciência e meio
+  ambiente e Desenvolvimento; ativação explícita; deduplicação e agrupamento por acontecimento; salvar,
+  favoritar, lida, busca, filtros, seguir assuntos (com aviso opcional), ocultar e adicionar fontes.
+- Clima do Open-Meteo para a cidade escolhida: agora, hoje e 6 dias; funciona offline com a última previsão;
+  temperatura no cabeçalho do widget.
+- Dashboard reorganizável: ordem, largura e cartões ocultos salvos; todos os cartões com dados reais.
+- Migração de banco 4: `news_sources`, `news_articles`, `cache`. ADR-020 a 022; `docs/NEWS-SOURCES.md`;
+  benchmark da Fase 5.
+
+### Corrigido
+- `scripts/publish.ps1` encontra o SDK 10 em qualquer local comum de instalação.
+
 ## [0.4.0] — 2026-11-06 — Fase 4: agenda e lembretes
 ### Adicionado
 - Calendário local com visões de dia, semana (grade de horas), mês e lista; eventos de dia inteiro ou com

@@ -54,8 +54,12 @@ public sealed record NewsArticle
     public bool IsSaved { get; init; }
     public bool IsFavorite { get; init; }
 
-    /// <summary>Data para ordenar: publicação (se informada e plausível) ou consulta.</summary>
-    public DateTimeOffset SortDate => PublishedAt is { } p && p <= FetchedAt.AddHours(1) ? p : FetchedAt;
+    /// <summary>
+    /// Data para ordenar: a publicação, se informada e plausível. Sem ela (alguns feeds oficiais não trazem
+    /// data), conta como 12 h antes da consulta — para não ficar acima das notícias datadas do dia na primeira
+    /// leitura do feed. A tela mostra "sem data de publicação".
+    /// </summary>
+    public DateTimeOffset SortDate => PublishedAt is { } p && p <= FetchedAt.AddHours(1) ? p : FetchedAt.AddHours(-12);
 }
 
 /// <summary>Item lido de um feed, antes de virar artigo.</summary>

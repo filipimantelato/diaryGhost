@@ -131,7 +131,7 @@ Eventos planejados (catálogo em `src/DesktopHub.Core/Events/`):
 | `NotificationProcessed`, `NotificationActivated` | NotificationCenter | 3 ✅ |
 | `AgendaChanged` | AgendaService (eventos, tarefas, categorias) | 4 ✅ |
 | `RemindersChanged` | ReminderScheduler (entregue, adiado, dispensado) | 4 ✅ |
-| `NewsUpdated`, `WeatherUpdated` | NewsService/WeatherService | 5 |
+| `NewsUpdated`, `WeatherUpdated` | NewsService/WeatherService | 5 ✅ |
 | `IntegrationStatusChanged`, `IntegrationEventReceived` | IntegrationHost | 6 |
 
 ## 5. Tempo e agendamento
@@ -191,9 +191,9 @@ Persistente (SQLite) vs. transitório (memória):
 | Entidade | Onde | Observação |
 |---|---|---|
 | `UserPreferences`, `WidgetPreferences` | `settings` (chave → JSON) | seções versionadas, padrões em código |
-| `NewsSource`, `NewsCategory` | tabelas | fontes curadas + do usuário |
-| `NewsArticle` | tabela, retenção configurável | `UNIQUE(source_id, guid)`, `canonical_url_hash`, `cluster_id` |
-| `SavedArticle` / estado de leitura | `article_state` | sobrevive à limpeza do cache |
+| `NewsSource` | `news_sources` ✅ | curadas (ID estável derivado da URL) + do usuário; ETag, Last-Modified, falhas, próxima busca |
+| `NewsArticle` | `news_articles` ✅, retenção configurável | `UNIQUE(source_id, item_key)`, `canonical_url`, `title_key`, `cluster_id`; lida/salva/favorita na própria linha (salvos e favoritos não expiram) |
+| Clima | `cache` ✅ (`weather.last`) | última previsão em JSON, exibida offline |
 | `CalendarAccount` | tabela | tokens **não** ficam aqui, só referência a `secrets` |
 | `CalendarEvent` | `calendar_events` ✅ | início em horário de parede + `time_zone`, `rrule`, `exdates`, avisos; conta/`remote_id`/`etag` chegam com a sincronização (Fase 6) |
 | `Task` | `tasks` ✅ | prazo opcional (com ou sem hora), prioridade, recorrência ancorada, aviso |
