@@ -41,7 +41,7 @@ internal sealed class TrayIconService : IDisposable
             Font = new Font("Segoe UI", 9.5f),
         };
 
-        var open = new ToolStripMenuItem("Abrir Desktop Hub", null, (_, _) => shell.OpenMain()) { Font = new Font("Segoe UI", 9.5f, System.Drawing.FontStyle.Bold) };
+        var open = new ToolStripMenuItem("Abrir Diary Ghost", null, (_, _) => shell.OpenMain()) { Font = new Font("Segoe UI", 9.5f, System.Drawing.FontStyle.Bold) };
         _toggleWidget = new ToolStripMenuItem("Mostrar widget", null, (_, _) => widget.Toggle()) { ShortcutKeyDisplayString = "Ctrl+Alt+H" };
         _alwaysOnTop = new ToolStripMenuItem("Widget sempre visível", null, (_, _) => settings.UpdateWidget(w => w with { AlwaysOnTop = !w.AlwaysOnTop }));
 
@@ -66,7 +66,7 @@ internal sealed class TrayIconService : IDisposable
             Pending("Pausar notificações — Fase 3"),
             new ToolStripSeparator(),
             new ToolStripMenuItem("Configurações", null, (_, _) => shell.OpenMain(MainPages.Settings)),
-            new ToolStripMenuItem("Sair do Desktop Hub", null, (_, _) => shell.Exit()),
+            new ToolStripMenuItem("Sair do Diary Ghost", null, (_, _) => shell.Exit()),
         ]);
         _menu.Opening += (_, _) =>
         {
@@ -78,7 +78,7 @@ internal sealed class TrayIconService : IDisposable
         _icon = new NotifyIcon
         {
             Icon = LoadIcon(),
-            Text = "Desktop Hub",
+            Text = "Diary Ghost",
             ContextMenuStrip = _menu,
             Visible = true,
         };

@@ -1,13 +1,13 @@
 <#
 .SYNOPSIS
-  Mede CPU e memória do Desktop Hub em três modos: só bandeja, widget visível e janela principal aberta.
+  Mede CPU e memória do Diary Ghost em três modos: só bandeja, widget visível e janela principal aberta.
   Usa uma pasta de dados isolada (não toca nos seus dados) e encerra cada execução com --quit.
 .EXAMPLE
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure.ps1
-  powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure.ps1 -Exe src\DesktopHub.App\bin\Debug\net10.0-windows\DesktopHub.exe
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure.ps1 -Exe src\DesktopHub.App\bin\Debug\net10.0-windows10.0.19041.0\DiaryGhost.exe
 #>
 param(
-  [string]$Exe = (Join-Path (Split-Path -Parent $PSScriptRoot) 'artifacts\publish\win-x64\DesktopHub.exe'),
+  [string]$Exe = (Join-Path (Split-Path -Parent $PSScriptRoot) 'artifacts\publish\win-x64\DiaryGhost.exe'),
   [int]$WarmupSeconds = 8,
   [int]$SampleSeconds = 30
 )

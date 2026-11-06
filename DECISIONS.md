@@ -146,6 +146,19 @@ exige associar a sessão de mídia ao processo de áudio; para apps Win32 o AUMI
 ("Spotify.exe"), mas navegadores usam IDs próprios e vários processos — a associação seria heurística.
 Fica para quando houver um teste real com navegador, para não exibir um controle que atue no app errado.
 
+## ADR-013 — Nome "Diary Ghost" e logo original
+**Data:** 2026-11-06 · **Status:** aceita
+
+O produto passa a se chamar **Diary Ghost**. Mudou tudo o que o usuário vê: títulos, bandeja, executável
+(`DiaryGhost.exe`), pasta de dados (`%LOCALAPPDATA%\DiaryGhost`, com a pasta antiga `DesktopHub` movida
+uma única vez — ou mantida, se estiver em uso), entrada de inicialização com o Windows e nome da
+instância única. **Não** mudaram namespaces, projetos e a entropia do DPAPI: são internos, e renomeá-los
+só geraria ruído no histórico (e, no caso do DPAPI, tornaria segredos já salvos ilegíveis).
+
+O logo é um fantasminha **desenhado por código** (`scripts/generate-icon.ps1`), inspirado no estilo da
+referência enviada pelo usuário, mas sem reutilizar a imagem — que tem cara de banco de imagens e
+provavelmente tem licença restrita. Assim o logo é original e pode ser distribuído.
+
 ## Decisões pendentes
 - **Notificações (Fase 3):** toasts via Windows App SDK `AppNotificationManager` (suporta apps não
   empacotados) vs. registro manual de AUMID com atalho no Menu Iniciar.

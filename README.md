@@ -19,7 +19,7 @@ aplicação completa — leve, local-first e sem telemetria.
 - **Janela principal** com navegação lateral, dashboard e configurações funcionais.
 - **Atalhos globais**: `Ctrl+Alt+H` (widget), `Ctrl+Alt+D` (abrir app).
 - Fechar a janela mantém o app na bandeja (configurável); iniciar com o Windows (opcional).
-- Dados em `%LOCALAPPDATA%\DesktopHub`: SQLite com migrações, backup e recuperação de corrupção; logs JSON.
+- Dados em `%LOCALAPPDATA%\DiaryGhost`: SQLite com migrações, backup e recuperação de corrupção; logs JSON.
 
 ## Requisitos
 - Windows 10 2004+ ou Windows 11 (x64).
@@ -73,7 +73,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure.ps1
 ```bash
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-media.ps1
 ```
-Saída em `artifacts/publish/win-x64/DesktopHub.exe`. O instalador vem na Fase 7.
+Saída em `artifacts/publish/win-x64/DiaryGhost.exe`. O instalador vem na Fase 7.
 
 ## Documentação
 - [ARCHITECTURE.md](ARCHITECTURE.md) — arquitetura, fluxo de dados, modelo de dados, integrações e limitações

@@ -52,7 +52,7 @@ internal sealed partial class AppShell(
         _ = StartMediaAsync();
 
         hotkeys.Register(1, "Mostrar/ocultar widget", NativeMethods.MOD_CONTROL | NativeMethods.MOD_ALT, 0x48 /* H */, "Ctrl+Alt+H", widget.Toggle);
-        hotkeys.Register(2, "Abrir o Desktop Hub", NativeMethods.MOD_CONTROL | NativeMethods.MOD_ALT, 0x44 /* D */, "Ctrl+Alt+D", () => OpenMain());
+        hotkeys.Register(2, "Abrir o Diary Ghost", NativeMethods.MOD_CONTROL | NativeMethods.MOD_ALT, 0x44 /* D */, "Ctrl+Alt+D", () => OpenMain());
 
         SyncAutoStart();
 
@@ -119,7 +119,7 @@ internal sealed partial class AppShell(
         }
         if (!settings.General.HasShownTrayHint)
         {
-            _tray?.ShowBalloon("O Desktop Hub continua em execução",
+            _tray?.ShowBalloon("O Diary Ghost continua em execução",
                 "Widget, atalhos e serviços seguem ativos. Use o ícone da bandeja para abrir ou sair.");
             settings.UpdateGeneral(g => g with { HasShownTrayHint = true });
         }
@@ -144,7 +144,7 @@ internal sealed partial class AppShell(
         try
         {
             // O registro é a verdade; se o app mudou de pasta, a entrada é atualizada para o novo caminho.
-            if (settings.General.StartWithWindows != AutoStart.IsEnabled())
+            if (settings.General.StartWithWindows != AutoStart.IsEnabled() || AutoStart.HasLegacyEntry())
             {
                 AutoStart.Apply(settings.General.StartWithWindows);
             }

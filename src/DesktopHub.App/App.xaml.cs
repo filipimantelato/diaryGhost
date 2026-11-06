@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Threading;
 using DesktopHub.App.Platform;
@@ -43,7 +43,17 @@ public partial class App : Application
             return;
         }
 
-        var paths = options.DataDir is { } dir ? new AppPaths(dir) : AppPaths.Default();
+        var migration = MigrationOutcome.NotNeeded;
+        AppPaths paths;
+        if (options.DataDir is { } dir)
+        {
+            paths = new AppPaths(dir);
+        }
+        else
+        {
+            // Só depois da instância única: nenhuma outra cópia do app está usando a pasta.
+            migration = AppPaths.MigrateLegacyFolder(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), out paths);
+        }
         paths.EnsureCreated();
         _crashDirectory = paths.Logs;
         _logProvider = new JsonFileLoggerProvider(paths.Logs);
@@ -51,6 +61,10 @@ public partial class App : Application
         _services = ConfigureServices(paths, options, _logProvider).BuildServiceProvider();
         _log = _services.GetRequiredService<ILogger<App>>();
         RegisterGlobalExceptionHandlers();
+        if (migration != MigrationOutcome.NotNeeded)
+        {
+            LogFolderMigration(_log, migration, paths.Root);
+        }
 
         var startup = _services.GetRequiredService<StartupState>();
         try
@@ -60,7 +74,7 @@ public partial class App : Application
         catch (DatabaseNewerThanAppException ex)
         {
             LogDatabaseTooNew(_log, ex);
-            MessageBox.Show(ex.Message, "Desktop Hub", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(ex.Message, "Diary Ghost", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
         }
@@ -81,6 +95,9 @@ public partial class App : Application
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Inicialização concluída em {ElapsedMs} ms (minimizado: {Minimized}, sem widget: {NoWidget})")]
     private static partial void LogStarted(ILogger logger, int elapsedMs, bool minimized, bool noWidget);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Pasta de dados da versão Desktop Hub: {Outcome} (em uso: {Root})")]
+    private static partial void LogFolderMigration(ILogger logger, MigrationOutcome outcome, string root);
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "Banco de dados mais novo que o aplicativo")]
     private static partial void LogDatabaseTooNew(ILogger logger, Exception ex);

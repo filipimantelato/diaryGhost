@@ -30,8 +30,8 @@ public sealed record StartupOptions(bool Minimized, bool ShowMain, bool NoWidget
 
     /// <summary>Instâncias com pastas de dados diferentes podem coexistir (ex.: benchmark ao lado do uso diário).</summary>
     public string InstanceId => DataDir is null
-        ? "DesktopHub"
-        : "DesktopHub-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(DataDir).ToUpperInvariant())))[..16];
+        ? "DiaryGhost"
+        : "DiaryGhost-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(DataDir).ToUpperInvariant())))[..16];
 }
 
 /// <summary>Estado conhecido só após a inicialização (resultado do banco), compartilhado com a UI.</summary>

@@ -4,7 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <RootNamespace>DesktopHub.App</RootNamespace>
-    <AssemblyName>DesktopHub</AssemblyName>
+    <AssemblyName>DiaryGhost</AssemblyName>
     <UseWPF>true</UseWPF>
     <!-- Apenas para NotifyIcon (bandeja) e Screen (monitores). Ver ADR-005. -->
     <UseWindowsForms>true</UseWindowsForms>

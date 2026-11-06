@@ -1,7 +1,7 @@
 <Window x:Class="DesktopHub.App.Main.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Desktop Hub"
+        Title="Diary Ghost"
         Width="1120" Height="740" MinWidth="820" MinHeight="520"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BgBrush}" Foreground="{StaticResource TextPrimaryBrush}"
@@ -16,8 +16,9 @@
     <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderTokenBrush}" BorderThickness="0,0,1,0">
       <DockPanel Margin="12,18,12,12">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="10,0,0,22">
-          <Border Width="26" Height="11" CornerRadius="6" VerticalAlignment="Center" Background="{DynamicResource AccentBrush}" />
-          <TextBlock Text="Desktop Hub" Margin="10,0,0,0" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <Image Source="pack://application:,,,/Assets/logo.png" Width="30" Height="30" VerticalAlignment="Center"
+                 RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Logo do Diary Ghost" />
+          <TextBlock Text="Diary Ghost" Margin="8,0,0,0" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Bottom">

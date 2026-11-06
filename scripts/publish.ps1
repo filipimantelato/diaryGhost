@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Build reproduzível de Release: executável self-contained (não exige .NET instalado) com ReadyToRun.
-  Saída: artifacts/publish/win-x64/DesktopHub.exe
+  Saída: artifacts/publish/win-x64/DiaryGhost.exe
 .EXAMPLE
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish.ps1
 #>

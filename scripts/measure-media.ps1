@@ -7,7 +7,7 @@
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-media.ps1
 #>
 param(
-  [string]$Exe = (Join-Path (Split-Path -Parent $PSScriptRoot) 'artifacts\publish\win-x64\DesktopHub.exe'),
+  [string]$Exe = (Join-Path (Split-Path -Parent $PSScriptRoot) 'artifacts\publish\win-x64\DiaryGhost.exe'),
   [int]$SampleSeconds = 30
 )
 $ErrorActionPreference = 'Stop'

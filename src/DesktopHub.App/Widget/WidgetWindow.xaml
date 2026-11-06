@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:DesktopHub.App.Widget"
-        Title="Desktop Hub — Widget"
+        Title="Diary Ghost — Widget"
         Width="460" Height="300"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" ShowActivated="False"
@@ -18,7 +18,7 @@
       <MenuItem Tag="lock" Header="Bloquear posição" IsCheckable="True" Click="MenuLocked_Click" />
       <MenuItem Header="Ocultar widget" Click="MenuHide_Click" />
       <Separator Style="{StaticResource MenuSeparator}" />
-      <MenuItem Header="Abrir Desktop Hub" Click="MenuOpenMain_Click" />
+      <MenuItem Header="Abrir Diary Ghost" Click="MenuOpenMain_Click" />
     </ContextMenu>
 
     <Style x:Key="CardLabel" TargetType="TextBlock">
@@ -39,7 +39,7 @@
             Width="220" Height="40" CornerRadius="20"
             Background="{StaticResource IslandBrush}"
             BorderBrush="{StaticResource BorderTokenBrush}" BorderThickness="1"
-            AutomationProperties.Name="Widget do Desktop Hub: expandir ou recolher"
+            AutomationProperties.Name="Widget do Diary Ghost: expandir ou recolher"
             Invoked="Island_Invoked"
             RenderOptions.BitmapScalingMode="Linear"
             ContextMenu="{StaticResource IslandMenu}"
