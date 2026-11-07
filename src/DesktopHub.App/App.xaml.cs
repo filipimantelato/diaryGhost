@@ -14,6 +14,8 @@ using DesktopHub.Core.Weather;
 using DesktopHub.Infrastructure.Net;
 using DesktopHub.Infrastructure.News;
 using DesktopHub.Infrastructure.Weather;
+using DesktopHub.Core.Activity;
+using DesktopHub.Infrastructure.Activity;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Notifications;
 using DesktopHub.Core.Productivity;
@@ -152,6 +154,9 @@ public partial class App : Application
         services.AddSingleton<INewsStore, SqliteNewsStore>();
         services.AddSingleton<IWeatherProvider, OpenMeteoProvider>();
         services.AddSingleton<IWeatherCache, SqliteWeatherCache>();
+        services.AddSingleton<IActivityStore, SqliteActivityStore>();
+        services.AddSingleton<IActivityChannel>(sp => new ActivityPipeServer(ActivityPipe.Name(options.DataDir), sp.GetRequiredService<ILogger<ActivityPipeServer>>()));
+        services.AddSingleton<IClaudeHooksInstaller>(_ => new ClaudeHooksInstaller(ClaudeHooksInstaller.DefaultPath));
 
         // Aplicação
         services.AddSingleton<SettingsService>();
@@ -162,6 +167,8 @@ public partial class App : Application
         services.AddSingleton<ReminderScheduler>();
         services.AddSingleton<NewsService>();
         services.AddSingleton<WeatherService>();
+        services.AddSingleton<ActivityService>();
+        services.AddSingleton<CalendarSubscriptionService>();
 
         // Plataforma e apresentação
         services.AddSingleton<FullscreenMonitor>();

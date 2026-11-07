@@ -179,5 +179,38 @@ public static class Migrations
                 updated_at_ms  INTEGER NOT NULL
             ) STRICT;
             """),
+
+        new(5, "integracoes", """
+            CREATE TABLE activity_events (
+                id              TEXT    NOT NULL PRIMARY KEY,
+                source          TEXT    NOT NULL,
+                kind            TEXT    NOT NULL,
+                project         TEXT,
+                session         TEXT,
+                message         TEXT,
+                received_at_ms  INTEGER NOT NULL
+            ) STRICT;
+            CREATE INDEX ix_activity_events_received ON activity_events (received_at_ms);
+
+            -- Agendas assinadas por endereço iCal (somente leitura). O endereço é secreto: fica cifrado
+            -- (DPAPI) na tabela secrets, nunca aqui.
+            CREATE TABLE calendar_subscriptions (
+                id                  TEXT    NOT NULL PRIMARY KEY,
+                name                TEXT    NOT NULL,
+                category_id         TEXT REFERENCES agenda_categories (id) ON DELETE SET NULL,
+                reminder_minutes    INTEGER,
+                enabled             INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+                etag                TEXT,
+                last_modified       TEXT,
+                last_attempt_at_ms  INTEGER,
+                last_success_at_ms  INTEGER,
+                last_error          TEXT,
+                event_count         INTEGER NOT NULL DEFAULT 0
+            ) STRICT;
+
+            ALTER TABLE calendar_events ADD COLUMN subscription_id TEXT REFERENCES calendar_subscriptions (id) ON DELETE CASCADE;
+            ALTER TABLE calendar_events ADD COLUMN external_uid TEXT;
+            CREATE INDEX ix_calendar_events_subscription ON calendar_events (subscription_id) WHERE subscription_id IS NOT NULL;
+            """),
     ];
 }

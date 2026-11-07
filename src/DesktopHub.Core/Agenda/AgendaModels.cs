@@ -27,6 +27,29 @@ public sealed record CalendarEvent
     public IReadOnlyList<int> ReminderMinutes { get; init; } = [];
     public DateTimeOffset CreatedAt { get; init; }
     public DateTimeOffset UpdatedAt { get; init; }
+    /// <summary>Agenda assinada (iCal) de onde o evento veio; esses eventos são somente leitura.</summary>
+    public Guid? SubscriptionId { get; init; }
+    /// <summary>UID do iCalendar (para exportar/identificar).</summary>
+    public string? ExternalUid { get; init; }
+
+    public bool IsReadOnly => SubscriptionId is not null;
+}
+
+/// <summary>Agenda assinada pelo endereço iCal (ex.: "endereço secreto" do Google Agenda ou do Outlook).</summary>
+public sealed record CalendarSubscription
+{
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public Guid? CategoryId { get; init; }
+    /// <summary>Aviso aplicado aos eventos importados (null = sem aviso).</summary>
+    public int? ReminderMinutes { get; init; }
+    public bool Enabled { get; init; } = true;
+    public string? ETag { get; init; }
+    public string? LastModified { get; init; }
+    public DateTimeOffset? LastAttemptAt { get; init; }
+    public DateTimeOffset? LastSuccessAt { get; init; }
+    public string? LastError { get; init; }
+    public int EventCount { get; init; }
 }
 
 /// <param name="Start">Início no horário de parede do evento (identifica a ocorrência na série).</param>
@@ -85,6 +108,13 @@ public interface IAgendaStore
     void UpsertCategory(AgendaCategory value);
     /// <summary>Remove a categoria e desvincula eventos e tarefas dela.</summary>
     void DeleteCategory(Guid id);
+
+    IReadOnlyList<CalendarSubscription> LoadSubscriptions();
+    void UpsertSubscription(CalendarSubscription value);
+    /// <summary>Remove a assinatura e os eventos dela.</summary>
+    void DeleteSubscription(Guid id);
+    /// <summary>Troca, numa transação, todos os eventos de uma assinatura.</summary>
+    void ReplaceSubscriptionEvents(Guid subscriptionId, IReadOnlyList<CalendarEvent> events);
 }
 
 /// <summary>Eventos, tarefas ou categorias mudaram.</summary>

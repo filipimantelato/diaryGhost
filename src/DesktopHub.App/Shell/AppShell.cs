@@ -5,6 +5,7 @@ using DesktopHub.App.Platform;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Agenda;
+using DesktopHub.Core.Activity;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.News;
 using DesktopHub.Core.Weather;
@@ -46,6 +47,8 @@ internal sealed partial class AppShell(
     ReminderScheduler reminders,
     NewsService news,
     WeatherService weather,
+    ActivityService activity,
+    CalendarSubscriptionService subscriptions,
     ILogger<AppShell> logger) : IDisposable
 {
     private readonly List<IDisposable> _subscriptions = [];
@@ -56,7 +59,7 @@ internal sealed partial class AppShell(
 
     public bool IsExiting => _exiting;
 
-    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders, news, weather);
+    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders, news, weather, activity, subscriptions);
 
     public void Start()
     {
@@ -67,6 +70,8 @@ internal sealed partial class AppShell(
         reminders.Start();    // entrega o que venceu com o app fechado e agenda o próximo aviso
         news.Start();         // só acessa a rede se o módulo estiver ativado, 20 s depois de abrir
         weather.Start();      // só acessa a rede com um local escolhido
+        activity.Start();     // canal local do Claude Code, só com a integração ativada
+        subscriptions.Start(); // agendas iCal assinadas
 
         _tray = new TrayIconService(this, Services);
         _subscriptions.Add(bus.Subscribe<OpenMainRequested>(e => OpenMain(e.Page), SynchronizationContext.Current));
@@ -107,6 +112,7 @@ internal sealed partial class AppShell(
             reminders.Reschedule();
             news.Reschedule();
             weather.Reschedule();
+            subscriptions.Reschedule();
         }
     }
 

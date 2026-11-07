@@ -149,6 +149,10 @@ public sealed partial class AgendaService
         {
             throw new ArgumentException(error, nameof(value));
         }
+        if (value.IsReadOnly || FindEvent(value.Id) is { IsReadOnly: true })
+        {
+            throw new InvalidOperationException("Eventos de agendas assinadas são somente leitura.");
+        }
         var saved = value with
         {
             Title = value.Title.Trim(),
@@ -171,6 +175,10 @@ public sealed partial class AgendaService
 
     public void DeleteEvent(Guid id)
     {
+        if (FindEvent(id) is { IsReadOnly: true })
+        {
+            return; // vem de uma agenda assinada: só a origem altera
+        }
         _store.DeleteEvent(id);
         lock (_gate)
         {
@@ -247,6 +255,62 @@ public sealed partial class AgendaService
     /// <summary>Ocorrências de um intervalo de dias locais [firstDay, lastDay].</summary>
     public IReadOnlyList<EventOccurrence> OccurrencesForDays(DateTime firstDay, DateTime lastDay) =>
         OccurrencesBetween(ZonedTime.ToUtc(firstDay.Date, LocalZone), ZonedTime.ToUtc(lastDay.Date.AddDays(1), LocalZone));
+
+    // ---------- Agendas assinadas e importação ----------
+
+    /// <summary>Troca os eventos de uma assinatura (somente leitura) de uma vez.</summary>
+    public void ApplySubscriptionEvents(Guid subscriptionId, IReadOnlyList<CalendarEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        _store.ReplaceSubscriptionEvents(subscriptionId, events);
+        lock (_gate)
+        {
+            _events.RemoveAll(e => e.SubscriptionId == subscriptionId);
+            _events.AddRange(events);
+        }
+        Changed();
+    }
+
+    /// <summary>Tira da memória os eventos de uma assinatura removida (o banco já os apagou em cascata).</summary>
+    public void ForgetSubscriptionEvents(Guid subscriptionId)
+    {
+        lock (_gate)
+        {
+            _events.RemoveAll(e => e.SubscriptionId == subscriptionId);
+        }
+        Changed();
+    }
+
+    /// <summary>Importa eventos (de um .ics) como eventos locais editáveis; pula os que já existem pelo UID.</summary>
+    public int ImportEvents(IEnumerable<CalendarEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        var existing = Events.Where(e => !e.IsReadOnly && e.ExternalUid is not null).Select(e => e.ExternalUid!).ToHashSet(StringComparer.Ordinal);
+        var added = 0;
+        foreach (var e in events)
+        {
+            if (e.ExternalUid is { } uid && !existing.Add(uid))
+            {
+                continue;
+            }
+            var local = e with { Id = Guid.CreateVersion7(Now), SubscriptionId = null, CreatedAt = Now, UpdatedAt = Now };
+            if (Validate(local) is not null)
+            {
+                continue;
+            }
+            _store.UpsertEvent(local);
+            lock (_gate)
+            {
+                _events.Add(local);
+            }
+            added++;
+        }
+        if (added > 0)
+        {
+            Changed();
+        }
+        return added;
+    }
 
     // ---------- Tarefas ----------
 

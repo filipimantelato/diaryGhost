@@ -12,6 +12,7 @@ public static class SettingsSections
     public const string News = "news";
     public const string Weather = "weather";
     public const string Dashboard = "dashboard";
+    public const string Integrations = "integrations";
 }
 
 public sealed record NotificationSettings
@@ -102,6 +103,16 @@ public sealed record DashboardSettings
         cards.AddRange(Default.Where(d => cards.All(c => c.Kind != d.Kind)));
         return this with { Cards = cards };
     }
+}
+
+public sealed record IntegrationSettings
+{
+    /// <summary>Escutar o canal local do Claude Code. Ligado ao instalar os hooks; desligável a qualquer momento.</summary>
+    public bool ClaudeCodeEnabled { get; init; }
+    public bool NotifyClaudeFinished { get; init; } = true;
+    public bool NotifyClaudeWaiting { get; init; } = true;
+
+    public IntegrationSettings Sanitize() => this;
 }
 
 public sealed record ProductivitySettings

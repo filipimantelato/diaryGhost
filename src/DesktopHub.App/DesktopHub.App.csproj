@@ -10,6 +10,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Program.Main decide entre a interface e o modo --hook (sem WPF). -->
+    <StartupObject>DesktopHub.App.Program</StartupObject>
     <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
     <!-- Os cálculos de tempo usam o fuso real; não queremos invariant globalization. -->
     <InvariantGlobalization>false</InvariantGlobalization>

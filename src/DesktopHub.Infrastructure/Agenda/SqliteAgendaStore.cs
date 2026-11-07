@@ -52,14 +52,16 @@ public sealed partial class SqliteAgendaStore(SqliteDatabase database, ILogger<S
         ReminderMinutes = Text(r, "reminders") is { Length: > 0 } rem ? [.. rem.Split(',').Select(s => int.Parse(s, CultureInfo.InvariantCulture))] : [],
         CreatedAt = Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
         UpdatedAt = Ms(r.GetInt64(r.GetOrdinal("updated_at_ms"))),
+        SubscriptionId = Text(r, "subscription_id") is { } sub ? Guid.Parse(sub) : null,
+        ExternalUid = Text(r, "external_uid"),
     });
 
     public void UpsertEvent(CalendarEvent value)
     {
         ArgumentNullException.ThrowIfNull(value);
         Execute("""
-            INSERT INTO calendar_events (id, title, start_local, duration_ms, all_day, time_zone, rrule, exdates, category_id, location, notes, reminders, created_at_ms, updated_at_ms)
-            VALUES ($id, $title, $start, $duration, $allDay, $tz, $rrule, $exdates, $category, $location, $notes, $reminders, $created, $updated)
+            INSERT INTO calendar_events (id, title, start_local, duration_ms, all_day, time_zone, rrule, exdates, category_id, location, notes, reminders, created_at_ms, updated_at_ms, subscription_id, external_uid)
+            VALUES ($id, $title, $start, $duration, $allDay, $tz, $rrule, $exdates, $category, $location, $notes, $reminders, $created, $updated, $subscription, $uid)
             ON CONFLICT(id) DO UPDATE SET title = excluded.title, start_local = excluded.start_local, duration_ms = excluded.duration_ms,
                 all_day = excluded.all_day, time_zone = excluded.time_zone, rrule = excluded.rrule, exdates = excluded.exdates,
                 category_id = excluded.category_id, location = excluded.location, notes = excluded.notes, reminders = excluded.reminders,
@@ -80,6 +82,8 @@ public sealed partial class SqliteAgendaStore(SqliteDatabase database, ILogger<S
             p.AddWithValue("$reminders", Db(value.ReminderMinutes.Count == 0 ? null : string.Join(',', value.ReminderMinutes.Select(m => m.ToString(CultureInfo.InvariantCulture)))));
             p.AddWithValue("$created", value.CreatedAt.ToUnixTimeMilliseconds());
             p.AddWithValue("$updated", value.UpdatedAt.ToUnixTimeMilliseconds());
+            p.AddWithValue("$subscription", Db(value.SubscriptionId?.ToString()));
+            p.AddWithValue("$uid", Db(value.ExternalUid));
         });
     }
 
@@ -160,6 +164,92 @@ public sealed partial class SqliteAgendaStore(SqliteDatabase database, ILogger<S
 
     /// <summary>A chave estrangeira (ON DELETE SET NULL) desvincula eventos e tarefas.</summary>
     public void DeleteCategory(Guid id) => Execute("DELETE FROM agenda_categories WHERE id = $id;", p => p.AddWithValue("$id", id.ToString()));
+
+    // ---------- Assinaturas (iCal) ----------
+
+    public IReadOnlyList<CalendarSubscription> LoadSubscriptions() => Read("SELECT * FROM calendar_subscriptions ORDER BY rowid;", r => new CalendarSubscription
+    {
+        Id = Guid.Parse(r.GetString(r.GetOrdinal("id"))),
+        Name = r.GetString(r.GetOrdinal("name")),
+        CategoryId = Text(r, "category_id") is { } c ? Guid.Parse(c) : null,
+        ReminderMinutes = Long(r, "reminder_minutes") is { } m ? (int)m : null,
+        Enabled = r.GetInt64(r.GetOrdinal("enabled")) == 1,
+        ETag = Text(r, "etag"),
+        LastModified = Text(r, "last_modified"),
+        LastAttemptAt = Long(r, "last_attempt_at_ms") is { } a ? Ms(a) : null,
+        LastSuccessAt = Long(r, "last_success_at_ms") is { } s ? Ms(s) : null,
+        LastError = Text(r, "last_error"),
+        EventCount = (int)r.GetInt64(r.GetOrdinal("event_count")),
+    });
+
+    public void UpsertSubscription(CalendarSubscription value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        Execute("""
+            INSERT INTO calendar_subscriptions (id, name, category_id, reminder_minutes, enabled, etag, last_modified, last_attempt_at_ms, last_success_at_ms, last_error, event_count)
+            VALUES ($id, $name, $category, $reminder, $enabled, $etag, $lastModified, $attempt, $success, $error, $count)
+            ON CONFLICT(id) DO UPDATE SET name = excluded.name, category_id = excluded.category_id, reminder_minutes = excluded.reminder_minutes,
+                enabled = excluded.enabled, etag = excluded.etag, last_modified = excluded.last_modified, last_attempt_at_ms = excluded.last_attempt_at_ms,
+                last_success_at_ms = excluded.last_success_at_ms, last_error = excluded.last_error, event_count = excluded.event_count;
+            """, p =>
+        {
+            p.AddWithValue("$id", value.Id.ToString());
+            p.AddWithValue("$name", value.Name);
+            p.AddWithValue("$category", Db(value.CategoryId?.ToString()));
+            p.AddWithValue("$reminder", Db(value.ReminderMinutes));
+            p.AddWithValue("$enabled", value.Enabled ? 1 : 0);
+            p.AddWithValue("$etag", Db(value.ETag));
+            p.AddWithValue("$lastModified", Db(value.LastModified));
+            p.AddWithValue("$attempt", Db(value.LastAttemptAt?.ToUnixTimeMilliseconds()));
+            p.AddWithValue("$success", Db(value.LastSuccessAt?.ToUnixTimeMilliseconds()));
+            p.AddWithValue("$error", Db(value.LastError is { Length: > 500 } e ? e[..500] : value.LastError));
+            p.AddWithValue("$count", value.EventCount);
+        });
+    }
+
+    public void DeleteSubscription(Guid id) => Execute("DELETE FROM calendar_subscriptions WHERE id = $id;", p => p.AddWithValue("$id", id.ToString()));
+
+    public void ReplaceSubscriptionEvents(Guid subscriptionId, IReadOnlyList<CalendarEvent> events)
+    {
+        ArgumentNullException.ThrowIfNull(events);
+        using var connection = database.OpenConnection();
+        using var tx = connection.BeginTransaction();
+        using (var delete = connection.CreateCommand())
+        {
+            delete.Transaction = tx;
+            delete.CommandText = "DELETE FROM calendar_events WHERE subscription_id = $sub;";
+            delete.Parameters.AddWithValue("$sub", subscriptionId.ToString());
+            delete.ExecuteNonQuery();
+        }
+        foreach (var e in events)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = """
+                INSERT INTO calendar_events (id, title, start_local, duration_ms, all_day, time_zone, rrule, exdates, category_id, location, notes, reminders, created_at_ms, updated_at_ms, subscription_id, external_uid)
+                VALUES ($id, $title, $start, $duration, $allDay, $tz, $rrule, $exdates, $category, $location, $notes, $reminders, $created, $updated, $subscription, $uid);
+                """;
+            var p = cmd.Parameters;
+            p.AddWithValue("$id", e.Id.ToString());
+            p.AddWithValue("$title", e.Title);
+            p.AddWithValue("$start", Wall(e.Start));
+            p.AddWithValue("$duration", (long)e.Duration.TotalMilliseconds);
+            p.AddWithValue("$allDay", e.AllDay ? 1 : 0);
+            p.AddWithValue("$tz", e.TimeZoneId);
+            p.AddWithValue("$rrule", Db(e.Recurrence?.ToString()));
+            p.AddWithValue("$exdates", Db(e.Exceptions.Count == 0 ? null : string.Join(',', e.Exceptions.Select(Wall))));
+            p.AddWithValue("$category", Db(e.CategoryId?.ToString()));
+            p.AddWithValue("$location", Db(e.Location));
+            p.AddWithValue("$notes", Db(e.Notes));
+            p.AddWithValue("$reminders", Db(e.ReminderMinutes.Count == 0 ? null : string.Join(',', e.ReminderMinutes.Select(m => m.ToString(CultureInfo.InvariantCulture)))));
+            p.AddWithValue("$created", e.CreatedAt.ToUnixTimeMilliseconds());
+            p.AddWithValue("$updated", e.UpdatedAt.ToUnixTimeMilliseconds());
+            p.AddWithValue("$subscription", subscriptionId.ToString());
+            p.AddWithValue("$uid", Db(e.ExternalUid));
+            cmd.ExecuteNonQuery();
+        }
+        tx.Commit();
+    }
 
     // ---------- Suporte ----------
 

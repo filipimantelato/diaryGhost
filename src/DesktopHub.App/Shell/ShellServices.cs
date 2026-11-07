@@ -2,6 +2,7 @@ using DesktopHub.App.Platform;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Agenda;
+using DesktopHub.Core.Activity;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.News;
 using DesktopHub.Core.Weather;
@@ -26,4 +27,6 @@ internal sealed record ShellServices(
     AgendaService Agenda,
     ReminderScheduler Reminders,
     NewsService News,
-    WeatherService Weather);
+    WeatherService Weather,
+    ActivityService Activity,
+    CalendarSubscriptionService Subscriptions);

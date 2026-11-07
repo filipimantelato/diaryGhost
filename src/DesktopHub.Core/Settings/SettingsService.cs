@@ -38,6 +38,7 @@ public sealed partial class SettingsService(ISettingsStore store, IEventBus bus,
             News = (store.Read<NewsSettings>(SettingsSections.News) ?? new NewsSettings()).Sanitize();
             Weather = (store.Read<WeatherSettings>(SettingsSections.Weather) ?? new WeatherSettings()).Sanitize();
             Dashboard = (store.Read<DashboardSettings>(SettingsSections.Dashboard) ?? new DashboardSettings()).Sanitize();
+            Integrations = (store.Read<IntegrationSettings>(SettingsSections.Integrations) ?? new IntegrationSettings()).Sanitize();
         }
         LogLoaded();
     }
@@ -45,6 +46,10 @@ public sealed partial class SettingsService(ISettingsStore store, IEventBus bus,
     public NewsSettings News { get; private set; } = new();
     public WeatherSettings Weather { get; private set; } = new();
     public DashboardSettings Dashboard { get; private set; } = new();
+    public IntegrationSettings Integrations { get; private set; } = new();
+
+    public void UpdateIntegrations(Func<IntegrationSettings, IntegrationSettings> change) =>
+        Update(SettingsSections.Integrations, () => Integrations, v => Integrations = v, change, s => s.Sanitize());
 
     public void UpdateNews(Func<NewsSettings, NewsSettings> change) =>
         Update(SettingsSections.News, () => News, v => News = v, change, s => s.Sanitize());
