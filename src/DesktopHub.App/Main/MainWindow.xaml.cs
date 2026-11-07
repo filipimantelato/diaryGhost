@@ -50,7 +50,7 @@ public partial class MainWindow : Window
         };
 
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 5";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 6";
 
         SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
         NavDashboard.IsChecked = true;
@@ -85,9 +85,7 @@ public partial class MainWindow : Window
         "tasks" => new TasksPage(_services.Agenda, _bus),
         "reminders" => new RemindersPage(_services.Agenda, _services.Reminders, _services.Notifications, _bus),
         "media" => new MediaPage(_media, _settings, _bus),
-        "integrations" => new PlaceholderPage("", "Atividades e integrações", 6,
-            "Eventos autorizados de ferramentas. Para o Claude Code, via hooks oficiais que chamam um pequeno executável local; conversas privadas nunca são lidas.",
-            ["Canal local (named pipe restrito ao seu usuário) com contrato JSON versionado", "Claude Code: tarefa concluída, aguardando confirmação, falha", "Estado de cada integração e último erro"]),
+        "integrations" => new IntegrationsPage(_services),
         _ => new PlaceholderPage("", key, 0, "", []),
     };
 

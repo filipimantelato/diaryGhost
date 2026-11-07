@@ -80,6 +80,14 @@ public partial class EventEditor : UserControl
         DeleteButton.Visibility = _isNew ? Visibility.Collapsed : Visibility.Visible;
         SaveOneButton.Visibility = _occurrence is not null ? Visibility.Visible : Visibility.Collapsed;
         SeriesHint.Visibility = _occurrence is not null ? Visibility.Visible : Visibility.Collapsed;
+        if (e.IsReadOnly)
+        {
+            // Evento de agenda assinada: só a origem (Google, Outlook…) pode alterar.
+            HeaderText.Text = "Evento de agenda assinada";
+            SaveButton.Visibility = SaveOneButton.Visibility = DeleteButton.Visibility = Visibility.Collapsed;
+            SeriesHint.Text = "Somente leitura: este evento vem de uma agenda assinada (iCal). Altere-o na origem; a cópia aqui é atualizada a cada 30 min.";
+            SeriesHint.Visibility = Visibility.Visible;
+        }
         _loading = false;
         UpdateVisibility();
     }

@@ -61,7 +61,7 @@ public static class ActivityContract
             ["source"] = "claude-code",
             ["event"] = Clip(evt, 40),
             ["project"] = cwd is null ? null : Clip(ProjectName(cwd), 80),
-            ["session"] = session is null ? null : Clip(session, 8),
+            ["session"] = session is null ? null : session.Length > 8 ? session[..8] : session,
             // Só a mensagem de aviso (ex.: "Claude needs your permission to use Bash"); nunca o prompt.
             ["message"] = evt == "Notification" ? Clip(Str(input, "message"), MaxField) : null,
         };

@@ -161,6 +161,28 @@ internal sealed class MemoryAgendaStore : IAgendaStore
     public IReadOnlyList<AgendaCategory> LoadCategories() => [.. CategoryRows.Values];
     public void UpsertCategory(AgendaCategory value) => CategoryRows[value.Id] = value;
     public void DeleteCategory(Guid id) => CategoryRows.Remove(id);
+    public Dictionary<Guid, CalendarSubscription> SubscriptionRows { get; } = [];
+    public IReadOnlyList<CalendarSubscription> LoadSubscriptions() => [.. SubscriptionRows.Values];
+    public void UpsertSubscription(CalendarSubscription value) => SubscriptionRows[value.Id] = value;
+    public void DeleteSubscription(Guid id)
+    {
+        SubscriptionRows.Remove(id);
+        foreach (var e in EventRows.Values.Where(e => e.SubscriptionId == id).ToList())
+        {
+            EventRows.Remove(e.Id);
+        }
+    }
+    public void ReplaceSubscriptionEvents(Guid subscriptionId, IReadOnlyList<CalendarEvent> events)
+    {
+        foreach (var e in EventRows.Values.Where(e => e.SubscriptionId == subscriptionId).ToList())
+        {
+            EventRows.Remove(e.Id);
+        }
+        foreach (var e in events)
+        {
+            EventRows[e.Id] = e;
+        }
+    }
 }
 
 internal sealed class MemoryReminderLog : IReminderLog

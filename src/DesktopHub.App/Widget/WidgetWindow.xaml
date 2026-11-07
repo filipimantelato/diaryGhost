@@ -143,7 +143,7 @@
                   <TextBlock Text="Claude Code" Style="{StaticResource CardLabel}" VerticalAlignment="Top" />
                   <StackPanel VerticalAlignment="Bottom">
                     <TextBlock Text="&#xE943;" Style="{StaticResource IconText}" FontSize="18" Margin="0,0,0,4" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Left" />
-                    <TextBlock Text="Chega na Fase 6" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                    <TextBlock x:Name="HomeActivityText" Text="Sem atividade" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" MaxHeight="30" />
                   </StackPanel>
                 </Grid>
               </Border>
@@ -291,6 +291,16 @@
                 <Button Style="{StaticResource Chip}" Content="Calendário" Tag="calendar" Click="AgendaOpen_Click" />
                 <Button Style="{StaticResource Chip}" Content="Tarefas" Tag="tasks" Click="AgendaOpen_Click" />
                 <Button Style="{StaticResource Chip}" Content="Lembretes" Tag="reminders" Click="AgendaOpen_Click" />
+              </WrapPanel>
+            </StackPanel>
+
+            <!-- Atividade: Claude Code -->
+            <StackPanel x:Name="ActivityBody" Visibility="Collapsed">
+              <StackPanel x:Name="ActivityList" />
+              <TextBlock x:Name="ActivityEmpty" Style="{StaticResource CaptionText}" Margin="0,0,0,4" Visibility="Collapsed"
+                         Text="Sem sessões recentes. Instale os hooks do Claude Code em Atividades e integrações." />
+              <WrapPanel Margin="0,6,0,0">
+                <Button Style="{StaticResource Chip}" Content="Integrações" Tag="integrations" Click="AgendaOpen_Click" />
               </WrapPanel>
             </StackPanel>
 

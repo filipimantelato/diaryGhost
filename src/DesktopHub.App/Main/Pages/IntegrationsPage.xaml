@@ -1,0 +1,97 @@
+<UserControl x:Class="DesktopHub.App.Main.Pages.IntegrationsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <UserControl.Resources>
+    <Style x:Key="FieldLabel" TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+      <Setter Property="Margin" Value="0,10,0,4" />
+    </Style>
+  </UserControl.Resources>
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="40,32,40,40" MaxWidth="900" HorizontalAlignment="Left">
+      <TextBlock Text="Atividades e integrações" Style="{StaticResource TitleText}" />
+      <TextBlock Style="{StaticResource CaptionText}" Margin="0,6,0,0"
+                 Text="Tudo por mecanismos oficiais e locais. Nenhuma senha é pedida e nada é enviado a servidores do Diary Ghost (não existem)." />
+
+      <!-- Claude Code -->
+      <Border Style="{StaticResource Card}" Margin="0,20,0,0">
+        <StackPanel>
+          <TextBlock Text="Claude Code" Style="{StaticResource SubtitleText}" />
+          <TextBlock x:Name="ClaudeStatus" Style="{StaticResource BodyText}" Margin="0,8,0,0" />
+          <TextBlock Style="{StaticResource CaptionText}" Margin="0,8,0,0"
+                     Text="Usa os hooks oficiais do Claude Code: a cada evento (sessão iniciada, prompt enviado, aguardando você, resposta pronta, sessão encerrada) ele executa o próprio Diary Ghost com --hook, que repassa ao app por um canal local restrito ao seu usuário. Só chegam: o tipo do evento, o nome da pasta do projeto, um ID curto da sessão e o texto do aviso. Prompts, conversas, arquivos e caminhos completos nunca são lidos." />
+          <WrapPanel Margin="0,12,0,0">
+            <Button x:Name="InstallButton" Style="{StaticResource AccentButton}" Content="Instalar hooks" Margin="0,0,8,8" Click="Install_Click" />
+            <Button x:Name="UninstallButton" Style="{StaticResource SecondaryButton}" Content="Remover hooks" Margin="0,0,8,8" Click="Uninstall_Click" />
+            <Button Style="{StaticResource SecondaryButton}" Content="Enviar evento de teste" Margin="0,0,8,8" Click="Test_Click" />
+          </WrapPanel>
+          <TextBlock x:Name="ClaudeMessage" Style="{StaticResource CaptionText}" Visibility="Collapsed" Margin="0,0,0,6" />
+          <CheckBox x:Name="ListenBox" Style="{StaticResource ToggleSwitch}" Content="Receber eventos do Claude Code" Checked="Listen_Changed" Unchecked="Listen_Changed" />
+          <CheckBox x:Name="NotifyDoneBox" Style="{StaticResource ToggleSwitch}" Content="Avisar quando uma resposta ficar pronta" Checked="Notify_Changed" Unchecked="Notify_Changed" />
+          <CheckBox x:Name="NotifyWaitBox" Style="{StaticResource ToggleSwitch}" Content="Avisar quando o Claude Code estiver aguardando você (ex.: permissão)" Checked="Notify_Changed" Unchecked="Notify_Changed" />
+
+          <TextBlock Text="Configuração manual (se preferir editar o settings.json você mesmo)" Style="{StaticResource FieldLabel}" />
+          <TextBox x:Name="ManualSnippet" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas" FontSize="11.5" TextWrapping="Wrap" MaxHeight="140"
+                   VerticalScrollBarVisibility="Auto" AutomationProperties.Name="Trecho de configuração dos hooks" />
+
+          <TextBlock Text="Eventos recentes" Style="{StaticResource FieldLabel}" />
+          <StackPanel x:Name="RecentList" />
+        </StackPanel>
+      </Border>
+
+      <!-- Agendas assinadas -->
+      <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+          <TextBlock Text="Agendas do Google e do Outlook (assinatura iCal)" Style="{StaticResource SubtitleText}" />
+          <TextBlock Style="{StaticResource CaptionText}" Margin="0,6,0,0"
+                     Text="Sem login: cole o endereço iCal da agenda. Google Agenda: Configurações › (sua agenda) › Integrar agenda › Endereço secreto no formato iCal. Outlook.com: Configurações › Calendário › Calendários compartilhados › Publicar um calendário › link ICS. Os eventos aparecem no Calendário como somente leitura e são atualizados a cada 30 min. O endereço dá acesso à agenda: fica cifrado neste PC (DPAPI) e não é exibido." />
+          <StackPanel x:Name="SubscriptionList" Margin="0,10,0,0" />
+          <Grid Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="160" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="SubName" MaxLength="80" AutomationProperties.Name="Nome da agenda" ToolTip="Nome (opcional)" />
+            <TextBox x:Name="SubUrl" Grid.Column="2" AutomationProperties.Name="Endereço iCal da agenda" ToolTip="https://… ou webcal://…" />
+          </Grid>
+          <Grid Margin="0,6,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="SubCategory" AutomationProperties.Name="Categoria dos eventos" />
+            <ComboBox x:Name="SubReminder" Grid.Column="2" AutomationProperties.Name="Aviso dos eventos" />
+            <Button x:Name="AddSubButton" Grid.Column="4" Style="{StaticResource SecondaryButton}" Content="Assinar" Click="AddSubscription_Click" />
+          </Grid>
+          <TextBlock x:Name="SubMessage" Style="{StaticResource CaptionText}" Margin="0,6,0,0" Visibility="Collapsed" />
+        </StackPanel>
+      </Border>
+
+      <!-- .ics -->
+      <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+          <TextBlock Text="Arquivos .ics" Style="{StaticResource SubtitleText}" />
+          <TextBlock Style="{StaticResource CaptionText}" Margin="0,6,0,0"
+                     Text="Importe eventos de qualquer calendário (viram eventos locais, editáveis) ou exporte a sua agenda local para abrir no Google Agenda, Outlook ou Apple Calendário." />
+          <WrapPanel Margin="0,10,0,0">
+            <Button Style="{StaticResource SecondaryButton}" Content="Importar arquivo .ics…" Margin="0,0,8,0" Click="Import_Click" />
+            <Button Style="{StaticResource SecondaryButton}" Content="Exportar agenda local…" Click="Export_Click" />
+          </WrapPanel>
+          <TextBlock x:Name="IcsMessage" Style="{StaticResource CaptionText}" Margin="0,8,0,0" Visibility="Collapsed" />
+        </StackPanel>
+      </Border>
+
+      <!-- Não disponível -->
+      <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+          <TextBlock Text="Ainda não disponível" Style="{StaticResource SubtitleText}" />
+          <TextBlock Style="{StaticResource CaptionText}" Margin="0,6,0,0"
+                     Text="Sincronização em duas vias com Google Calendar / Microsoft Graph (OAuth) e a Spotify Web API exigem registrar o aplicativo no console de cada empresa para obter um identificador de cliente. Até lá: as agendas entram por assinatura iCal (acima) e o Spotify é controlado localmente pela página Mídia, sem conta." />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

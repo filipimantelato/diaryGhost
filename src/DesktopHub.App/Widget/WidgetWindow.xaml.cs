@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using DesktopHub.App.Platform;
 using DesktopHub.App.Theme;
 using DesktopHub.Core.Agenda;
+using DesktopHub.Core.Activity;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Productivity;
@@ -52,9 +53,10 @@ public partial class WidgetWindow : Window
     private PixelRect _dragWindowStart;
 
     internal WidgetWindow(SettingsService settings, IEventBus bus, MediaService media, IMasterVolume volume, ProductivityService productivity,
-        AgendaService agenda, WeatherService weather, ILogger logger)
+        AgendaService agenda, WeatherService weather, ActivityService activity, ILogger logger)
     {
         _weather = weather;
+        _activity = activity;
         _settings = settings;
         _logger = logger;
         _bus = bus;
@@ -164,7 +166,7 @@ public partial class WidgetWindow : Window
         [WidgetPanel.Volume] = ("Volume", null, null),
         [WidgetPanel.Focus] = ("Foco", null, null),
         [WidgetPanel.Agenda] = ("Agenda", null, null),
-        [WidgetPanel.Activity] = ("Atividade", "Eventos autorizados do Claude Code (via hooks oficiais) e de outras ferramentas.", "Chega na Fase 6"),
+        [WidgetPanel.Activity] = ("Atividade", null, null),
     };
 
     private void ShowPanel(WidgetPanel panel, WidgetLayout layout)
@@ -180,6 +182,8 @@ public partial class WidgetWindow : Window
         VolumeBody.Visibility = panel == WidgetPanel.Volume ? Visibility.Visible : Visibility.Collapsed;
         FocusBody.Visibility = panel == WidgetPanel.Focus ? Visibility.Visible : Visibility.Collapsed;
         AgendaBody.Visibility = panel == WidgetPanel.Agenda ? Visibility.Visible : Visibility.Collapsed;
+        ActivityBody.Visibility = panel == WidgetPanel.Activity ? Visibility.Visible : Visibility.Collapsed;
+        RenderActivity();
         if (panel == WidgetPanel.Agenda && expanded)
         {
             RenderAgenda();

@@ -1,5 +1,6 @@
 using DesktopHub.App.Platform;
 using DesktopHub.Core.Agenda;
+using DesktopHub.Core.Activity;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.Productivity;
@@ -22,6 +23,7 @@ internal sealed partial class WidgetController(
     ProductivityService productivity,
     AgendaService agenda,
     WeatherService weather,
+    ActivityService activity,
     ILogger<WidgetController> logger,
     ILoggerFactory loggerFactory) : IDisposable
 {
@@ -60,6 +62,7 @@ internal sealed partial class WidgetController(
         _subscriptions.Add(bus.Subscribe<ProductivityChanged>(e => _window?.ShowProductivity(e.Snapshot), ui));
         _subscriptions.Add(bus.Subscribe<AgendaChanged>(_ => _window?.ShowAgenda(), ui));
         _subscriptions.Add(bus.Subscribe<WeatherUpdated>(_ => _window?.ShowWeather(), ui));
+        _subscriptions.Add(bus.Subscribe<ActivityReceived>(_ => _window?.ShowActivity(), ui));
         Refresh(WidgetVisibilityReason.User);
     }
 
@@ -101,7 +104,7 @@ internal sealed partial class WidgetController(
         {
             if (_window is null)
             {
-                _window = new WidgetWindow(settings, bus, media, volume, productivity, agenda, weather, loggerFactory.CreateLogger<WidgetWindow>());
+                _window = new WidgetWindow(settings, bus, media, volume, productivity, agenda, weather, activity, loggerFactory.CreateLogger<WidgetWindow>());
                 LogCreated();
             }
             _window.Apply(s);
