@@ -2,6 +2,20 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.6.0] — 2026-11-07 — Fase 6: integrações
+### Adicionado
+- Claude Code pelos hooks oficiais: `DiaryGhost.exe --hook claude-code` repassa ao app, por um canal local
+  restrito ao seu usuário, só o tipo do evento, o nome da pasta, um ID curto da sessão e o texto do aviso.
+  Avisos de "resposta pronta" e "aguardando você"; instalação dos hooks por clique (com backup) ou manual.
+- Painel Atividade no widget e cartão do Início com o estado das sessões.
+- Agendas do Google e do Outlook por assinatura iCal (sem login; endereço cifrado; somente leitura).
+- Importar e exportar arquivos `.ics`.
+- Página Atividades e integrações; migração de banco 5 (`activity_events`, `calendar_subscriptions`).
+- ADR-023 e ADR-024.
+
+### Alterado
+- O executável tem um ponto de entrada próprio (`Program.Main`) para atender hooks sem abrir a interface.
+
 ## [0.5.0] — 2026-11-06 — Fase 5: notícias, clima e dashboard
 ### Adicionado
 - Notícias de 24 fontes confiáveis (feeds oficiais), em Geral, Política, Tecnologia, Games, Ciência e meio

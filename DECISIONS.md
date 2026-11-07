@@ -267,5 +267,30 @@ previsão fica guardada e é exibida offline com o horário da consulta e aviso 
 **Alertas do INMET:** investigados; o portal não respondeu durante o desenvolvimento e não há API pública
 documentada e estável para avisos — não implementado para não exibir alertas de procedência frágil.
 
+## ADR-023 — Claude Code: o próprio executável como hook, canal local restrito ao usuário
+**Status:** aceita (substitui o `hub-notify` separado previsto no ADR-008)
+
+Em vez de um segundo executável, `DiaryGhost.exe --hook claude-code` trata o hook antes de inicializar o WPF
+(`Program.Main`): lê o JSON da entrada padrão (até 64 KB, 1 s), reduz ao contrato v1 e envia por named pipe.
+Sai sempre com código 0 — um hook nunca atrasa nem quebra o Claude Code (sem o app aberto, a mensagem é
+descartada em ≤ 0,8 s).
+- **Privacidade por construção:** o remetente descarta prompt, caminho da transcrição, entradas/saídas de
+  ferramentas e o caminho da pasta (fica só o nome); o receptor valida de novo (versão, origem, tamanhos).
+- **Segurança:** pipe com `PipeOptions.CurrentUserOnly` dos dois lados; nome derivado do SID (e da pasta de
+  dados de teste). Limite de 60 mensagens/min.
+- **settings.json:** só por clique, com confirmação mostrando o arquivo e o comando, backup antes de gravar,
+  JSON inválido nunca é sobrescrito, só as entradas do Diary Ghost (marcadas pelo comando) são tocadas.
+
+## ADR-024 — Agendas externas por assinatura iCal; OAuth adiado
+**Status:** aceita
+
+Google Agenda e Outlook publicam cada agenda num endereço iCal (privado). Assinar esse endereço dá leitura
+completa sem login, sem senha e sem registrar um app — e cabe no princípio de "nenhuma credencial pedida".
+O endereço é tratado como segredo (DPAPI, nunca em log nem na tela). Somente leitura: não há conflitos a
+resolver; edições são feitas na origem.
+OAuth (duas vias com Google Calendar API / Microsoft Graph) e Spotify Web API exigem um *client ID*
+registrado pelo publicador do app em cada console; sem isso não é possível entregar nem testar de verdade.
+Ficam para quando houver registro — `ISecretStore` (DPAPI) e o padrão de serviços com porta já os comportam.
+
 ## Decisões pendentes
 - **Instalador e atualizações (Fase 7):** Velopack vs. MSIX vs. Inno Setup.

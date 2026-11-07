@@ -109,7 +109,7 @@ durante o horário do aviso); **recorrência com DST, fim de mês e exceções �
 
 Pendências levadas adiante:
 - Arrastar eventos na grade para mudar horário/duração.
-- Importar/exportar `.ics` (o modelo já é iCalendar) → junto da sincronização, Fase 6.
+- ~~Importar/exportar `.ics`~~ → entregue na Fase 6.
 - Toast antigo que reabre o app fechado (ativador COM) → Fase 7.
 
 ## Fase 5 — Informações ✅ (2026-11-06)
@@ -138,10 +138,32 @@ Pendências levadas adiante:
 - Localização automática com consentimento.
 - Arrastar cartões do dashboard (hoje: botões, acessíveis por teclado).
 
-## Fase 6 — Integrações
-- Google Calendar e Outlook (OAuth no navegador do sistema, PKCE, sync incremental, conflitos).
-- Spotify Web API opcional (claramente separada do controle local; avisa sobre exigência de Premium).
-- `hub-notify` + named pipe para Claude Code (hooks) e outras ferramentas; página de estado das integrações.
+## Fase 6 — Integrações ✅ (2026-11-07)
+Entregue:
+- **Claude Code** pelos hooks oficiais (ADR-023): o próprio `DiaryGhost.exe --hook claude-code` (sem abrir
+  interface) reduz o JSON do hook ao contrato v1 — evento, nome da pasta, ID curto da sessão, texto do
+  aviso; prompts, transcrição e caminhos nunca saem — e entrega por named pipe restrito ao usuário
+  (`CurrentUserOnly`). Instalação dos hooks por clique, com confirmação, backup e preservação do resto do
+  `settings.json`; configuração manual exibida para copiar. Avisos de "resposta pronta" e "aguardando você",
+  limite de 60 eventos/min, histórico de 7 dias.
+- Painel **Atividade** no widget e cartão do Início com o estado das sessões.
+- **Agendas do Google/Outlook por assinatura iCal** (ADR-024): sem login; endereço secreto cifrado com
+  DPAPI; somente leitura; sincronização a cada 30 min com GET condicional; IDs estáveis (avisos não se
+  repetem); categoria e aviso por agenda.
+- **iCalendar**: leitor (TZID IANA/Windows, UTC, dia inteiro, DURATION, RRULE, EXDATE, RECURRENCE-ID,
+  cancelados) e exportador (dobra de linhas, UNTIL em UTC, VALARM); importar `.ics` como eventos locais.
+- Página **Atividades e integrações**. Migração 5. 202 testes (23 novos).
+
+Verificado ao vivo: evento de teste e hooks simulados (JSON real de hook na entrada padrão) chegando à
+página; assinatura da agenda pública de feriados do Google (Finados, Proclamação, Consciência Negra no mês).
+Ocioso com o canal escutando: 0 ms de CPU / 30 s, 58 MB privados.
+**Não verificado ao vivo:** instalação dos hooks no seu `~/.claude/settings.json` (testada em arquivos
+temporários; não alterei o seu arquivo) e uma sessão real do Claude Code disparando os hooks.
+
+Não entregue (ADR-024):
+- OAuth com Google Calendar / Microsoft Graph (duas vias, conflitos) e Spotify Web API: exigem registrar o
+  app no console de cada empresa para obter um *client ID*. A arquitetura (portas, `ISecretStore` com DPAPI)
+  está pronta para recebê-los.
 
 ## Fase 7 — Refinamento
 - Instalador, atalhos, desinstalação limpa, atualizações (ADR), assinatura de código (também evita

@@ -68,7 +68,7 @@ public partial class IntegrationsPage : UserControl, IDisposable
                 ["hooks"] = new JsonArray(new JsonObject { ["type"] = "command", ["command"] = HookCommand(), ["timeout"] = 5 }),
             });
         }
-        return new JsonObject { ["hooks"] = hooks }.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        return new JsonObject { ["hooks"] = hooks }.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
     }
 
     private void Render()

@@ -123,7 +123,7 @@ public sealed class ClaudeHooksInstaller(string settingsPath) : IClaudeHooksInst
     {
         Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
         var temp = settingsPath + ".tmp";
-        File.WriteAllText(temp, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(temp, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
         File.Move(temp, settingsPath, overwrite: true);
     }
 }

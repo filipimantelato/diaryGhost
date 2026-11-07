@@ -132,7 +132,8 @@ Eventos planejados (catálogo em `src/DesktopHub.Core/Events/`):
 | `AgendaChanged` | AgendaService (eventos, tarefas, categorias) | 4 ✅ |
 | `RemindersChanged` | ReminderScheduler (entregue, adiado, dispensado) | 4 ✅ |
 | `NewsUpdated`, `WeatherUpdated` | NewsService/WeatherService | 5 ✅ |
-| `IntegrationStatusChanged`, `IntegrationEventReceived` | IntegrationHost | 6 |
+| `ActivityReceived` | ActivityService (canal local do Claude Code) | 6 ✅ |
+| `CalendarSubscriptionsChanged` | CalendarSubscriptionService | 6 ✅ |
 
 ## 5. Tempo e agendamento
 
@@ -238,7 +239,8 @@ fuso original importa (eventos de calendário). A Fase 1 cria apenas `settings` 
 | Outlook | Microsoft Graph (`calendarView`, consultas delta) com MSAL.NET | Registro de app no Entra ID. |
 | ICS | Download HTTP + parser RFC 5545 (Ical.Net) | Somente leitura. |
 | Notificações ✅ | Toasts do Windows com AUMID próprio registrado em `HKCU\Software\Classes\AppUserModelId` (ADR-015) | Sem ativador COM, toast antigo não reabre o app fechado. O Windows aplica "Não incomodar"; a política do app trata pausa, silêncio e tela cheia (ADR-016). |
-| Claude Code | **Hooks** configurados em `settings.json` (`Notification`, `Stop`, `PreToolUse`, `PostToolUse`, `SessionStart`…) executam um comando que recebe JSON pelo stdin | O hub fornece um pequeno executável `hub-notify` que repassa o JSON por **named pipe local**. Conversas do Claude no navegador/app desktop **não** têm API de observação — fora de escopo. |
+| Claude Code ✅ | **Hooks** oficiais em `~/.claude/settings.json` (`SessionStart`, `UserPromptSubmit`, `Notification`, `Stop`, `SessionEnd`) executam `DiaryGhost.exe --hook claude-code`, que recebe o JSON pela entrada padrão | Reduz ao contrato v1 e repassa por **named pipe** restrito ao usuário (ADR-023). Conversas do Claude no navegador/app desktop **não** têm API de observação — fora de escopo. |
+| Agendas Google/Outlook ✅ | Assinatura do endereço iCal (somente leitura) | Sem OAuth (ADR-024); endereço cifrado com DPAPI. |
 | Outras ferramentas | Mesmo pipe local com contrato JSON versionado (`IntegrationEventReceived`) | Qualquer ferramenta que execute um comando ao concluir (CI local, scripts, builds) pode emitir eventos. |
 
 ## 9. Desempenho — orçamento e método

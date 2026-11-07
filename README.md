@@ -6,8 +6,8 @@ Central pessoal residente para Windows 11: widget flutuante estilo "ilha", bande
 aplicação completa — leve, local-first e sem telemetria.
 
 > **Estado:** Fases 1 (fundação), 2 (widget e mídia), 3 (produtividade e notificações), 4 (agenda e
-> lembretes) e 5 (notícias, clima e dashboard) concluídas.
-> Integrações (Google/Outlook, Claude Code) e o instalador chegam nas próximas fases — ver [ROADMAP.md](ROADMAP.md).
+> lembretes), 5 (notícias, clima e dashboard) e 6 (integrações) concluídas.
+> O instalador e o refinamento final chegam na Fase 7 — ver [ROADMAP.md](ROADMAP.md).
 > Módulos ainda não implementados dizem isso explicitamente na interface.
 
 ## O que já funciona
@@ -28,6 +28,9 @@ aplicação completa — leve, local-first e sem telemetria.
   Salvar, favoritar, buscar, seguir assuntos, ocultar ou adicionar fontes.
 - **Clima** (Open-Meteo, sem conta) para a cidade que você escolher; funciona offline com a última previsão.
 - **Dashboard** com dados reais, cartões reordenáveis, largos ou ocultos.
+- **Claude Code**: avisos quando uma resposta fica pronta ou quando ele aguarda você, painel Atividade no
+  widget — pelos hooks oficiais, sem ler conversas. Instale em Atividades e integrações.
+- **Agendas do Google e do Outlook** por assinatura iCal (sem login), importação e exportação de `.ics`.
 - **Calendário local**: dia e semana em grade de horas, mês e lista; eventos de dia inteiro ou com
   horário, recorrentes (todo dia, dias úteis, semanal, "2ª terça do mês", "último dia do mês", anual ou
   RRULE), com exceções e até 2 avisos. Horário de verão e fusos tratados corretamente.
