@@ -13,6 +13,13 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        switch (args.FirstOrDefault())
+        {
+            case "--install":
+                return Shell.SetupCommands.Install();
+            case "--uninstall":
+                return Shell.SetupCommands.Uninstall();
+        }
         if (args.Length >= 2 && args[0] == "--hook")
         {
             return RunHook(args);

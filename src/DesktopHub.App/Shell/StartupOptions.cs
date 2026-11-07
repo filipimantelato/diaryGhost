@@ -8,12 +8,13 @@ namespace DesktopHub.App.Shell;
 /// (oculta o widget só nesta execução), <c>--quit</c> (encerra a instância em execução) e
 /// <c>--data-dir &lt;pasta&gt;</c> (dados isolados, para testes e benchmarks).
 /// </summary>
-public sealed record StartupOptions(bool Minimized, bool ShowMain, bool NoWidget, bool Quit, string? DataDir)
+public sealed record StartupOptions(bool Minimized, bool ShowMain, bool NoWidget, bool Quit, string? DataDir, string? Page = null)
 {
     public static StartupOptions Parse(IReadOnlyList<string> args)
     {
         bool minimized = false, showMain = false, noWidget = false, quit = false;
         string? dataDir = null;
+        string? page = null;
         for (var i = 0; i < args.Count; i++)
         {
             switch (args[i].ToLowerInvariant())
@@ -23,9 +24,26 @@ public sealed record StartupOptions(bool Minimized, bool ShowMain, bool NoWidget
                 case "--no-widget": noWidget = true; break;
                 case "--quit": quit = true; break;
                 case "--data-dir" when i + 1 < args.Count: dataDir = args[++i]; break;
+                case var link when link.StartsWith("diaryghost:", StringComparison.Ordinal): page = PageFromLink(args[i]); showMain = true; break;
             }
         }
-        return new StartupOptions(minimized, showMain, noWidget, quit, dataDir);
+        return new StartupOptions(minimized, showMain, noWidget, quit, dataDir, page);
+    }
+
+    /// <summary>Páginas que um link <c>diaryghost:</c> pode abrir. Links vêm de fora (notificações, navegador):
+    /// só navegam, nunca executam ações.</summary>
+    public static readonly IReadOnlySet<string> LinkPages = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "dashboard", "news", "calendar", "tasks", "reminders", "media", "productivity", "integrations", "settings",
+    };
+
+    /// <summary>"diaryghost:reminders", "diaryghost://reminders/" → "reminders"; qualquer outra coisa → null.</summary>
+    public static string? PageFromLink(string link)
+    {
+        var rest = link["diaryghost:".Length..].Trim('/').ToLowerInvariant();
+        var cut = rest.IndexOfAny(['?', '#', '/']);
+        var page = cut >= 0 ? rest[..cut] : rest;
+        return LinkPages.Contains(page) ? page : null;
     }
 
     /// <summary>Instâncias com pastas de dados diferentes podem coexistir (ex.: benchmark ao lado do uso diário).</summary>

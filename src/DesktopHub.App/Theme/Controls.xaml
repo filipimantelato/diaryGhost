@@ -344,10 +344,10 @@
             <Border Height="4" CornerRadius="2" Background="{StaticResource BorderStrongBrush}" VerticalAlignment="Center" />
             <Track x:Name="PART_Track">
               <Track.DecreaseRepeatButton>
-                <RepeatButton Style="{StaticResource SliderFillButton}" Command="Slider.DecreaseLarge" />
+                <RepeatButton Style="{StaticResource SliderFillButton}" Command="Slider.DecreaseLarge" AutomationProperties.Name="Diminuir" />
               </Track.DecreaseRepeatButton>
               <Track.IncreaseRepeatButton>
-                <RepeatButton Style="{StaticResource SliderEmptyButton}" Command="Slider.IncreaseLarge" />
+                <RepeatButton Style="{StaticResource SliderEmptyButton}" Command="Slider.IncreaseLarge" AutomationProperties.Name="Aumentar" />
               </Track.IncreaseRepeatButton>
               <Track.Thumb>
                 <Thumb x:Name="Thumb" Width="12" Height="12">

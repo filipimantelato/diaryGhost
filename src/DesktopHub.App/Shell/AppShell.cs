@@ -89,11 +89,12 @@ internal sealed partial class AppShell(
         hotkeys.Register(2, "Abrir o Diary Ghost", NativeMethods.MOD_CONTROL | NativeMethods.MOD_ALT, 0x44 /* D */, "Ctrl+Alt+D", () => OpenMain());
 
         SyncAutoStart();
+        RegisterLinkProtocol();
 
         var openMain = startup.Options.ShowMain || (!startup.Options.Minimized && !settings.General.StartMinimized);
         if (openMain)
         {
-            OpenMain();
+            OpenMain(startup.Options.Page);
         }
 
         if (startup.Database?.RecoveredFromCorruption == true)
@@ -210,6 +211,26 @@ internal sealed partial class AppShell(
         _main?.Close();
         Dispose();
         WpfApplication.Current.Shutdown();
+    }
+
+    /// <summary>
+    /// Registra o protocolo <c>diaryghost:</c> apontando para este executável, para que clicar numa notificação
+    /// antiga reabra o app mesmo fechado. Instâncias de teste (<c>--data-dir</c>) não mexem no registro.
+    /// </summary>
+    private void RegisterLinkProtocol()
+    {
+        if (startup.Options.DataDir is not null || Environment.ProcessPath is not { } exe)
+        {
+            return;
+        }
+        try
+        {
+            Infrastructure.Setup.PerUserInstaller.RegisterProtocol($@"Software\Classes\{Infrastructure.Setup.InstallLayout.Protocol}", exe);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
+        {
+            LogAutoStartFailed(ex);
+        }
     }
 
     private void SyncAutoStart()

@@ -116,7 +116,15 @@ public sealed partial class WindowsToastSink(ILogger<WindowsToastSink> logger) :
     internal static string BuildXml(Guid id, NotificationRequest request)
     {
         var sb = new StringBuilder();
-        sb.Append("<toast launch=\"id=").Append(id.ToString("N")).Append("\">");
+        // Clique no corpo: link diaryghost:<página> (abre o app mesmo fechado). Botões seguem em primeiro plano.
+        if (NotificationPages.ForTag(request.Tag) is { } page)
+        {
+            sb.Append("<toast activationType=\"protocol\" launch=\"diaryghost:").Append(page).Append("\">");
+        }
+        else
+        {
+            sb.Append("<toast launch=\"id=").Append(id.ToString("N")).Append("\">");
+        }
         sb.Append("<visual><binding template=\"ToastGeneric\">");
         sb.Append("<text>").Append(SecurityElement.Escape(request.Title)).Append("</text>");
         if (!string.IsNullOrWhiteSpace(request.Body))

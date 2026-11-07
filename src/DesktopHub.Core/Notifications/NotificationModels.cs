@@ -110,3 +110,22 @@ public sealed record NotificationActivated(string Tag, string? ActionId) : IAppE
 
 /// <summary>Uma notificação foi processada (exibida ou suprimida) — para histórico na UI.</summary>
 public sealed record NotificationProcessed(NotificationRecord Record) : IAppEvent;
+
+/// <summary>Página do app que o clique numa notificação abre (via link <c>diaryghost:</c>, que funciona com o app fechado).</summary>
+public static class NotificationPages
+{
+    public static string? ForTag(string tag)
+    {
+        ArgumentNullException.ThrowIfNull(tag);
+        return tag switch
+        {
+            "timer" or "pomodoro" => "productivity",
+            "news" => "news",
+            "activity" => "integrations",
+            "reminder-missed" => "reminders",
+            _ when tag.StartsWith("reminder:Task", StringComparison.Ordinal) => "tasks",
+            _ when tag.StartsWith("reminder:", StringComparison.Ordinal) => "calendar",
+            _ => null,
+        };
+    }
+}

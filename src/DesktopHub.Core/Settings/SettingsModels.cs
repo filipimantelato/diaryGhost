@@ -212,6 +212,8 @@ public sealed partial record GeneralSettings
     public string AccentColor { get; init; } = DefaultAccent;
     public string Language { get; init; } = "pt-BR";
     public bool HasShownTrayHint { get; init; }
+    /// <summary>Escala do texto da janela principal (acessibilidade): 1, 1,15 ou 1,3.</summary>
+    public double TextScale { get; init; } = 1.0;
 
     /// <summary>Corrige valores inválidos (ex.: vindos de um banco editado à mão).</summary>
     public GeneralSettings Sanitize() => this with
@@ -224,6 +226,7 @@ public sealed partial record GeneralSettings
         PaletteVersion = CurrentPaletteVersion,
         Language = string.IsNullOrWhiteSpace(Language) ? "pt-BR" : Language,
         CloseBehavior = Enum.IsDefined(CloseBehavior) ? CloseBehavior : CloseBehavior.MinimizeToTray,
+        TextScale = TextScale >= 1.25 ? 1.3 : TextScale >= 1.1 ? 1.15 : 1.0,
     };
 
     [GeneratedRegex("^#[0-9A-Fa-f]{6}$")]

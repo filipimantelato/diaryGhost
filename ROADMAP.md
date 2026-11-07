@@ -165,13 +165,28 @@ Não entregue (ADR-024):
   app no console de cada empresa para obter um *client ID*. A arquitetura (portas, `ISecretStore` com DPAPI)
   está pronta para recebê-los.
 
-## Fase 7 — Refinamento
-- Instalador, atalhos, desinstalação limpa, atualizações (ADR), assinatura de código (também evita
-  bloqueios do Smart App Control) e ativador COM para toasts.
-- Widget expandido com renderização por GPU (medir contra os benchmarks das fases 2 e 3).
-- Acessibilidade (auditoria com Narrador, contraste, tamanho de fonte), i18n.
-- Otimização guiada pelos benchmarks; testes de UI.
+## Fase 7 — Refinamento ✅ (2026-11-07)
+Entregue:
+- **Instalação por usuário** (ADR-025): `DiaryGhost.exe --install` copia para `%LOCALAPPDATA%\Programs\DiaryGhost`,
+  cria o atalho no Menu Iniciar e a entrada em "Aplicativos instalados"; rodar de novo atualiza no lugar.
+  **Desinstalação limpa** (`--uninstall`, também pelo Windows): programa, atalho, inicialização com o Windows,
+  registro de notificações, protocolo e os hooks do Claude Code instalados pelo app; os dados só são
+  apagados se o usuário escolher. `scripts/publish.ps1` gera também um `.zip` para distribuir.
+- **Notificação antiga reabre o app** (ADR-026): o clique no corpo do toast abre `diaryghost:<página>`,
+  registrado no Windows; funciona com o app fechado. Links só navegam (lista fixa de páginas), nunca agem.
+  Segunda execução repassa a página à instância aberta.
+- **Acessibilidade:** `scripts/a11y-audit.ps1` (UI Automation, 9 páginas, 204 controles: todos com nome e
+  foco por teclado — corrigidos os botões internos do controle deslizante); teste de contraste WCAG lendo
+  `Tokens.xaml` (corrigido o cinza terciário de 3,6:1 para ≥ 4,5:1); tamanho do texto 100/115/130%.
+- 220 testes (18 novos).
 
-## Ideias futuras (não comprometidas)
-Paleta de comandos e busca global · atalhos personalizáveis · resumo diário · IA opcional para resumos
-(conteúdo externo tratado sempre como dado) · GitHub · Steam · perfis · exportar/importar · plugins.
+Verificado ao vivo: abrir por `diaryghost:tasks`, repassar `diaryghost:reminders` à instância aberta (um
+só processo), link inválido ignorado; escala de texto; auditoria sem problemas.
+**Não verificado ao vivo:** `--install`/`--uninstall` reais (testados com pasta e chave de registro
+temporárias — não instalei nada no seu Windows); clique num toast real com o app fechado.
+
+Não entregue (ADR-027):
+- **Assinatura de código** (exige certificado de uma autoridade; sem ela o SmartScreen avisa e o Smart App
+  Control pode bloquear o executável baixado).
+- **Atualização automática** (sem servidor de distribuição; atualizar = rodar `--install` da versão nova).
+- **Widget expandido com renderização por GPU** e **i18n** (só pt-BR).

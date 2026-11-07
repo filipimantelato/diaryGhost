@@ -24,6 +24,14 @@ public partial class SettingsPage : UserControl, IDisposable
         }
     }
 
+    private void TextScale_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string text } && double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale))
+        {
+            _viewModel.SetTextScale(scale);
+        }
+    }
+
     private void ResetPosition_Click(object sender, RoutedEventArgs e) => _viewModel.ResetWidgetPosition();
 
     private void Pause_Click(object sender, RoutedEventArgs e)

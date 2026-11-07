@@ -9,7 +9,7 @@
   <Color x:Key="BorderStrongColor">#3D3D3D</Color>
   <Color x:Key="TextPrimaryColor">#EDEDED</Color>
   <Color x:Key="TextSecondaryColor">#A1A1A1</Color>
-  <Color x:Key="TextTertiaryColor">#6E6E6E</Color>
+  <Color x:Key="TextTertiaryColor">#8F8F8F</Color>
   <Color x:Key="SuccessColor">#34D399</Color>
   <Color x:Key="WarningColor">#F0985A</Color>
   <Color x:Key="DangerColor">#F87171</Color>

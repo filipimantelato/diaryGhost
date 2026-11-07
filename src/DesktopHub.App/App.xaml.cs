@@ -48,7 +48,7 @@ public partial class App : Application
         base.OnStartup(e);
         var options = StartupOptions.Parse(e.Args);
 
-        _instance = SingleInstance.TryAcquire(options.InstanceId, requestQuit: options.Quit);
+        _instance = SingleInstance.TryAcquire(options.InstanceId, requestQuit: options.Quit, options.Page);
         if (_instance is null || options.Quit)
         {
             // Outra instância já roda e foi sinalizada (abrir janela ou encerrar).
@@ -99,7 +99,7 @@ public partial class App : Application
         var shell = _services.GetRequiredService<AppShell>();
         shell.Start();
         _instance.Listen(
-            onActivate: () => Dispatcher.BeginInvoke(() => shell.OpenMain()),
+            onActivate: page => Dispatcher.BeginInvoke(() => shell.OpenMain(page)),
             onQuit: () => Dispatcher.BeginInvoke(shell.Exit));
 
         using var process = Process.GetCurrentProcess();

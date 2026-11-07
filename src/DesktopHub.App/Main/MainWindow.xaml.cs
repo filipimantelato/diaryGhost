@@ -50,10 +50,28 @@ public partial class MainWindow : Window
         };
 
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 6";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 7";
 
         SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
+        ApplyTextScale();
+        _subscriptions.Add(_bus.Subscribe<SettingsChanged>(e =>
+        {
+            if (e.Section == SettingsSections.General)
+            {
+                ApplyTextScale();
+            }
+        }, SynchronizationContext.Current));
         NavDashboard.IsChecked = true;
+    }
+
+    private readonly List<IDisposable> _subscriptions = [];
+
+    /// <summary>Acessibilidade: amplia toda a janela (texto, ícones e espaçamentos juntos, sem quebrar o layout).</summary>
+    private void ApplyTextScale()
+    {
+        var scale = _settings.General.TextScale;
+        ((FrameworkElement)Content).LayoutTransform = scale > 1.01 ? new System.Windows.Media.ScaleTransform(scale, scale) : null;
+        MinWidth = 820 * scale;
     }
 
     public void Navigate(string key)
@@ -91,6 +109,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _subscriptions.ForEach(s => s.Dispose());
         (PageHost.Content as IDisposable)?.Dispose();
         PageHost.Content = null;
         base.OnClosed(e);

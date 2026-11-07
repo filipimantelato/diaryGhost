@@ -2,6 +2,22 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.7.0] — 2026-11-07 — Fase 7: instalação, notificações e acessibilidade
+### Adicionado
+- `DiaryGhost.exe --install`: instalação por usuário (sem administrador) em `%LOCALAPPDATA%\Programs\DiaryGhost`,
+  atalho no Menu Iniciar e entrada em "Aplicativos instalados"; reinstalar atualiza.
+- `--uninstall` (também por "Aplicativos instalados"): remove programa, atalho, inicialização com o Windows,
+  registros e hooks do Claude Code; os dados só são apagados se você escolher.
+- Clicar numa notificação abre a página certa mesmo com o app fechado (links `diaryghost:`).
+- Tamanho do texto da janela: 100%, 115% e 130% (Configurações › Geral).
+- `scripts/a11y-audit.ps1` (auditoria por UI Automation) e teste automático de contraste WCAG.
+- `scripts/publish.ps1` gera também `artifacts/DiaryGhost-<versão>-win-x64.zip`.
+- ADR-025 a 027.
+
+### Corrigido
+- Cinza terciário (dicas e legendas) com contraste insuficiente (3,6:1 → ≥ 4,5:1).
+- Botões internos dos controles deslizantes sem nome para leitores de tela.
+
 ## [0.6.0] — 2026-11-07 — Fase 6: integrações
 ### Adicionado
 - Claude Code pelos hooks oficiais: `DiaryGhost.exe --hook claude-code` repassa ao app, por um canal local

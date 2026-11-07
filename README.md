@@ -6,8 +6,8 @@ Central pessoal residente para Windows 11: widget flutuante estilo "ilha", bande
 aplicação completa — leve, local-first e sem telemetria.
 
 > **Estado:** Fases 1 (fundação), 2 (widget e mídia), 3 (produtividade e notificações), 4 (agenda e
-> lembretes), 5 (notícias, clima e dashboard) e 6 (integrações) concluídas.
-> O instalador e o refinamento final chegam na Fase 7 — ver [ROADMAP.md](ROADMAP.md).
+> lembretes), 5 (notícias, clima e dashboard), 6 (integrações) e 7 (instalação e acessibilidade) concluídas.
+> O que ficou de fora (OAuth, assinatura de código, atualização automática) está em [ROADMAP.md](ROADMAP.md).
 > Módulos ainda não implementados dizem isso explicitamente na interface.
 
 ## O que já funciona
@@ -100,7 +100,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure.ps1
 ```bash
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-media.ps1
 ```
-Saída em `artifacts/publish/win-x64/DiaryGhost.exe`. O instalador vem na Fase 7.
+Saída em `artifacts/publish/win-x64/DiaryGhost.exe` e `artifacts/DiaryGhost-<versão>-win-x64.zip`.
+
+### Instalar, atualizar e desinstalar
+- **Instalar** (por usuário, sem administrador): na pasta publicada (ou no zip descompactado), rode
+  `DiaryGhost.exe --install`. Fica em `%LOCALAPPDATA%ProgramsDiaryGhost`, com atalho no Menu Iniciar.
+- **Atualizar:** rode `--install` da versão nova (seus dados são mantidos).
+- **Desinstalar:** Configurações do Windows › Aplicativos instalados › Diary Ghost, ou `DiaryGhost.exe --uninstall`.
+  Você escolhe se os dados (agenda, tarefas, configurações) também são apagados.
+- O executável não é assinado digitalmente (ADR-027): na primeira execução de um arquivo baixado, o
+  SmartScreen pode avisar.
 
 ## Documentação
 - [ARCHITECTURE.md](ARCHITECTURE.md) — arquitetura, fluxo de dados, modelo de dados, integrações e limitações

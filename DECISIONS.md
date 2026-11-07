@@ -292,5 +292,37 @@ OAuth (duas vias com Google Calendar API / Microsoft Graph) e Spotify Web API ex
 registrado pelo publicador do app em cada console; sem isso não é possível entregar nem testar de verdade.
 Ficam para quando houver registro — `ISecretStore` (DPAPI) e o padrão de serviços com porta já os comportam.
 
+## ADR-025 — Instalação por usuário feita pelo próprio executável
+**Status:** aceita (resolve a pendência "Velopack vs. MSIX vs. Inno Setup")
+
+`DiaryGhost.exe --install` / `--uninstall`, sem ferramenta de terceiros e sem administrador: pasta em
+`%LOCALAPPDATA%\Programs`, atalho via `WScript.Shell`, entrada em `HKCU\...\Uninstall` (aparece em
+"Aplicativos instalados", que chama `--uninstall`). Reinstalar atualiza no lugar e remove arquivos antigos.
+A remoção da pasta só aceita o caminho de instalação conhecido; dados do usuário só saem com confirmação.
+- **MSIX** daria atualizações e identidade de pacote, mas exige assinatura (sem certificado não instala).
+- **Velopack/Squirrel** dão atualização automática, mas pressupõem um servidor de distribuição que não existe.
+- **Inno Setup/WiX** acrescentam uma ferramenta de build sem ganho real para um app por usuário.
+Atualização: manual (`--install` da versão nova). Revisitar quando houver onde publicar versões.
+
+## ADR-026 — Reabrir o app por notificação: protocolo `diaryghost:` em vez de ativador COM
+**Status:** aceita
+
+Toasts de app sem pacote só reabrem um app fechado com um ativador COM registrado (CLSID + atalho com
+`ToastActivatorCLSID`) — complexo e frágil sem MSIX. Alternativa documentada: `activationType="protocol"`.
+O corpo do toast abre `diaryghost:<página>`; o Windows inicia o app (ou a segunda execução repassa a página à
+instância aberta por memória compartilhada). **Links são entrada não confiável** (qualquer página web pode
+tentar abrir um): só navegam para uma lista fixa de páginas, nunca executam ações. Botões (adiar, concluir)
+continuam em primeiro plano e funcionam com o app aberto.
+
+## ADR-027 — Fora do escopo desta versão: assinatura, auto-atualização, GPU no widget, i18n
+**Status:** aceita
+
+- **Assinatura de código:** exige certificado de uma autoridade (pago e vinculado a identidade). Sem ela, o
+  SmartScreen avisa no primeiro uso e o Smart App Control pode bloquear executáveis baixados. Compilar
+  localmente (como neste projeto) não é afetado da mesma forma.
+- **Widget por GPU:** o custo atual medido (0,20% de CPU com o Foco expandido rodando) está dentro do
+  orçamento; trocar a janela em camadas por composição DWM é uma reescrita do widget sem ganho percebido hoje.
+- **i18n:** só pt-BR. Textos estão no código; extrair para recursos `.resx` é o caminho quando houver demanda.
+
 ## Decisões pendentes
-- **Instalador e atualizações (Fase 7):** Velopack vs. MSIX vs. Inno Setup.
+- Nenhuma no momento.

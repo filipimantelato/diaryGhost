@@ -240,6 +240,12 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
     public IReadOnlyList<AccentOption> Accents =>
         [.. ThemeManager.AccentPresets.Select(a => new AccentOption(a.Name, a.Hex, string.Equals(a.Hex, General.AccentColor, StringComparison.OrdinalIgnoreCase)))];
 
+    public object TextScaleNormal => new Agenda.ChipState(_settings.General.TextScale < 1.1);
+    public object TextScaleLarge => new Agenda.ChipState(_settings.General.TextScale is >= 1.1 and < 1.25);
+    public object TextScaleHuge => new Agenda.ChipState(_settings.General.TextScale >= 1.25);
+
+    public void SetTextScale(double scale) => _settings.UpdateGeneral(g => g with { TextScale = scale });
+
     public void SetAccent(string hex)
     {
         _settings.UpdateGeneral(g => g with { AccentColor = hex });

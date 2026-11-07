@@ -29,3 +29,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Testes falharam; publicacao cancelada.' }
 if ($LASTEXITCODE -ne 0) { throw 'Falha na publicacao.' }
 $size = (Get-ChildItem $out -Recurse | Measure-Object Length -Sum).Sum / 1MB
 Write-Host ("Publicado em {0} ({1:N1} MB)" -f $out, $size)
+
+# Pacote para distribuir: descompactar e rodar "DiaryGhost.exe --install" (instala por usuário, sem administrador).
+$version = ([xml](Get-Content (Join-Path $root 'Directory.Build.props'))).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+$zip = Join-Path $root "artifacts\DiaryGhost-$version-$Runtime.zip"
+if (Test-Path $zip) { Remove-Item $zip }
+Compress-Archive -Path (Join-Path $out '*') -DestinationPath $zip -CompressionLevel Optimal
+Write-Host ("Pacote: {0} ({1:N1} MB)" -f $zip, ((Get-Item $zip).Length / 1MB))
+Write-Host 'Para instalar: DiaryGhost.exe --install (na pasta publicada ou no zip descompactado)'
