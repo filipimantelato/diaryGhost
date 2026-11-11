@@ -9,7 +9,10 @@ roadmap e critérios de teste.
 > mês e modo privacidade. Diferenças em relação à proposta: as etiquetas ficam numa coluna `tags` (texto) em
 > `fin_transactions`, não em tabelas próprias (a busca é em memória; tabelas voltam se houver filtro por
 > etiqueta no banco); `fin_postings.card_id` já existe, sem chave estrangeira até a Fase 10 criar os cartões.
-> As demais seções descrevem o que vem nas próximas fases.
+> A **Fase 9 (dashboard)** também: indicadores da seção 3.4 que já têm dados (saldo em contas, previsto
+> decomposto, receitas e despesas confirmadas/pendentes, patrimônio, comparação mensal), Visão geral com gráficos
+> e tabelas, modo privacidade salvo e cartão opcional no Dashboard. Ainda sem faturas (Fase 10) e sem
+> "Reservado" (Fase 11). As demais seções descrevem o que vem nas próximas fases.
 
 > **Nomes.** A especificação fala em "Orbit" e "Orbit Learn". Este repositório é o **Diary Ghost**, e não há
 > módulo "Learn" nele. O módulo se chama **Finanças** na navegação e **Diary Ghost Finance** nos documentos.

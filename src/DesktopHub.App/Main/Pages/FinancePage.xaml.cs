@@ -21,13 +21,15 @@ public partial class FinancePage : UserControl, IDisposable
 {
     private enum Tab
     {
+        Overview,
         Transactions,
         Accounts,
         Categories,
     }
 
     private const int PageSize = 300;
-    private static Tab s_lastTab = Tab.Transactions;
+    private static Tab s_lastTab = Tab.Overview;
+    private static bool s_tables;
     private static (int Year, int Month)? s_lastMonth;
 
     private readonly FinanceService _finance;
@@ -133,10 +135,16 @@ public partial class FinancePage : UserControl, IDisposable
         }
         s_lastTab = _tab;
         s_lastMonth = (_year, _month);
-        foreach (var (button, tab) in new[] { (TabTransactions, Tab.Transactions), (TabAccounts, Tab.Accounts), (TabCategories, Tab.Categories) })
+        foreach (var (button, tab) in new[] { (TabOverview, Tab.Overview), (TabTransactions, Tab.Transactions), (TabAccounts, Tab.Accounts), (TabCategories, Tab.Categories) })
         {
             button.DataContext = new ChipState(tab == _tab);
         }
+        // A visão geral tem seus próprios cartões: sem o resumo de cima e sem a moldura da lista.
+        var overview = _tab == Tab.Overview;
+        SummaryGrid.Visibility = overview ? Visibility.Collapsed : Visibility.Visible;
+        ListCard.Background = overview ? Brushes.Transparent : FinanceUi.Res("SurfaceBrush");
+        ListCard.BorderThickness = new Thickness(overview ? 0 : 1);
+        ListPanel.Margin = overview ? new Thickness(0, 0, 4, 8) : new Thickness(16, 8, 16, 16);
         AllTimeChip.DataContext = new ChipState(_allTime);
         PrivacyButton.Content = FinanceUi.Privacy ? "" : "";
         MonthText.Text = FinanceUi.MonthTitle(_year, _month);
@@ -155,10 +163,271 @@ public partial class FinancePage : UserControl, IDisposable
             case Tab.Categories:
                 RenderCategories();
                 break;
+            case Tab.Overview:
+                RenderOverview();
+                break;
             default:
                 RenderTransactions();
                 break;
         }
+    }
+
+    private bool _narrow;
+
+    private void ListScroll_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var narrow = e.NewSize.Width < 760;
+        if (narrow != _narrow)
+        {
+            _narrow = narrow;
+            if (_ready && _tab == Tab.Overview)
+            {
+                Render();
+            }
+        }
+    }
+
+    // ---------- Visão geral ----------
+
+    private static Border Panel(string title, UIElement content, string? help = null, UIElement? headerRight = null)
+    {
+        var stack = new StackPanel();
+        var head = new DockPanel();
+        if (headerRight is not null)
+        {
+            DockPanel.SetDock(headerRight, Dock.Right);
+            head.Children.Add(headerRight);
+        }
+        head.Children.Add(AgendaUi.Text(title, "SubtitleText", 14));
+        stack.Children.Add(head);
+        stack.Children.Add(content);
+        var card = new Border { Style = (Style)Application.Current.FindResource("Card"), Padding = new Thickness(16, 14, 16, 14), Margin = new Thickness(0, 0, 12, 12), Child = stack };
+        if (help is not null)
+        {
+            card.ToolTip = help;
+            AutomationProperties.SetHelpText(card, help);
+        }
+        AutomationProperties.SetName(card, title);
+        return card;
+    }
+
+    /// <summary>Linha de cartões lado a lado (pesos), ou empilhados em larguras pequenas.</summary>
+    private Grid Columns(params (UIElement Element, double Weight)[] items)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 0, -12, 0) };
+        for (var i = 0; i < items.Length; i++)
+        {
+            if (_narrow)
+            {
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(items[i].Element, i);
+            }
+            else
+            {
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(items[i].Weight, GridUnitType.Star) });
+                Grid.SetColumn(items[i].Element, i);
+            }
+            grid.Children.Add(items[i].Element);
+        }
+        return grid;
+    }
+
+    private Button TablesToggle()
+    {
+        var chip = Chip(s_tables ? "Ver gráficos" : "Ver como tabela", (_, _) =>
+        {
+            s_tables = !s_tables;
+            Render();
+        });
+        AutomationProperties.SetName(chip, s_tables ? "Mostrar gráficos" : "Mostrar gráficos como tabelas");
+        return chip;
+    }
+
+    private void RenderOverview()
+    {
+        if (_finance.Accounts.Count == 0)
+        {
+            ListCard.Background = FinanceUi.Res("SurfaceBrush");
+            ListPanel.Margin = new Thickness(16, 8, 16, 16);
+            RenderTransactions(); // estado vazio: convite para cadastrar a primeira conta
+            return;
+        }
+        var currency = _finance.BaseCurrency;
+        var o = _finance.Overview(_year, _month);
+        var (start, end) = FinanceService.MonthRange(_year, _month);
+        var monthName = FinanceUi.MonthTitle(_year, _month).Split(' ')[0].ToLower(FinanceUi.PtBr);
+        var previousName = new DateTime(_year, _month, 1).AddMonths(-1).ToString("MMMM", FinanceUi.PtBr);
+        var isPast = o.Reference == end && end < _finance.Today;
+
+        // 1. Saldo previsto com a decomposição (a ideia central da referência).
+        var hero = new StackPanel();
+        hero.Children.Add(AgendaUi.Text(isPast ? $"Saldo no fim de {monthName}" : $"no fim do mês · {FinanceUi.Date(end)}", "CaptionText"));
+        var big = AgendaUi.Text(FinanceUi.Amount(o.Forecast, currency), "TitleText", 32, o.Forecast < 0 ? FinanceUi.Res("WarningBrush") : null);
+        big.Margin = new Thickness(0, 2, 0, 0);
+        hero.Children.Add(big);
+        hero.Children.Add(o.HasPreviousMonth ? DeltaText(new Change(o.Forecast, o.PreviousForecast), $"vs. fim de {previousName}", higherIsGood: true) : AgendaUi.Text($"sem dados de {previousName} para comparar", "CaptionText", 11.5));
+        var accent = (Brush)FindResource("AccentBrush");
+        var receive = FinanceUi.Res("SuccessBrush");
+        var pay = FinanceUi.Res("DangerBrush");
+        var other = FinanceUi.Res("TextTertiaryBrush");
+        var todayLabel = isPast ? "Saldo confirmado" : $"Saldo hoje ({FinanceUi.Date(o.Reference)})";
+        hero.Children.Add(FinanceCharts.SegmentBar(
+        [
+            (Math.Max(0, o.Forecast), accent, $"Previsto {FinanceUi.Amount(o.Forecast, currency)}"),
+            (o.ToPay, pay, $"A pagar {FinanceUi.Amount(o.ToPay, currency)}"),
+            (Math.Abs(o.OtherChanges), other, $"Outros {FinanceUi.Amount(o.OtherChanges, currency, showPlus: true)}"),
+        ]));
+        var equation = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
+        void Term(string label, string value, Brush brush)
+        {
+            var item = new StackPanel { Margin = new Thickness(0, 0, 20, 4) };
+            var head = new StackPanel { Orientation = Orientation.Horizontal };
+            head.Children.Add(new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(2), Background = brush, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 5, 0) });
+            head.Children.Add(AgendaUi.Text(label, "CaptionText", 11.5));
+            item.Children.Add(head);
+            item.Children.Add(AgendaUi.Text(value, "BodyText", 13.5));
+            AutomationProperties.SetName(item, $"{label}: {value}");
+            equation.Children.Add(item);
+        }
+        Term(todayLabel, FinanceUi.Amount(o.AccountsBalance, currency), FinanceUi.Res("TextSecondaryBrush"));
+        Term("+ a receber", FinanceUi.Amount(o.ToReceive, currency), receive);
+        Term("− a pagar", FinanceUi.Amount(o.ToPay, currency), pay);
+        if (o.OtherChanges != 0)
+        {
+            Term("± transferências e ajustes", FinanceUi.Amount(o.OtherChanges, currency, showPlus: true), other);
+        }
+        Term("= previsto", FinanceUi.Amount(o.Forecast, currency), accent);
+        hero.Children.Add(equation);
+        if (o.OverduePending > 0)
+        {
+            var warn = AgendaUi.Text($"⚠ {o.OverduePending} {(o.OverduePending == 1 ? "lançamento pendente atrasado" : "lançamentos pendentes atrasados")}: confirme ou corrija a data (já estão no previsto).", "CaptionText", 12, FinanceUi.Res("WarningBrush"));
+            warn.TextWrapping = TextWrapping.Wrap;
+            warn.TextTrimming = TextTrimming.None;
+            warn.Margin = new Thickness(0, 6, 0, 0);
+            hero.Children.Add(warn);
+        }
+        var heroCard = Panel("Saldo previsto", hero,
+            "Saldo previsto = saldo confirmado das contas do disponível + receitas ainda por entrar − despesas ainda por sair (pendentes ou com data futura) " +
+            "± transferências com contas fora do disponível e ajustes, até o fim do mês. Investimentos, contas arquivadas e outras moedas não entram.");
+
+        // Pendentes até o fim do mês (atrasados primeiro).
+        var pending = _finance.PendingUntil(end).Where(t => t.Date >= start || t.Date < _finance.Today).Take(8).ToList();
+        var pendingPanel = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+        if (pending.Count == 0)
+        {
+            pendingPanel.Children.Add(Paragraph("Nenhum lançamento pendente até o fim do mês. Lançamentos marcados como \"pendente\" aparecem aqui."));
+        }
+        foreach (var t in pending)
+        {
+            var row = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
+            var signed = FinanceUi.SignedFor(t, null);
+            var value = AgendaUi.Text(t.Kind == TransactionKind.Transfer ? "⇄ " + FinanceUi.Amount(t.Amount, currency) : FinanceUi.Amount(signed, currency, showPlus: true), "BodyText", 13, FinanceUi.AmountBrush(signed));
+            DockPanel.SetDock(value, Dock.Right);
+            row.Children.Add(value);
+            var overdue = t.Date < _finance.Today;
+            var date = AgendaUi.Text(t.Date.ToString("dd/MM", FinanceUi.PtBr), "CaptionText", 12, overdue ? FinanceUi.Res("WarningBrush") : null);
+            date.Width = 44;
+            row.Children.Add(date);
+            row.Children.Add(AgendaUi.Text(t.Description + (overdue ? " (atrasado)" : ""), "BodyText", 13));
+            row.Cursor = Cursors.Hand;
+            row.Background = Brushes.Transparent;
+            var item = t;
+            row.MouseLeftButtonUp += (_, _) => OpenEditor(new TransactionEditor(_finance, FinanceService.DraftFrom(item), isNew: false));
+            AutomationProperties.SetName(row, $"{t.Description}, {FinanceUi.Date(t.Date)}, {(overdue ? "atrasado, " : "")}{FinanceUi.Amount(signed, currency, showPlus: true)}");
+            pendingPanel.Children.Add(row);
+        }
+        var pendingCard = Panel("Pendentes até o fim do mês", pendingPanel, "Lançamentos marcados como pendentes com data até o fim do mês, incluindo os atrasados.");
+        ListPanel.Children.Add(Columns((heroCard, 3), (pendingCard, 2)));
+
+        // 2. Indicadores com comparação ao mês anterior.
+        var indicators = new UniformGrid { Columns = _narrow ? 2 : 4, Margin = new Thickness(0, 0, -12, 0) };
+        indicators.Children.Add(Indicator("Receitas recebidas", o.Totals.IncomeCleared, o.Totals.IncomePending > 0 ? $"+ {FinanceUi.Amount(o.Totals.IncomePending, currency)} previstas" : "nada previsto",
+            o.HasPreviousMonth ? new Change(o.Totals.Income, o.PreviousTotals.Income) : null, previousName, true,
+            "Receitas confirmadas no mês. Previstas = pendentes. A comparação usa receitas totais (com pendentes)."));
+        indicators.Children.Add(Indicator("Despesas pagas", o.Totals.ExpenseCleared, o.Totals.ExpensePending > 0 ? $"+ {FinanceUi.Amount(o.Totals.ExpensePending, currency)} pendentes" : "nada pendente",
+            o.HasPreviousMonth ? new Change(o.Totals.Expense, o.PreviousTotals.Expense) : null, previousName, false,
+            "Despesas confirmadas no mês, menos estornos. A comparação usa despesas totais (com pendentes). Transferências e ajustes não contam."));
+        indicators.Children.Add(Indicator("Resultado do mês", o.Totals.Net, "receitas − despesas, com pendentes",
+            o.HasPreviousMonth ? new Change(o.Totals.Net, o.PreviousTotals.Net) : null, previousName, true, "Receitas menos despesas do mês, incluindo pendentes.", showPlus: true));
+        indicators.Children.Add(Indicator("Patrimônio financeiro", o.NetWorth, isPast ? $"em {FinanceUi.Date(o.Reference)}" : "confirmado até hoje", null, previousName, true,
+            "Soma dos saldos confirmados de todas as contas ativas na moeda base, incluindo investimentos. Cartões de crédito entram como dívida a partir da Fase 10."));
+        ListPanel.Children.Add(indicators);
+
+        // 3. Gráficos.
+        var flows = _finance.MonthlyFlows(_year, _month, 6);
+        var spending = _finance.SpendingByCategory(start, end);
+        var days = _finance.DailyBalances(_year, _month);
+        FrameworkElement flowContent = s_tables ? FinanceCharts.FlowTable(flows, currency) : FinanceCharts.FlowBars(flows, _year, _month, currency);
+        FrameworkElement spendContent = spending.Count == 0
+            ? Paragraph($"Nenhuma despesa em {monthName}.")
+            : s_tables ? FinanceCharts.CategoryTable(spending, currency) : FinanceCharts.CategoryBars(spending, currency);
+        ListPanel.Children.Add(Columns(
+            (Panel("Receitas × despesas · 6 meses", flowContent, "Receitas e despesas de cada mês, incluindo pendentes. O mês exibido fica destacado.", TablesToggle()), 1),
+            (Panel($"Gastos por categoria · {monthName}", spendContent, "Despesas menos estornos, somando as subcategorias em cada categoria principal. Inclui pendentes."), 1)));
+
+        FrameworkElement balanceContent = s_tables ? FinanceCharts.BalanceTable(days, currency) : new BalanceChart(days, currency) { Margin = new Thickness(0, 10, 0, 0) };
+        var balancePanel = new StackPanel();
+        balancePanel.Children.Add(balanceContent);
+        if (!s_tables && days.Count > 0)
+        {
+            // O gráfico não tem eixo de valores: os pontos que importam vão em texto.
+            var lowest = days.MinBy(d => d.Balance)!;
+            var todayPoint = days.LastOrDefault(d => !d.IsForecast);
+            var keyPoints = $"Dia {days[0].Date.Day}: {FinanceUi.Amount(days[0].Balance, currency)}" +
+                (todayPoint is not null && todayPoint != days[^1] ? $" · hoje: {FinanceUi.Amount(todayPoint.Balance, currency)}" : "") +
+                $" · dia {days[^1].Date.Day}{(days[^1].IsForecast ? " (previsto)" : "")}: {FinanceUi.Amount(days[^1].Balance, currency)}" +
+                $" · menor: {FinanceUi.Amount(lowest.Balance, currency)} em {lowest.Date.ToString("dd/MM", FinanceUi.PtBr)}";
+            var keyText = AgendaUi.Text(keyPoints, "CaptionText", 12, lowest.Balance < 0 ? FinanceUi.Res("WarningBrush") : null);
+            keyText.TextWrapping = TextWrapping.Wrap;
+            keyText.TextTrimming = TextTrimming.None;
+            keyText.Margin = new Thickness(0, 6, 0, 0);
+            balancePanel.Children.Add(keyText);
+            var forecastSwatch = accent.Clone();
+            forecastSwatch.Opacity = 0.45;
+            balancePanel.Children.Add(FinanceCharts.Legend(("Confirmado", accent), ("Previsto (tracejado)", forecastSwatch)));
+        }
+        ListPanel.Children.Add(Columns((Panel($"Saldo disponível ao longo de {monthName}", balancePanel,
+            "Saldo das contas do disponível ao fim de cada dia: confirmado até hoje; depois, previsto com os pendentes."), 1)));
+        FooterText.Text = "Todos os valores são calculados dos seus lançamentos. Passe o mouse sobre um cartão para ver a definição.";
+    }
+
+    private Border Indicator(string title, long value, string detail, Change? change, string previousName, bool higherIsGood, string help, bool showPlus = false)
+    {
+        var panel = new StackPanel();
+        panel.Children.Add(AgendaUi.Text(title, "CaptionText"));
+        var big = AgendaUi.Text(FinanceUi.Amount(value, _finance.BaseCurrency, showPlus), "TitleText", 20);
+        big.Margin = new Thickness(0, 4, 0, 2);
+        panel.Children.Add(big);
+        panel.Children.Add(AgendaUi.Text(detail, "CaptionText", 11.5));
+        if (change is not null)
+        {
+            panel.Children.Add(DeltaText(change, $"vs. {previousName}", higherIsGood));
+        }
+        var card = new Border { Style = (Style)Application.Current.FindResource("Card"), Padding = new Thickness(14, 12, 14, 12), Margin = new Thickness(0, 0, 12, 12), Child = panel, ToolTip = help };
+        AutomationProperties.SetName(card, $"{title}: {FinanceUi.Amount(value, _finance.BaseCurrency, showPlus)}, {detail}");
+        AutomationProperties.SetHelpText(card, help);
+        return card;
+    }
+
+    /// <summary>"▲ 12% (+R$ 300,00) vs. outubro": seta e sinal sempre; a cor só reforça (bom/ruim depende do indicador).</summary>
+    private TextBlock DeltaText(Change change, string suffix, bool higherIsGood)
+    {
+        string text;
+        Brush? brush = null;
+        if (change.Delta == 0)
+        {
+            text = $"= igual {suffix}";
+        }
+        else
+        {
+            var up = change.Delta > 0;
+            var pct = change.Percent is { } p ? $"{Math.Abs(p).ToString("0", FinanceUi.PtBr)}% " : "";
+            text = $"{(up ? "▲" : "▼")} {pct}({FinanceUi.Amount(change.Delta, _finance.BaseCurrency, showPlus: true)}) {suffix}";
+            brush = up == higherIsGood ? FinanceUi.Res("SuccessBrush") : FinanceUi.Res("WarningBrush");
+        }
+        var block = AgendaUi.Text(text, "CaptionText", 11.5, brush);
+        block.Margin = new Thickness(0, 4, 0, 0);
+        return block;
     }
 
     private void RenderSummary()

@@ -4,7 +4,9 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using DesktopHub.App.Agenda;
+using DesktopHub.Core.Events;
 using DesktopHub.Core.Finance;
+using DesktopHub.Core.Settings;
 
 namespace DesktopHub.App.Finance;
 
@@ -16,14 +18,33 @@ internal static class FinanceUi
     public static readonly string[] Palette = ["#9A86C4", "#6B9AC4", "#5FB3A8", "#8FB573", "#C9A94E", "#C47A6B", "#C48FB0", "#8A8A8A"];
 
     private static bool s_privacy;
+    private static SettingsService? s_settings;
 
-    /// <summary>Modo privacidade: oculta valores em todas as telas do módulo (percentuais e barras continuam).</summary>
+    /// <summary>Liga o modo privacidade às configurações (fica salvo entre sessões). Chamado na thread de UI.</summary>
+    public static void Attach(SettingsService settings, IEventBus bus)
+    {
+        ArgumentNullException.ThrowIfNull(bus);
+        s_settings = settings;
+        bus.Subscribe<SettingsChanged>(e =>
+        {
+            if (e.Section == SettingsSections.Finance)
+            {
+                PrivacyChanged?.Invoke();
+            }
+        }, SynchronizationContext.Current);
+    }
+
+    /// <summary>Modo privacidade: oculta valores em todas as telas do módulo e no dashboard (percentuais e barras continuam).</summary>
     public static bool Privacy
     {
-        get => s_privacy;
+        get => s_settings?.Finance.HideValues ?? s_privacy;
         set
         {
-            if (s_privacy != value)
+            if (s_settings is { } settings)
+            {
+                settings.UpdateFinance(f => f with { HideValues = value });
+            }
+            else if (s_privacy != value)
             {
                 s_privacy = value;
                 PrivacyChanged?.Invoke();

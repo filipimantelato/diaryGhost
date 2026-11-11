@@ -51,7 +51,7 @@ public partial class MainWindow : Window
         };
 
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 8";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 9";
 
         SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
         ApplyTextScale();

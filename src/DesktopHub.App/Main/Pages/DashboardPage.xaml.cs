@@ -10,7 +10,9 @@ using DesktopHub.App.Agenda;
 using DesktopHub.App.Productivity;
 using DesktopHub.App.Shell;
 using DesktopHub.Core.Agenda;
+using DesktopHub.App.Finance;
 using DesktopHub.Core.Events;
+using DesktopHub.Core.Finance;
 using DesktopHub.Core.Media;
 using DesktopHub.Core.News;
 using DesktopHub.Core.Productivity;
@@ -43,9 +45,10 @@ public partial class DashboardPage : UserControl, IDisposable
         _subscriptions.Add(services.Bus.Subscribe<AgendaChanged>(_ => RequestRender(), ui));
         _subscriptions.Add(services.Bus.Subscribe<ProductivityChanged>(_ => RequestRender(), ui));
         _subscriptions.Add(services.Bus.Subscribe<ActiveMediaChanged>(_ => RequestRender(), ui));
+        _subscriptions.Add(services.Bus.Subscribe<FinanceChanged>(_ => RequestRender(), ui));
         _subscriptions.Add(services.Bus.Subscribe<SettingsChanged>(e =>
         {
-            if (e.Section is SettingsSections.Dashboard or SettingsSections.Weather or SettingsSections.News)
+            if (e.Section is SettingsSections.Dashboard or SettingsSections.Weather or SettingsSections.News or SettingsSections.Finance)
             {
                 RequestRender();
             }
@@ -117,6 +120,7 @@ public partial class DashboardPage : UserControl, IDisposable
         DashboardCardKind.News => ("", "Notícias"),
         DashboardCardKind.Media => ("", "Em reprodução"),
         DashboardCardKind.Focus => ("", "Temporizadores"),
+        DashboardCardKind.Finance => ("", "Finanças"),
         _ => ("", "Sistema"),
     };
 
@@ -200,6 +204,7 @@ public partial class DashboardPage : UserControl, IDisposable
         DashboardCardKind.News => NewsContent(wide ? 6 : 3),
         DashboardCardKind.Media => Lines([NowPlayingText()]),
         DashboardCardKind.Focus => Lines([FocusText()]),
+        DashboardCardKind.Finance => FinanceContent(wide),
         _ => Lines([SystemText()]),
     };
 
@@ -221,6 +226,46 @@ public partial class DashboardPage : UserControl, IDisposable
         var button = new Button { Style = (Style)FindResource("SecondaryButton"), Content = label, HorizontalAlignment = HorizontalAlignment.Left, Padding = new Thickness(12, 5, 12, 5), Margin = new Thickness(0, 10, 0, 0) };
         button.Click += (_, _) => action();
         return button;
+    }
+
+    /// <summary>Resumo financeiro: oculto por padrão no dashboard e mascarado no modo privacidade.</summary>
+    private StackPanel FinanceContent(bool wide)
+    {
+        var finance = _s.Finance;
+        var panel = new StackPanel();
+        if (!finance.IsAvailable)
+        {
+            panel.Children.Add(Lines([finance.UnavailableReason ?? "Finanças indisponível."]));
+            return panel;
+        }
+        if (finance.Accounts.Count == 0)
+        {
+            panel.Children.Add(Lines(["Cadastre uma conta para ver saldo, previsto e despesas do mês aqui."]));
+            panel.Children.Add(LinkButton("Abrir Finanças", () => _s.Bus.Publish(new OpenMainRequested("finance"))));
+            return panel;
+        }
+        var today = finance.Today;
+        var o = finance.Overview(today.Year, today.Month);
+        var currency = finance.BaseCurrency;
+        var big = AgendaUi.Text(FinanceUi.Amount(o.AccountsBalance, currency), "TitleText", 26);
+        panel.Children.Add(big);
+        panel.Children.Add(AgendaUi.Text("saldo em contas hoje", "CaptionText"));
+        var lines = new List<string>
+        {
+            $"Previsto em {FinanceUi.Date(o.End)}: {FinanceUi.Amount(o.Forecast, currency)}",
+            $"Despesas do mês: {FinanceUi.Amount(o.Totals.Expense, currency)}" + (o.Totals.ExpensePending > 0 ? $" ({FinanceUi.Amount(o.Totals.ExpensePending, currency)} pendentes)" : ""),
+        };
+        var next = finance.PendingUntil(today.AddDays(wide ? 30 : 14)).Where(t => t.Date >= today).Take(wide ? 3 : 1);
+        lines.AddRange(next.Select(t => $"{t.Date.ToString("dd/MM", FinanceUi.PtBr)} · {t.Description} · {FinanceUi.Amount(FinanceUi.SignedFor(t, null), currency, showPlus: true)}"));
+        if (o.OverduePending > 0)
+        {
+            lines.Add($"⚠ {o.OverduePending} pendente(s) atrasado(s)");
+        }
+        var details = Lines(lines);
+        details.Margin = new Thickness(0, 8, 0, 0);
+        panel.Children.Add(details);
+        panel.Children.Add(LinkButton("Abrir Finanças", () => _s.Bus.Publish(new OpenMainRequested("finance"))));
+        return panel;
     }
 
     private StackPanel WeatherContent(bool wide)

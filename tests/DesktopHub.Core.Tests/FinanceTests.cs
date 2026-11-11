@@ -498,3 +498,184 @@ public sealed class FinanceServiceTests
     [Fact]
     public void Fold_removes_accents_and_case() => Assert.Equal("acao cafe c", FinanceService.Fold("AÇÃO Café Ç"));
 }
+
+public sealed class FinanceMetricsTests
+{
+    // Hoje = 15/11/2026 (fuso UTC).
+    private static readonly DateTimeOffset T0 = new(2026, 11, 15, 12, 0, 0, TimeSpan.Zero);
+
+    private static DateOnly D(int month, int day, int year = 2026) => new(year, month, day);
+
+    private static FinanceService Create()
+    {
+        var time = new FakeTimeProvider(T0);
+        time.SetLocalTimeZone(TimeZoneInfo.Utc);
+        var s = new FinanceService(new MemoryFinanceStore(), new EventBus(NullLogger<EventBus>.Instance), time, NullLogger<FinanceService>.Instance);
+        s.Start();
+        return s;
+    }
+
+    private static Guid Account(FinanceService s, string name, long opening, AccountKind kind = AccountKind.Checking) =>
+        s.SaveAccount(s.NewAccount() with { Name = name, OpeningBalance = opening, Kind = kind, OpeningDate = D(9, 1), IncludeInAvailable = kind != AccountKind.Investment }).Id;
+
+    private static Guid Cat(FinanceService s, string name) => s.Categories.First(c => c.Name == name).Id;
+
+    private static void Tx(FinanceService s, TransactionKind kind, Guid account, long amount, DateOnly date, string? category = null, TransactionStatus status = TransactionStatus.Cleared, Guid? to = null) =>
+        s.Save(new TransactionDraft { Kind = kind, Date = date, Description = "x", Amount = amount, AccountId = account, ToAccountId = to, CategoryId = category is null ? null : Cat(s, category), Status = status });
+
+    /// <summary>Cenário de novembro montado à mão; os valores esperados estão calculados nos comentários.</summary>
+    private static (FinanceService S, Guid Bank, Guid Invest) November()
+    {
+        var s = Create();
+        var bank = Account(s, "Banco", 100_000);                                  // 1.000,00
+        var invest = Account(s, "Investimentos", 500_000, AccountKind.Investment);  // fora do disponível
+        Tx(s, TransactionKind.Income, bank, 300_000, D(10, 5), "Salário");          // outubro
+        Tx(s, TransactionKind.Expense, bank, 50_000, D(10, 20), "Mercado");         // outubro
+        Tx(s, TransactionKind.Income, bank, 400_000, D(11, 5), "Salário");          // recebido
+        Tx(s, TransactionKind.Expense, bank, 30_000, D(11, 8), "Mercado");          // pago
+        Tx(s, TransactionKind.Expense, bank, 20_000, D(11, 10), "Restaurantes");    // pago
+        Tx(s, TransactionKind.Refund, bank, 5_000, D(11, 12), "Restaurantes");      // estorno recebido
+        Tx(s, TransactionKind.Expense, bank, 9_000, D(11, 14), "Lazer", TransactionStatus.Pending);   // atrasado
+        Tx(s, TransactionKind.Expense, bank, 150_000, D(11, 20), "Aluguel", TransactionStatus.Pending); // a pagar
+        Tx(s, TransactionKind.Income, bank, 60_000, D(11, 25), "Trabalhos extras", TransactionStatus.Pending); // a receber
+        Tx(s, TransactionKind.Expense, bank, 7_000, D(11, 28), "Mercado");          // confirmado com data futura
+        Tx(s, TransactionKind.Transfer, bank, 100_000, D(11, 30), to: invest);      // guardar no investimento
+        Tx(s, TransactionKind.Expense, bank, 1_000, D(12, 2), "Mercado", TransactionStatus.Pending); // dezembro
+        return (s, bank, invest);
+    }
+
+    [Fact]
+    public void Overview_decomposes_the_forecast_exactly()
+    {
+        var (s, _, _) = November();
+        var o = s.Overview(2026, 11);
+
+        // Saldo hoje (15/11, confirmados): 1.000 + 3.000 − 500 + 4.000 − 300 − 200 + 50 = 7.050,00
+        Assert.Equal(D(11, 15), o.Reference);
+        Assert.Equal(705_000, o.AccountsBalance);
+        Assert.Equal(60_000, o.ToReceive);                // trabalho extra
+        Assert.Equal(9_000 + 150_000 + 7_000, o.ToPay);   // atrasado + aluguel + mercado com data futura
+        Assert.Equal(-100_000, o.OtherChanges);           // transferência para fora do disponível
+        Assert.Equal(705_000 + 60_000 - 166_000 - 100_000, o.Forecast);
+        Assert.Equal(o.Forecast, s.AvailableForecastAt(D(11, 30)));
+        Assert.Equal(o.AccountsBalance + o.ToReceive - o.ToPay + o.OtherChanges, o.Forecast);
+        Assert.Equal(705_000 + 500_000, o.NetWorth);      // com investimentos, confirmados até hoje
+        Assert.Equal(1, o.OverduePending);
+        // Previsto do fim de outubro: 1.000 + 3.000 − 500 = 3.500,00
+        Assert.Equal(350_000, o.PreviousForecast);
+        Assert.Equal(new PeriodTotals(300_000, 0, 50_000, 0), o.PreviousTotals);
+        Assert.Equal(new PeriodTotals(400_000, 60_000, 30_000 + 20_000 - 5_000 + 7_000, 9_000 + 150_000), o.Totals);
+    }
+
+    [Fact]
+    public void Past_month_is_measured_at_its_last_day_and_future_month_from_today()
+    {
+        var (s, _, _) = November();
+        var october = s.Overview(2026, 10);
+        Assert.Equal(D(10, 31), october.Reference);
+        Assert.Equal(350_000, october.AccountsBalance);
+        Assert.Equal(350_000, october.Forecast);
+        Assert.Equal(0, october.ToReceive + october.ToPay + october.OtherChanges);
+
+        var december = s.Overview(2026, 12);
+        Assert.Equal(D(11, 15), december.Reference); // ainda não chegou: parte de hoje
+        Assert.Equal(s.AvailableForecastAt(D(12, 31)), december.Forecast);
+        Assert.Equal(december.AccountsBalance + december.ToReceive - december.ToPay + december.OtherChanges, december.Forecast);
+        Assert.Equal(166_000 + 1_000, december.ToPay);
+    }
+
+    [Fact]
+    public void Change_has_no_percent_over_zero()
+    {
+        Assert.Null(new Change(100, 0).Percent);
+        Assert.Equal(50m, new Change(150, 100).Percent);
+        Assert.Equal(-200m, new Change(-100, 100).Percent);
+        Assert.Equal(100m, new Change(0, -100).Percent);
+    }
+
+    [Fact]
+    public void Monthly_flows_cover_the_requested_window_in_order()
+    {
+        var (s, _, _) = November();
+        var flows = s.MonthlyFlows(2026, 11, 3);
+        Assert.Equal([(2026, 9), (2026, 10), (2026, 11)], flows.Select(f => (f.Year, f.Month)));
+        Assert.Equal(new MonthFlow(2026, 9, 0, 0), flows[0]);
+        Assert.Equal(new MonthFlow(2026, 10, 300_000, 50_000), flows[1]);
+        Assert.Equal(460_000, flows[2].Income);
+        Assert.Equal(52_000 + 159_000, flows[2].Expense);
+        Assert.Equal((2025, 12), (s.MonthlyFlows(2026, 1, 2)[0].Year, s.MonthlyFlows(2026, 1, 2)[0].Month));
+    }
+
+    [Fact]
+    public void Spending_by_category_rolls_up_children_and_subtracts_refunds()
+    {
+        var (s, _, _) = November();
+        var spending = s.SpendingByCategory(D(11, 1), D(11, 30));
+        // Moradia 1.500 (aluguel) · Alimentação 300 + 200 − 50 + 70 = 520 · Lazer 90
+        Assert.Equal(["Moradia", "Alimentação", "Lazer"], spending.Select(c => c.Name));
+        Assert.Equal([150_000, 52_000, 9_000], spending.Select(c => c.Amount));
+        var food = spending[1];
+        Assert.Equal(["Mercado", "Restaurantes"], food.Children.Select(c => c.Name));
+        Assert.Equal([37_000, 15_000], food.Children.Select(c => c.Amount));
+        Assert.Equal(s.Totals(D(11, 1), D(11, 30)).Expense, spending.Sum(c => c.Amount));
+    }
+
+    [Fact]
+    public void Spending_includes_uncategorized_and_ignores_other_currencies()
+    {
+        var s = Create();
+        var bank = Account(s, "Banco", 0);
+        var usd = s.SaveAccount(s.NewAccount() with { Name = "USD", Currency = "USD", OpeningDate = D(9, 1) }).Id;
+        Tx(s, TransactionKind.Expense, bank, 1_000, D(11, 3));
+        Tx(s, TransactionKind.Expense, usd, 9_999, D(11, 3), "Mercado");
+        var only = Assert.Single(s.SpendingByCategory(D(11, 1), D(11, 30)));
+        Assert.Equal(("Sem categoria", 1_000L), (only.Name, only.Amount));
+    }
+
+    [Fact]
+    public void Daily_balances_are_actual_until_today_and_forecast_after()
+    {
+        var (s, _, _) = November();
+        var days = s.DailyBalances(2026, 11);
+        Assert.Equal(30, days.Count);
+        Assert.All(days.Take(15), d => Assert.False(d.IsForecast));
+        Assert.All(days.Skip(15), d => Assert.True(d.IsForecast));
+        Assert.Equal(350_000, days[0].Balance);                  // 01/11: igual ao fim de outubro
+        Assert.Equal(350_000 + 400_000, days[4].Balance);        // 05/11: salário
+        Assert.Equal(705_000, days[14].Balance);                 // hoje: confirmados (atrasado fora)
+        Assert.Equal(705_000 - 9_000, days[15].Balance);         // amanhã: previsto inclui o atrasado
+        Assert.Equal(s.Overview(2026, 11).Forecast, days[^1].Balance);
+    }
+
+    [Fact]
+    public void Pending_list_brings_overdue_first_and_stops_at_the_limit()
+    {
+        var (s, _, _) = November();
+        Assert.Equal([D(11, 14), D(11, 20), D(11, 25)], s.PendingUntil(D(11, 30)).Select(t => t.Date));
+        Assert.Equal(4, s.PendingUntil(D(12, 31)).Count);
+    }
+
+    [Fact]
+    public void Comparison_is_flagged_only_when_an_account_existed_in_the_previous_month()
+    {
+        var (s, _, _) = November();
+        Assert.True(s.Overview(2026, 11).HasPreviousMonth);
+        Assert.False(s.Overview(2026, 9).HasPreviousMonth); // contas abertas em 01/09: agosto não tinha nada
+
+        var fresh = Create();
+        fresh.SaveAccount(fresh.NewAccount() with { Name = "Nova", OpeningDate = D(11, 1) });
+        Assert.False(fresh.Overview(2026, 11).HasPreviousMonth);
+        Assert.True(fresh.Overview(2026, 12).HasPreviousMonth);
+    }
+
+    [Fact]
+    public void Empty_finances_give_zeroes_not_errors()
+    {
+        var s = Create();
+        var o = s.Overview(2026, 11);
+        Assert.Equal(0, o.AccountsBalance + o.Forecast + o.NetWorth + o.ToPay + o.ToReceive + o.OtherChanges);
+        Assert.Empty(s.SpendingByCategory(D(11, 1), D(11, 30)));
+        Assert.Equal(28, s.DailyBalances(2026, 2).Count);
+        Assert.All(s.DailyBalances(2026, 2), d => Assert.Equal(0, d.Balance));
+    }
+}

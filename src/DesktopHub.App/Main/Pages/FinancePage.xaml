@@ -39,6 +39,7 @@
 
     <!-- Seções -->
     <WrapPanel Grid.Row="2" Margin="0,6,0,10" AutomationProperties.Name="Seções de finanças">
+      <Button x:Name="TabOverview" Style="{StaticResource Chip}" Content="Visão geral" Tag="Overview" Click="Tab_Click" />
       <Button x:Name="TabTransactions" Style="{StaticResource Chip}" Content="Lançamentos" Tag="Transactions" Click="Tab_Click" />
       <Button x:Name="TabAccounts" Style="{StaticResource Chip}" Content="Contas" Tag="Accounts" Click="Tab_Click" />
       <Button x:Name="TabCategories" Style="{StaticResource Chip}" Content="Categorias" Tag="Categories" Click="Tab_Click" />
@@ -65,8 +66,8 @@
       <Button x:Name="ClearFilters" Style="{StaticResource Chip}" Content="Limpar filtros" Margin="0,0,6,6" Click="ClearFilters_Click" />
     </WrapPanel>
 
-    <Border Grid.Row="4" Style="{StaticResource Card}" Padding="0">
-      <ScrollViewer x:Name="ListScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <Border x:Name="ListCard" Grid.Row="4" Style="{StaticResource Card}" Padding="0">
+      <ScrollViewer x:Name="ListScroll" SizeChanged="ListScroll_SizeChanged" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel x:Name="ListPanel" Margin="16,8,16,16" />
       </ScrollViewer>
     </Border>

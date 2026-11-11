@@ -98,6 +98,7 @@ public partial class App : Application
 
         var settings = _services.GetRequiredService<SettingsService>();
         settings.Load();
+        DesktopHub.App.Finance.FinanceUi.Attach(settings, _services.GetRequiredService<IEventBus>());
         ThemeManager.ApplyAccent(settings.General.AccentColor);
 
         var shell = _services.GetRequiredService<AppShell>();

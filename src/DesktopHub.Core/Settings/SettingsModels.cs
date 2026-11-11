@@ -13,6 +13,7 @@ public static class SettingsSections
     public const string Weather = "weather";
     public const string Dashboard = "dashboard";
     public const string Integrations = "integrations";
+    public const string Finance = "finance";
 }
 
 public sealed record NotificationSettings
@@ -82,6 +83,8 @@ public enum DashboardCardKind
     Media,
     Focus,
     System,
+    /// <summary>Resumo financeiro (oculto por padrão: valores financeiros só aparecem por escolha).</summary>
+    Finance,
 }
 
 public sealed record DashboardCardSettings(DashboardCardKind Kind, bool Wide = false, bool Hidden = false);
@@ -91,7 +94,7 @@ public sealed record DashboardSettings
     public static IReadOnlyList<DashboardCardSettings> Default { get; } =
     [
         new(DashboardCardKind.Weather), new(DashboardCardKind.NextEvent), new(DashboardCardKind.Tasks),
-        new(DashboardCardKind.News, Wide: true), new(DashboardCardKind.Media), new(DashboardCardKind.Focus), new(DashboardCardKind.System),
+        new(DashboardCardKind.News, Wide: true), new(DashboardCardKind.Media), new(DashboardCardKind.Focus), new(DashboardCardKind.System), new(DashboardCardKind.Finance, Hidden: true),
     ];
 
     public IReadOnlyList<DashboardCardSettings> Cards { get; init; } = Default;
@@ -262,4 +265,13 @@ public sealed record WidgetSettings
         Layout = Enum.IsDefined(Layout) ? Layout : WidgetLayout.Compact,
         Panel = !Enum.IsDefined(Panel) || Panel == WidgetPanel.Info ? WidgetPanel.Home : Panel,
     };
+}
+
+/// <summary>Preferências do módulo de finanças.</summary>
+public sealed record FinanceSettings
+{
+    /// <summary>Modo privacidade: oculta os valores em todas as telas do módulo e no dashboard.</summary>
+    public bool HideValues { get; init; }
+
+    public FinanceSettings Sanitize() => this;
 }

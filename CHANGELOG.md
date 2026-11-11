@@ -2,6 +2,23 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.9.0] — 2026-11-11 — Fase 9: dashboard financeiro
+### Adicionado
+- Aba **Visão geral** em Finanças (abre por padrão):
+  - Saldo previsto para o fim do mês com a conta explicada: saldo hoje + a receber − a pagar ± transferências e
+    ajustes; aviso de pendentes atrasados.
+  - Pendentes até o fim do mês (clique para editar).
+  - Receitas recebidas, despesas pagas, resultado e patrimônio, com ▲▼ e % em relação ao mês anterior.
+  - Gráficos: receitas × despesas dos últimos 6 meses, gastos por categoria (com subcategorias na dica) e saldo
+    ao longo do mês (confirmado e previsto), com os valores-chave em texto.
+  - "Ver como tabela" para todos os gráficos; definições de cada número na dica do cartão.
+  - Navegar pelos meses mostra o histórico: meses passados são medidos no último dia.
+- Cartão **Finanças** no Dashboard (oculto por padrão; adicione em "Personalizar").
+- O modo privacidade fica salvo e vale também para o Dashboard.
+
+### Alterado
+- A comparação com o mês anterior não aparece quando nenhuma conta existia naquele mês (evita "+100%" enganoso).
+
 ## [0.8.0] — 2026-11-11 — Fase 8: fundação financeira
 ### Adicionado
 - Página **Finanças** (menu lateral, link `diaryghost:finance`):
