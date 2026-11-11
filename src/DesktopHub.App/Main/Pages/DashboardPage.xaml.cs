@@ -255,6 +255,14 @@ public partial class DashboardPage : UserControl, IDisposable
             $"Previsto em {FinanceUi.Date(o.End)}: {FinanceUi.Amount(o.Forecast, currency)}",
             $"Despesas do mês: {FinanceUi.Amount(o.Totals.Expense, currency)}" + (o.Totals.ExpensePending > 0 ? $" ({FinanceUi.Amount(o.Totals.ExpensePending, currency)} pendentes)" : ""),
         };
+        foreach (var card in finance.Cards.Where(c => !c.IsArchived).Take(wide ? 3 : 1))
+        {
+            if (finance.StatementToPay(card.Id) is { } statement && statement.Remaining > 0)
+            {
+                var late = statement.Due < today;
+                lines.Add($"{(late ? "⚠ " : "")}Fatura {card.Name}: {FinanceUi.Amount(statement.Remaining, card.Currency)} · {(late ? "venceu" : "vence")} {statement.Due.ToString("dd/MM", FinanceUi.PtBr)}");
+            }
+        }
         var next = finance.PendingUntil(today.AddDays(wide ? 30 : 14)).Where(t => t.Date >= today).Take(wide ? 3 : 1);
         lines.AddRange(next.Select(t => $"{t.Date.ToString("dd/MM", FinanceUi.PtBr)} · {t.Description} · {FinanceUi.Amount(FinanceUi.SignedFor(t, null), currency, showPlus: true)}"));
         if (o.OverduePending > 0)

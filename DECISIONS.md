@@ -353,5 +353,22 @@ vigência, para que mudar o fechamento ou o vencimento não mova faturas passada
 Contas podem ter outra moeda, mas os totais consolidados usam só a moeda base; as demais aparecem separadas.
 Converter exigiria cotações de um serviço externo, o que contraria o módulo sem rede.
 
+## ADR-032 — Cartões: competência por parcela, ciclo mensal e carregamento só após o vencimento
+**Data:** 2026-11-11 · **Status:** aceita
+
+- **Parcelas** são lançamentos de despesa ligados à compra, com data = compra + (k−1) meses. Orçamento e relatórios
+  contam o gasto no mês em que a parcela "acontece", que é como o usuário lembra dele; a fatura de cada parcela fica
+  gravada na própria partida, então o calendário de faturas não precisa ser recalculado para o passado.
+- **Pagamento de fatura** é uma transferência conta → cartão (não há tipo novo nem despesa nova): a mesma regra das
+  transferências garante que compra + pagamento contam uma despesa só.
+- **Ciclo**: cada mês tem exatamente um fechamento, pela regra vigente no dia 1 daquele mês. Trocar os dias cria uma
+  regra a partir do mês seguinte ao da fatura aberta; faturas fechadas e a aberta não mudam, e só as partidas de
+  faturas futuras são remanejadas.
+- **Carregamento**: o restante de uma fatura passa para a seguinte só depois do vencimento (pagamento parcial ou
+  atraso); crédito de pagamento a maior também. Antes disso, a fatura ainda vai ser paga e as futuras não a somam.
+- **Juros e encargos** não são calculados (dependem do contrato); o usuário os lança quando aparecem na fatura.
+- `fin_postings.card_id` foi criado na migração 1 sem chave estrangeira; como o SQLite não adiciona FK por ALTER,
+  gatilhos garantem que o cartão existe, que partida de cartão tem fatura e que cartão com lançamentos não é apagado.
+
 ## Decisões pendentes
 - Nenhuma no momento.

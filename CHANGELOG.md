@@ -2,6 +2,26 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.10.0] — 2026-11-11 — Fase 10: cartões de crédito
+### Adicionado
+- Aba **Cartões** em Finanças: cartões com limite, dias de fechamento e vencimento, bandeira, últimos 4 dígitos
+  (nunca o número completo) e conta que paga a fatura.
+- **Compras no cartão**, à vista ou em até 72 parcelas, com prévia das parcelas e de quais faturas elas entram.
+- **Faturas** calculadas (aberta, fechada, paga, paga em parte, vencida, futuras), com saldo anterior, pagamentos e
+  restante; linha do tempo; vencimento corrigível numa fatura (ex.: feriado).
+- **Pagar fatura** (restante, total ou outro valor; confirmado ou agendado). Pagamento parcial passa o restante para a
+  próxima fatura depois do vencimento; pagamento a maior vira crédito.
+- **Estorno no cartão**, ligado à compra e limitado ao valor dela.
+- Limite usado e disponível (inclui parcelas futuras), parcelamentos em andamento, parcelas futuras.
+- Visão geral: previsto desconta as faturas que vencem no mês; indicadores "Gastos no cartão" e "Faturas do mês";
+  aviso de fatura vencida; patrimônio desconta a dívida dos cartões.
+- Lançamentos: compras com "parcela k/n", filtro por cartão; "+ Lançamento" com compra no cartão, pagamento de fatura
+  e novo cartão. Dashboard mostra a fatura a pagar.
+- Migração 2 do banco de finanças (com backup automático) e ADR-032.
+
+### Corrigido
+- Acentos do `ROADMAP.md` corrompidos no commit da versão 0.9.0.
+
 ## [0.9.0] — 2026-11-11 — Fase 9: dashboard financeiro
 ### Adicionado
 - Aba **Visão geral** em Finanças (abre por padrão):

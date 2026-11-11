@@ -24,6 +24,7 @@ public partial class FinancePage : UserControl, IDisposable
         Overview,
         Transactions,
         Accounts,
+        Cards,
         Categories,
     }
 
@@ -82,7 +83,7 @@ public partial class FinancePage : UserControl, IDisposable
     {
         FilterBar.Visibility = Visibility.Collapsed;
         NewButton.IsEnabled = false;
-        foreach (var b in new UIElement[] { PrevMonth, NextMonth, TodayButton, TabTransactions, TabAccounts, TabCategories })
+        foreach (var b in new UIElement[] { PrevMonth, NextMonth, TodayButton, TabOverview, TabTransactions, TabAccounts, TabCards, TabCategories })
         {
             b.IsEnabled = false;
         }
@@ -111,7 +112,12 @@ public partial class FinancePage : UserControl, IDisposable
         var account = (AccountFilter.SelectedItem as Choice<Guid?>)?.Value;
         var category = (CategoryFilter.SelectedItem as Choice<Guid?>)?.Value;
         _ready = false;
-        List<Choice<Guid?>> accounts = [new("Todas as contas", null), .. _finance.Accounts.Select(a => new Choice<Guid?>(a.Name + (a.IsArchived ? " (arquivada)" : ""), a.Id))];
+        List<Choice<Guid?>> accounts =
+        [
+            new("Todas as contas e cartões", null),
+            .. _finance.Accounts.Select(a => new Choice<Guid?>(a.Name + (a.IsArchived ? " (arquivada)" : ""), a.Id)),
+            .. _finance.Cards.Select(c => new Choice<Guid?>("Cartão " + c.Name + (c.IsArchived ? " (arquivado)" : ""), c.Id)),
+        ];
         AccountFilter.ItemsSource = accounts;
         AccountFilter.SelectedIndex = Math.Max(0, accounts.FindIndex(a => a.Value == account));
         List<Choice<Guid?>> categories =
@@ -135,7 +141,7 @@ public partial class FinancePage : UserControl, IDisposable
         }
         s_lastTab = _tab;
         s_lastMonth = (_year, _month);
-        foreach (var (button, tab) in new[] { (TabOverview, Tab.Overview), (TabTransactions, Tab.Transactions), (TabAccounts, Tab.Accounts), (TabCategories, Tab.Categories) })
+        foreach (var (button, tab) in new[] { (TabOverview, Tab.Overview), (TabTransactions, Tab.Transactions), (TabAccounts, Tab.Accounts), (TabCards, Tab.Cards), (TabCategories, Tab.Categories) })
         {
             button.DataContext = new ChipState(tab == _tab);
         }
@@ -163,6 +169,9 @@ public partial class FinancePage : UserControl, IDisposable
             case Tab.Categories:
                 RenderCategories();
                 break;
+            case Tab.Cards:
+                RenderCards();
+                break;
             case Tab.Overview:
                 RenderOverview();
                 break;
@@ -180,7 +189,7 @@ public partial class FinancePage : UserControl, IDisposable
         if (narrow != _narrow)
         {
             _narrow = narrow;
-            if (_ready && _tab == Tab.Overview)
+            if (_ready && _tab is Tab.Overview or Tab.Cards)
             {
                 Render();
             }
@@ -292,6 +301,10 @@ public partial class FinancePage : UserControl, IDisposable
         Term(todayLabel, FinanceUi.Amount(o.AccountsBalance, currency), FinanceUi.Res("TextSecondaryBrush"));
         Term("+ a receber", FinanceUi.Amount(o.ToReceive, currency), receive);
         Term("− a pagar", FinanceUi.Amount(o.ToPay, currency), pay);
+        if (o.CardStatements != 0)
+        {
+            Term("− faturas", FinanceUi.Amount(o.CardStatements, currency), FinanceUi.Res("WarningBrush"));
+        }
         if (o.OtherChanges != 0)
         {
             Term("± transferências e ajustes", FinanceUi.Amount(o.OtherChanges, currency, showPlus: true), other);
@@ -306,9 +319,18 @@ public partial class FinancePage : UserControl, IDisposable
             warn.Margin = new Thickness(0, 6, 0, 0);
             hero.Children.Add(warn);
         }
+        if (o.OverdueStatements > 0)
+        {
+            var warn = AgendaUi.Text($"⚠ {o.OverdueStatements} {(o.OverdueStatements == 1 ? "fatura vencida" : "faturas vencidas")} com saldo em aberto: registre o pagamento em Cartões.", "CaptionText", 12, FinanceUi.Res("WarningBrush"));
+            warn.TextWrapping = TextWrapping.Wrap;
+            warn.TextTrimming = TextTrimming.None;
+            warn.Margin = new Thickness(0, 4, 0, 0);
+            hero.Children.Add(warn);
+        }
         var heroCard = Panel("Saldo previsto", hero,
             "Saldo previsto = saldo confirmado das contas do disponível + receitas ainda por entrar − despesas ainda por sair (pendentes ou com data futura) " +
-            "± transferências com contas fora do disponível e ajustes, até o fim do mês. Investimentos, contas arquivadas e outras moedas não entram.");
+            "− faturas de cartão que vencem até o fim do mês (o que ainda falta pagar) ± transferências com contas fora do disponível e ajustes. " +
+            "Compras no cartão não saem do caixa na hora: saem no vencimento da fatura. Investimentos, contas arquivadas e outras moedas não entram.");
 
         // Pendentes até o fim do mês (atrasados primeiro).
         var pending = _finance.PendingUntil(end).Where(t => t.Date >= start || t.Date < _finance.Today).Take(8).ToList();
@@ -332,7 +354,7 @@ public partial class FinancePage : UserControl, IDisposable
             row.Cursor = Cursors.Hand;
             row.Background = Brushes.Transparent;
             var item = t;
-            row.MouseLeftButtonUp += (_, _) => OpenEditor(new TransactionEditor(_finance, FinanceService.DraftFrom(item), isNew: false));
+            row.MouseLeftButtonUp += (_, _) => OpenEditor(EditorFor(item));
             AutomationProperties.SetName(row, $"{t.Description}, {FinanceUi.Date(t.Date)}, {(overdue ? "atrasado, " : "")}{FinanceUi.Amount(signed, currency, showPlus: true)}");
             pendingPanel.Children.Add(row);
         }
@@ -349,8 +371,16 @@ public partial class FinancePage : UserControl, IDisposable
             "Despesas confirmadas no mês, menos estornos. A comparação usa despesas totais (com pendentes). Transferências e ajustes não contam."));
         indicators.Children.Add(Indicator("Resultado do mês", o.Totals.Net, "receitas − despesas, com pendentes",
             o.HasPreviousMonth ? new Change(o.Totals.Net, o.PreviousTotals.Net) : null, previousName, true, "Receitas menos despesas do mês, incluindo pendentes.", showPlus: true));
-        indicators.Children.Add(Indicator("Patrimônio financeiro", o.NetWorth, isPast ? $"em {FinanceUi.Date(o.Reference)}" : "confirmado até hoje", null, previousName, true,
-            "Soma dos saldos confirmados de todas as contas ativas na moeda base, incluindo investimentos. Cartões de crédito entram como dívida a partir da Fase 10."));
+        indicators.Children.Add(Indicator("Patrimônio financeiro", o.NetWorth, isPast ? $"em {FinanceUi.Date(o.Reference)}" : "contas − dívida dos cartões", null, previousName, true,
+            "Saldos confirmados de todas as contas ativas na moeda base (incluindo investimentos) menos a dívida dos cartões, contando as parcelas futuras de compras já feitas."));
+        if (_finance.Cards.Count > 0)
+        {
+            indicators.Columns = _narrow ? 2 : 3;
+            indicators.Children.Add(Indicator("Gastos no cartão", o.CardSpending, "compras e parcelas do mês, menos estornos", null, previousName, false,
+                "Despesas no cartão pela data de cada parcela (competência). Já estão somadas em \"Despesas\": o pagamento da fatura não é outra despesa."));
+            indicators.Children.Add(Indicator("Faturas do mês", o.StatementsDue, "valor devido das faturas que vencem no mês", null, previousName, false,
+                "Soma do valor devido (inclui saldo de faturas anteriores) das faturas com vencimento neste mês. É o que sai do caixa, não o que foi gasto."));
+        }
         ListPanel.Children.Add(indicators);
 
         // 3. Gráficos.
@@ -663,14 +693,23 @@ public partial class FinancePage : UserControl, IDisposable
             meta.Children.Add(block);
         }
         var account = _finance.Account(t.AccountId);
-        if (t.Kind == TransactionKind.Transfer)
+        var card = _finance.Card(t.CardId);
+        if (t.IsCardPayment)
+        {
+            Meta($"{account?.Name} → fatura {card?.Name} (vence {FinanceUi.Date(_finance.DueDate(card!, t.StatementClosing!.Value))})");
+        }
+        else if (t.Kind == TransactionKind.Transfer)
         {
             Meta($"{account?.Name} → {_finance.Account(t.ToAccountId)?.Name}");
         }
         else
         {
             Meta(t.Kind is TransactionKind.Adjustment ? "Ajuste de saldo" : _finance.CategoryPath(t.CategoryId));
-            Meta(account?.Name ?? "?");
+            Meta(card is not null ? $"cartão {card.Name}" : account?.Name ?? "?");
+        }
+        if (t.PurchaseId is { } purchaseId && _finance.Purchase(purchaseId) is { Installments: > 1 } purchase)
+        {
+            Meta($"parcela {t.InstallmentNumber}/{purchase.Installments}");
         }
         if (t.Kind == TransactionKind.Refund)
         {
@@ -691,11 +730,10 @@ public partial class FinancePage : UserControl, IDisposable
         body.Children.Add(meta);
 
         var signed = FinanceUi.SignedFor(t, accountFilter);
-        var currency = account?.Currency ?? _finance.BaseCurrency;
-        var amountText = t.Kind == TransactionKind.Transfer && accountFilter is null
-            ? "⇄ " + FinanceUi.Amount(t.Amount, currency)
-            : FinanceUi.Amount(signed, currency, showPlus: true);
-        var amount = AgendaUi.Text(amountText, "BodyText", 14, t.Kind == TransactionKind.Transfer && accountFilter is null ? FinanceUi.Res("TextSecondaryBrush") : FinanceUi.AmountBrush(signed));
+        var currency = card?.Currency ?? account?.Currency ?? _finance.BaseCurrency;
+        var neutral = t.Kind == TransactionKind.Transfer && accountFilter is null;
+        var amountText = neutral ? "⇄ " + FinanceUi.Amount(t.Amount, currency) : FinanceUi.Amount(signed, currency, showPlus: true);
+        var amount = AgendaUi.Text(amountText, "BodyText", 14, neutral ? FinanceUi.Res("TextSecondaryBrush") : FinanceUi.AmountBrush(signed));
         amount.VerticalAlignment = VerticalAlignment.Center;
         amount.FontWeight = FontWeights.SemiBold;
         if (t.Status == TransactionStatus.Pending)
@@ -704,23 +742,55 @@ public partial class FinancePage : UserControl, IDisposable
         }
 
         var actions = new StackPanel();
-        actions.Children.Add(AgendaUi.IconButton("", $"Duplicar {t.Description}", (_, _) => OpenEditor(new TransactionEditor(_finance, _finance.Duplicate(t.Id), isNew: true))));
+        if (t.PurchaseId is null && !t.IsCardPayment)
+        {
+            actions.Children.Add(AgendaUi.IconButton("", $"Duplicar {t.Description}", (_, _) =>
+                OpenEditor(t.CardId is null ? new TransactionEditor(_finance, _finance.Duplicate(t.Id), isNew: true) : new CardRefundEditor(_finance, _finance.Duplicate(t.Id), isNew: true))));
+        }
         if (t.Kind == TransactionKind.Expense)
         {
-            actions.Children.Add(AgendaUi.IconButton("", $"Registrar estorno de {t.Description}", (_, _) => OpenEditor(new TransactionEditor(_finance, new TransactionDraft
-            {
-                Kind = TransactionKind.Refund,
-                Date = _finance.Today,
-                Description = "Estorno: " + t.Description,
-                AccountId = t.AccountId,
-                CategoryId = t.CategoryId,
-                RefundOfId = t.Id,
-            }, isNew: true))));
+            actions.Children.Add(AgendaUi.IconButton("", $"Registrar estorno de {t.Description}", (_, _) => OpenEditor(RefundEditorFor(t))));
         }
-        actions.Children.Add(AgendaUi.IconButton("", $"Excluir {t.Description}", (_, _) => DeleteWithUndo(t.Id)));
+        if (t.PurchaseId is null)
+        {
+            actions.Children.Add(AgendaUi.IconButton("", $"Excluir {t.Description}", (_, _) => DeleteWithUndo(t.Id)));
+        }
 
-        var name = $"{FinanceUi.Kind(t.Kind)}: {t.Description}, {amountText}{(t.Status == TransactionStatus.Pending ? ", pendente" : "")}";
-        return ActionRow(icon, body, amount, actions, name, () => OpenEditor(new TransactionEditor(_finance, FinanceService.DraftFrom(t), isNew: false)));
+        var name = $"{FinanceUi.Kind(t)}: {t.Description}, {amountText}{(t.Status == TransactionStatus.Pending ? ", pendente" : "")}";
+        return ActionRow(icon, body, amount, actions, name, () => OpenEditor(EditorFor(t)));
+    }
+
+    /// <summary>O editor certo para cada lançamento: compra no cartão, pagamento de fatura, estorno no cartão ou comum.</summary>
+    private FinanceForm EditorFor(FinanceTransaction t)
+    {
+        if (t.PurchaseId is { } purchaseId && _finance.Purchase(purchaseId) is { } purchase)
+        {
+            return new PurchaseEditor(_finance, FinanceService.DraftFrom(purchase), isNew: false);
+        }
+        if (t.IsCardPayment)
+        {
+            return new PaymentEditor(_finance, FinanceService.DraftFrom(t), isNew: false);
+        }
+        if (t.CardId is not null)
+        {
+            return new CardRefundEditor(_finance, FinanceService.DraftFrom(t), isNew: false);
+        }
+        return new TransactionEditor(_finance, FinanceService.DraftFrom(t), isNew: false);
+    }
+
+    private FinanceForm RefundEditorFor(FinanceTransaction expense)
+    {
+        var draft = new TransactionDraft
+        {
+            Kind = TransactionKind.Refund,
+            Date = _finance.Today,
+            Description = "Estorno: " + expense.Description,
+            AccountId = expense.AccountId,
+            CardId = expense.CardId,
+            CategoryId = expense.CategoryId,
+            RefundOfId = expense.Id,
+        };
+        return expense.CardId is null ? new TransactionEditor(_finance, draft, isNew: true) : new CardRefundEditor(_finance, draft, isNew: true);
     }
 
     private void DeleteWithUndo(Guid id)
@@ -834,6 +904,242 @@ public partial class FinancePage : UserControl, IDisposable
         Render();
     }
 
+    // ---------- Cartões ----------
+
+    private Guid? _selectedCard;
+    private DateOnly? _selectedStatement;
+
+    private PaymentEditor NewPayment(Guid cardId)
+    {
+        var card = _finance.Card(cardId)!;
+        var statement = _finance.StatementToPay(cardId);
+        var account = card.PaymentAccountId ?? _finance.Accounts.FirstOrDefault(a => !a.IsArchived)?.Id ?? Guid.Empty;
+        return new PaymentEditor(_finance, new TransactionDraft
+        {
+            Kind = TransactionKind.Transfer,
+            Date = _finance.Today,
+            Description = $"Pagamento da fatura {card.Name}",
+            CardId = cardId,
+            StatementClosing = statement?.Closing,
+            AccountId = account,
+            Amount = Math.Max(0, statement?.Remaining ?? 0),
+        }, isNew: true);
+    }
+
+    private void RenderCards()
+    {
+        var add = new Button { Style = (Style)Application.Current.FindResource("SecondaryButton"), Content = "+ Novo cartão" };
+        add.Click += (_, _) => OpenEditor(new CardEditor(_finance, _finance.NewCard(), isNew: true));
+        var cards = _finance.Cards.Where(c => _showArchived || !c.IsArchived).ToList();
+        var archivedCount = _finance.Cards.Count(c => c.IsArchived);
+        var buttons = archivedCount > 0
+            ? new[] { Chip($"Mostrar arquivados ({archivedCount})", (_, _) => { _showArchived = !_showArchived; Render(); }, _showArchived), add }
+            : [add];
+        ListPanel.Children.Add(SectionHeader("Cartões de crédito", buttons));
+        if (cards.Count == 0)
+        {
+            ListPanel.Children.Add(Paragraph("Nenhum cartão ainda. Cadastre com o dia de fechamento e de vencimento: as faturas, parcelas e o limite são calculados a partir das compras."));
+            return;
+        }
+        if (_selectedCard is null || cards.All(c => c.Id != _selectedCard))
+        {
+            _selectedCard = cards[0].Id;
+            _selectedStatement = null;
+        }
+
+        // Seletor de cartões.
+        var selector = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+        AutomationProperties.SetName(selector, "Cartões");
+        foreach (var c in cards)
+        {
+            var chip = Chip(c.Name + (c.IsArchived ? " (arquivado)" : ""), (_, _) =>
+            {
+                _selectedCard = c.Id;
+                _selectedStatement = null;
+                Render();
+            }, c.Id == _selectedCard);
+            chip.Margin = new Thickness(0, 0, 6, 6);
+            selector.Children.Add(chip);
+        }
+        ListPanel.Children.Add(selector);
+
+        var card = _finance.Card(_selectedCard)!;
+        var summary = _finance.Summary(card.Id);
+        var statements = _finance.Statements(card.Id);
+        var currency = card.Currency;
+
+        // Resumo: limite usado, disponível, fatura aberta, próximo vencimento.
+        var head = new DockPanel();
+        // Em larguras pequenas (editor aberto) os botões vão para baixo do nome, sem esticar.
+        var tools = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top, Margin = _narrow ? new Thickness(0, 10, 0, 0) : new Thickness(0) };
+        DockPanel.SetDock(tools, _narrow ? Dock.Bottom : Dock.Right);
+        if (!card.IsArchived)
+        {
+            var buy = new Button { Style = (Style)Application.Current.FindResource("AccentButton"), Content = "Nova compra", Margin = new Thickness(0, 0, 8, 0) };
+            buy.Click += (_, _) => OpenEditor(new PurchaseEditor(_finance, _finance.NewPurchase(card.Id), isNew: true));
+            var pay = new Button { Style = (Style)Application.Current.FindResource("SecondaryButton"), Content = "Pagar fatura", Margin = new Thickness(0, 0, 4, 0) };
+            pay.Click += (_, _) => OpenEditor(NewPayment(card.Id));
+            tools.Children.Add(buy);
+            tools.Children.Add(pay);
+        }
+        tools.Children.Add(AgendaUi.IconButton("", $"Editar {card.Name}", (_, _) => OpenEditor(new CardEditor(_finance, card, isNew: false)), size: 32));
+        tools.Children.Add(AgendaUi.IconButton(card.IsArchived ? "" : "", card.IsArchived ? $"Reativar {card.Name}" : $"Arquivar {card.Name}", (_, _) => _finance.SetArchived(card, !card.IsArchived), size: 32));
+        head.Children.Add(tools);
+        var title = new StackPanel();
+        title.Children.Add(AgendaUi.Text(card.Name, "SubtitleText", 16));
+        var rule = card.CurrentRule;
+        title.Children.Add(AgendaUi.Text(string.Join(" · ", new[] { card.Institution, card.Network, card.LastDigits is { } d ? $"final {d}" : null, $"fecha dia {rule.ClosingDay}, vence dia {rule.DueDay}" }.Where(x => x is not null)), "CaptionText", 12));
+        head.Children.Add(title);
+        var top = new StackPanel();
+        top.Children.Add(head);
+
+        var used = Math.Max(0, summary.Debt);
+        var ratio = card.Limit > 0 ? Math.Min(1, used / (double)card.Limit) : 0;
+        var bar = new Grid { Height = 10, Margin = new Thickness(0, 14, 0, 4) };
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ratio, GridUnitType.Star) });
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1 - ratio, GridUnitType.Star) });
+        bar.Children.Add(new Border { Background = FinanceUi.Res("SurfaceElevatedBrush"), CornerRadius = new CornerRadius(5), Margin = new Thickness(0) { }, });
+        Grid.SetColumnSpan(bar.Children[0], 2);
+        var fill = new Border { Background = ratio >= 0.9 ? FinanceUi.Res("WarningBrush") : (Brush)FindResource("AccentBrush"), CornerRadius = new CornerRadius(5) };
+        bar.Children.Add(fill);
+        AutomationProperties.SetName(bar, $"Limite usado: {Money.Percent(used, card.Limit)?.ToString("0", FinanceUi.PtBr) ?? "0"}%");
+        top.Children.Add(bar);
+        top.Children.Add(AgendaUi.Text(
+            $"Usado {FinanceUi.Amount(used, currency)} de {FinanceUi.Amount(card.Limit, currency)} · disponível {FinanceUi.Amount(summary.Available, currency)}" +
+            (summary.Debt < 0 ? $" · crédito de {FinanceUi.Amount(-summary.Debt, currency)}" : "") + " · o limite usado inclui parcelas futuras", "CaptionText", 12));
+        var facts = new UniformGrid { Columns = _narrow ? 2 : 3, Margin = new Thickness(0, 12, 0, 0) };
+        void Fact(string label, string value, string? detail = null, Brush? brush = null)
+        {
+            var p = new StackPanel { Margin = new Thickness(0, 0, 12, 4) };
+            p.Children.Add(AgendaUi.Text(label, "CaptionText", 11.5));
+            p.Children.Add(AgendaUi.Text(value, "BodyText", 16, brush));
+            if (detail is not null)
+            {
+                p.Children.Add(AgendaUi.Text(detail, "CaptionText", 11.5));
+            }
+            AutomationProperties.SetName(p, $"{label}: {value}{(detail is null ? "" : ", " + detail)}");
+            facts.Children.Add(p);
+        }
+        if (summary.OpenStatement is { } open)
+        {
+            Fact("Fatura aberta", FinanceUi.Amount(open.AmountDue, currency),
+                (open.Payments > 0 ? $"pago {FinanceUi.Amount(open.Payments, currency)} · " : "") + $"fecha {FinanceUi.Date(open.Closing)} · vence {FinanceUi.Date(open.Due)}");
+        }
+        if (summary.NextDue is { } next && next != summary.OpenStatement)
+        {
+            var late = next.Status is StatementStatus.Overdue or StatementStatus.PartiallyPaid;
+            Fact(late ? "Fatura vencida" : "Próximo vencimento", FinanceUi.Amount(Math.Max(0, next.Remaining), currency),
+                $"{(late ? "venceu" : "vence")} {FinanceUi.Date(next.Due)} · {FinanceUi.StatementStatus(next.Status)}", late ? FinanceUi.Res("WarningBrush") : null);
+        }
+        var futureTotal = statements.Where(s => s.Status == StatementStatus.Future).Sum(s => s.Charges);
+        Fact("Parcelas futuras", FinanceUi.Amount(futureTotal, currency), "em faturas que ainda não abriram");
+        top.Children.Add(facts);
+        ListPanel.Children.Add(Panel("Resumo do cartão", top, "Valores calculados das compras, parcelas, estornos e pagamentos deste cartão."));
+
+        // Linha do tempo de faturas: últimas fechadas, aberta e futuras.
+        var openIndex = statements.ToList().FindLastIndex(s => s.Status != StatementStatus.Future);
+        var window = statements.Skip(Math.Max(0, openIndex - 5)).Take(12).ToList();
+        var defaultStatement = _finance.StatementToPay(card.Id)?.Closing ?? summary.OpenStatement?.Closing;
+        _selectedStatement ??= defaultStatement;
+        var selected = statements.FirstOrDefault(s => s.Closing == _selectedStatement) ?? window.LastOrDefault();
+        var timeline = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+        AutomationProperties.SetName(timeline, "Faturas");
+        foreach (var s in window)
+        {
+            var label = new StackPanel();
+            label.Children.Add(new TextBlock { Text = s.Due.ToString("MMM yy", FinanceUi.PtBr), FontSize = 11.5 });
+            label.Children.Add(new TextBlock { Text = FinanceUi.Amount(s.AmountDue, currency), FontSize = 12.5, FontWeight = FontWeights.SemiBold });
+            label.Children.Add(new TextBlock { Text = FinanceUi.StatementStatus(s.Status), FontSize = 11, Foreground = s.Status is StatementStatus.Overdue or StatementStatus.PartiallyPaid ? FinanceUi.Res("WarningBrush") : FinanceUi.Res("TextTertiaryBrush") });
+            var chip = new Button { Style = (Style)FindResource("Chip"), Content = label, Margin = new Thickness(0, 0, 6, 6), DataContext = new ChipState(s.Closing == selected?.Closing) };
+            AutomationProperties.SetName(chip, $"Fatura que vence em {FinanceUi.Date(s.Due)}: {FinanceUi.Amount(s.AmountDue, currency)}, {FinanceUi.StatementStatus(s.Status)}");
+            var closing = s.Closing;
+            chip.Click += (_, _) =>
+            {
+                _selectedStatement = closing;
+                Render();
+            };
+            timeline.Children.Add(chip);
+        }
+        if (selected is not null)
+        {
+            ListPanel.Children.Add(Panel("Faturas", StatementDetail(card, selected, timeline), "Escolha uma fatura para ver os lançamentos. Futuras = só parcelas que ainda vão entrar."));
+        }
+
+        // Parcelamentos em andamento.
+        var running = _finance.Purchases.Where(p => p.CardId == card.Id && p.Installments > 1)
+            .Select(p => (Purchase: p, Left: _finance.Installments(p.Id).Where(t => t.StatementClosing is { } c && !StatementCalendar.IsClosed(card, c, _finance.Today)).ToList()))
+            .Where(x => x.Left.Count > 0).OrderByDescending(x => x.Left.Sum(t => t.Amount)).ToList();
+        if (running.Count > 0)
+        {
+            var list = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
+            foreach (var (p, left) in running)
+            {
+                var row = new DockPanel { Margin = new Thickness(0, 3, 0, 3), Background = Brushes.Transparent, Cursor = Cursors.Hand };
+                var value = AgendaUi.Text($"faltam {FinanceUi.Amount(left.Sum(t => t.Amount), currency)}", "BodyText", 13);
+                DockPanel.SetDock(value, Dock.Right);
+                row.Children.Add(value);
+                row.Children.Add(AgendaUi.Text($"{p.Description} · {p.Installments - left.Count}/{p.Installments} pagas na fatura · {left.Count}× de {FinanceUi.Amount(left[^1].Amount, currency)}", "BodyText", 13));
+                var purchase = p;
+                row.MouseLeftButtonUp += (_, _) => OpenEditor(new PurchaseEditor(_finance, FinanceService.DraftFrom(purchase), isNew: false));
+                AutomationProperties.SetName(row, $"{p.Description}: faltam {left.Count} parcelas, {FinanceUi.Amount(left.Sum(t => t.Amount), currency)}");
+                list.Children.Add(row);
+            }
+            ListPanel.Children.Add(Panel("Parcelamentos em andamento", list, "Compras parceladas com parcelas na fatura aberta ou em faturas futuras."));
+        }
+        FooterText.Text = "Compras no cartão contam como despesa na data de cada parcela; pagar a fatura só tira o dinheiro da conta (não é outra despesa).";
+    }
+
+    private StackPanel StatementDetail(CreditCard card, CardStatement s, UIElement timeline)
+    {
+        var currency = card.Currency;
+        var panel = new StackPanel();
+        panel.Children.Add(timeline);
+        var head = new DockPanel { Margin = new Thickness(0, 8, 0, 6) };
+        if (s.Status is not StatementStatus.Future)
+        {
+            var fixDue = Chip("Corrigir vencimento", (_, _) => OpenEditor(new StatementDueEditor(_finance, card, s)));
+            DockPanel.SetDock(fixDue, Dock.Right);
+            head.Children.Add(fixDue);
+        }
+        head.Children.Add(AgendaUi.Text($"{FinanceUi.Date(s.Opening)} a {FinanceUi.Date(s.Closing)} · vence {FinanceUi.Date(s.Due)} · {FinanceUi.StatementStatus(s.Status)}", "BodyText", 13.5));
+        panel.Children.Add(head);
+        var numbers = new WrapPanel();
+        void N(string label, long value, bool showPlus = false)
+        {
+            var t = AgendaUi.Text($"{label} {FinanceUi.Amount(value, currency, showPlus)}", "CaptionText", 12.5, FinanceUi.Res("TextPrimaryBrush"));
+            t.Margin = new Thickness(0, 0, 18, 4);
+            numbers.Children.Add(t);
+        }
+        if (s.Previous != 0)
+        {
+            N(s.Previous > 0 ? "Saldo anterior" : "Crédito anterior", Math.Abs(s.Previous));
+        }
+        N("Compras e parcelas", s.Charges);
+        N("Total devido", s.AmountDue);
+        N("Pago", s.Payments);
+        N(s.Remaining >= 0 ? "Restante" : "Crédito", Math.Abs(s.Remaining));
+        panel.Children.Add(numbers);
+        if (s.Status == StatementStatus.PartiallyPaid)
+        {
+            var note = AgendaUi.Text("O restante passou para a próxima fatura. Juros e encargos não são calculados pelo app: lance-os como compra (categoria Outros ou uma sua) quando aparecerem.", "CaptionText", 11.5, FinanceUi.Res("WarningBrush"));
+            note.TextWrapping = TextWrapping.Wrap;
+            note.TextTrimming = TextTrimming.None;
+            panel.Children.Add(note);
+        }
+
+        var items = _finance.Transactions.Where(t => t.CardId == card.Id && t.StatementClosing == s.Closing)
+            .OrderBy(t => t.IsCardPayment).ThenBy(t => t.Date).ThenBy(t => t.CreatedAt).ToList();
+        if (items.Count == 0)
+        {
+            panel.Children.Add(Paragraph("Nenhum lançamento nesta fatura."));
+        }
+        foreach (var t in items)
+        {
+            panel.Children.Add(TransactionRow(t, null));
+        }
+        return panel;
+    }
+
     // ---------- Categorias ----------
 
     private void RenderCategories()
@@ -886,9 +1192,17 @@ public partial class FinancePage : UserControl, IDisposable
     private void OpenEditor(FinanceForm editor)
     {
         editor.Done += CloseEditor;
-        if (editor is TransactionEditor te)
+        switch (editor)
         {
-            te.Deleted += ShowUndo;
+            case TransactionEditor te:
+                te.Deleted += ShowUndo;
+                break;
+            case PaymentEditor pe:
+                pe.Deleted += ShowUndo;
+                break;
+            case CardRefundEditor re:
+                re.Deleted += ShowUndo;
+                break;
         }
         EditorHost.Content = editor;
         EditorHost.Visibility = Visibility.Visible;
@@ -914,9 +1228,22 @@ public partial class FinancePage : UserControl, IDisposable
             item.Click += (_, _) => OpenEditor(new TransactionEditor(_finance, NewDraft(kind), isNew: true));
             menu.Items.Add(item);
         }
+        if (_finance.Cards.Any(c => !c.IsArchived))
+        {
+            var purchase = new MenuItem { Header = "Compra no cartão" };
+            purchase.Click += (_, _) => OpenEditor(new PurchaseEditor(_finance, _finance.NewPurchase(_selectedCard), isNew: true));
+            menu.Items.Add(purchase);
+            var payment = new MenuItem { Header = "Pagamento de fatura" };
+            payment.Click += (_, _) => OpenEditor(NewPayment(_selectedCard ?? _finance.Cards.First(c => !c.IsArchived).Id));
+            menu.Items.Add(payment);
+        }
+        menu.Items.Add(new Separator { Style = (Style)FindResource("MenuSeparator") });
         var account = new MenuItem { Header = "Conta…" };
         account.Click += (_, _) => OpenEditor(new AccountEditor(_finance, _finance.NewAccount(), isNew: true));
         menu.Items.Add(account);
+        var newCard = new MenuItem { Header = "Cartão de crédito…" };
+        newCard.Click += (_, _) => OpenEditor(new CardEditor(_finance, _finance.NewCard(), isNew: true));
+        menu.Items.Add(newCard);
         menu.IsOpen = true;
     }
 

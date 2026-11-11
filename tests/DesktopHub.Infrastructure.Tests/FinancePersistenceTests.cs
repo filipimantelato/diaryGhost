@@ -225,4 +225,141 @@ public sealed class FinancePersistenceTests
             }
         }
     }
+
+    // ---------- Cartões (migração 2) ----------
+
+    private static (FinanceService S, Guid Bank, CreditCard Card) WithCard(FinanceDatabase db)
+    {
+        var s = Service(db);
+        var bank = s.SaveAccount(s.NewAccount() with { Name = "Banco", OpeningBalance = 1_000_000, OpeningDate = new DateOnly(2026, 9, 1) }).Id;
+        var card = s.SaveCard(s.NewCard() with { Name = "Roxo", Institution = "Banco X", Network = "Visa", LastDigits = "4321", Limit = 800_000, PaymentAccountId = bank, Rules = [new CardCycleRule(DateOnly.MinValue, 3, 10)] });
+        return (s, bank, card);
+    }
+
+    [Fact]
+    public void Cards_purchases_refunds_payments_and_overrides_survive_reopening()
+    {
+        using var dir = new TempDataDir();
+        var (s, bank, card) = WithCard(OpenDb(dir));
+        var purchase = s.SavePurchase(new PurchaseDraft { CardId = card.Id, Date = new DateOnly(2026, 11, 10), Description = "Notebook", Total = 600_000, Installments = 6, CategoryId = Cat(s, "Tecnologia"), Tags = ["trabalho"] });
+        var first = s.Installments(purchase.Id)[0];
+        s.Save(new TransactionDraft { Kind = TransactionKind.Refund, Date = new DateOnly(2026, 11, 12), Description = "Estorno parcial", Amount = 10_000, CardId = card.Id, RefundOfId = first.Id });
+        s.Save(new TransactionDraft { Kind = TransactionKind.Transfer, Date = new DateOnly(2026, 11, 14), Description = "Pagamento", Amount = 50_000, AccountId = bank, CardId = card.Id, StatementClosing = new DateOnly(2026, 12, 3) });
+        s.SetStatementDue(card.Id, new DateOnly(2026, 12, 3), new DateOnly(2026, 12, 11));
+        s.ChangeCycle(card.Id, 15, 25);
+        var statements = s.Statements(card.Id);
+        var debt = s.Debt(card.Id);
+
+        dir.Reopen();
+        var again = Service(OpenDb(dir));
+        Assert.Equal(s.Card(card.Id)! with { Rules = [] }, again.Card(card.Id)! with { Rules = [] });
+        Assert.Equal(s.Card(card.Id)!.Rules, again.Card(card.Id)!.Rules);
+        Assert.Equal(s.Purchase(purchase.Id)! with { Tags = [] }, again.Purchase(purchase.Id)! with { Tags = [] });
+        Assert.Equal(s.Installments(purchase.Id).Select(t => (t.Id, t.Amount, t.Date, t.StatementClosing, t.InstallmentNumber)),
+            again.Installments(purchase.Id).Select(t => (t.Id, t.Amount, t.Date, t.StatementClosing, t.InstallmentNumber)));
+        Assert.Equal(statements, again.Statements(card.Id));
+        Assert.Equal(debt, again.Debt(card.Id));
+        Assert.Equal(600_000 - 10_000 - 50_000, again.Debt(card.Id));
+        Assert.Equal(new DateOnly(2026, 12, 11), again.Statements(card.Id).Single(x => x.Closing == new DateOnly(2026, 12, 3)).Due);
+    }
+
+    [Fact]
+    public void Purchase_edit_replaces_installments_atomically_and_delete_cascades()
+    {
+        using var dir = new TempDataDir();
+        var db = OpenDb(dir);
+        var (s, _, card) = WithCard(db);
+        var purchase = s.SavePurchase(new PurchaseDraft { CardId = card.Id, Date = new DateOnly(2026, 11, 10), Description = "Fone", Total = 30_000, Installments = 3 });
+        s.SavePurchase(FinanceService.DraftFrom(purchase) with { Installments = 2 });
+
+        long Scalar(string sql)
+        {
+            using var c = db.OpenConnection();
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = sql;
+            return (long)cmd.ExecuteScalar()!;
+        }
+        Assert.Equal(2, Scalar("SELECT count(*) FROM fin_transactions WHERE purchase_id IS NOT NULL;"));
+        Assert.Equal(-30_000, Scalar("SELECT sum(amount_minor) FROM fin_postings WHERE card_id IS NOT NULL;"));
+        s.DeletePurchase(purchase.Id);
+        Assert.Equal(0, Scalar("SELECT count(*) FROM fin_transactions;"));
+        Assert.Equal(0, Scalar("SELECT count(*) FROM fin_postings;"));
+        Assert.Contains(new SqliteFinanceStore(db, NullLogger<SqliteFinanceStore>.Instance).AuditLog(), a => a.Entity == "purchase" && a.EntityId == purchase.Id);
+    }
+
+    [Fact]
+    public void Store_refuses_installments_that_do_not_add_up()
+    {
+        using var dir = new TempDataDir();
+        var db = OpenDb(dir);
+        var (_, _, card) = WithCard(db);
+        var store = new SqliteFinanceStore(db, NullLogger<SqliteFinanceStore>.Instance);
+        var purchase = new CardPurchase { Id = Guid.CreateVersion7(), CardId = card.Id, Date = Today, Description = "x", Total = 1_000, Installments = 1, CreatedAt = T0, UpdatedAt = T0 };
+        var wrong = new FinanceTransaction
+        {
+            Id = Guid.CreateVersion7(),
+            Kind = TransactionKind.Expense,
+            Date = Today,
+            Description = "x",
+            PurchaseId = purchase.Id,
+            InstallmentNumber = 1,
+            Postings = [Posting.ForCard(card.Id, -999, new DateOnly(2026, 12, 3))],
+            CreatedAt = T0,
+            UpdatedAt = T0,
+        };
+        Assert.Throws<InvalidOperationException>(() => store.SavePurchase(purchase, [wrong]));
+        Assert.Empty(store.Load().Purchases);
+    }
+
+    [Fact]
+    public void Database_guards_card_postings_and_card_deletion()
+    {
+        using var dir = new TempDataDir();
+        var db = OpenDb(dir);
+        var (s, _, card) = WithCard(db);
+        s.SavePurchase(new PurchaseDraft { CardId = card.Id, Date = new DateOnly(2026, 11, 10), Description = "x", Total = 1_000 });
+        var tx = s.Transactions.Single();
+
+        void Fails(string sql)
+        {
+            using var c = db.OpenConnection();
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = sql;
+            Assert.Throws<SqliteException>(() => cmd.ExecuteNonQuery());
+        }
+        Fails($"INSERT INTO fin_postings (transaction_id, seq, card_id, statement_closing, amount_minor) VALUES ('{tx.Id}', 1, '{Guid.NewGuid()}', '2026-12-03', 5);"); // cartão inexistente
+        Fails($"INSERT INTO fin_postings (transaction_id, seq, card_id, amount_minor) VALUES ('{tx.Id}', 1, '{card.Id}', 5);"); // sem fatura
+        Fails($"DELETE FROM fin_cards WHERE id = '{card.Id}';"); // cartão com lançamentos
+        Fails($"UPDATE fin_cards SET last_digits = '1234567812345678' WHERE id = '{card.Id}';"); // nunca o número completo
+        Fails($"UPDATE fin_card_purchases SET installments = 0;");
+        Fails($"INSERT INTO fin_card_cycle_rules (card_id, effective_from, closing_day, due_day) VALUES ('{card.Id}', '2027-01-01', 32, 10);");
+    }
+
+    [Fact]
+    public void Phase_8_database_is_migrated_with_a_backup_and_keeps_its_data()
+    {
+        using var dir = new TempDataDir();
+        // Banco criado só com a migração 1 (como na versão 0.8/0.9), com dados.
+        var v1 = new SqliteDatabase(dir.Paths, NullLogger<SqliteDatabase>.Instance, dir.Paths.FinanceDatabaseFile, [FinanceMigrations.All[0]]);
+        v1.Initialize();
+        using (var c = v1.OpenConnection())
+        using (var cmd = c.CreateCommand())
+        {
+            cmd.CommandText = """
+                INSERT INTO fin_accounts VALUES ('0192f000-0000-7000-8000-000000000001', 'Antiga', 'Checking', NULL, 'BRL', 12345, '2026-01-01', '#9A86C4', 1, NULL, 0, 0, 0);
+                INSERT INTO fin_transactions (id, kind, date, description, category_id, status, payment_method, notes, tags, refund_of_id, created_at_ms, updated_at_ms)
+                    VALUES ('0192f000-0000-7000-8000-000000000002', 'Income', '2026-11-05', 'Salário', NULL, 'Cleared', 'Pix', NULL, NULL, NULL, 0, 0);
+                INSERT INTO fin_postings (transaction_id, seq, account_id, card_id, amount_minor) VALUES ('0192f000-0000-7000-8000-000000000002', 0, '0192f000-0000-7000-8000-000000000001', NULL, 500000);
+                """;
+            cmd.ExecuteNonQuery();
+        }
+        SqliteConnection.ClearAllPools();
+
+        var report = new FinanceDatabase(dir.Paths, NullLogger<SqliteDatabase>.Instance).Initialize();
+        Assert.Equal((1, FinanceMigrations.All[^1].Version), (report.Migration.FromVersion, report.Migration.ToVersion));
+        Assert.NotNull(report.BackupFile);
+        Assert.StartsWith("finance-v1-", Path.GetFileName(report.BackupFile));
+        var s = Service(new FinanceDatabase(dir.Paths, NullLogger<SqliteDatabase>.Instance));
+        Assert.Equal(12_345 + 500_000, s.Balance(s.Accounts.Single().Id, Today));
+    }
 }

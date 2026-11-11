@@ -97,5 +97,76 @@ public static class FinanceMigrations
                 detail       TEXT
             ) STRICT;
             """),
+
+        new(2, "cartoes_de_credito", """
+            CREATE TABLE fin_cards (
+                id                     TEXT    NOT NULL PRIMARY KEY,
+                name                   TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
+                institution            TEXT,
+                network                TEXT,
+                last_digits            TEXT    CHECK (last_digits IS NULL OR (length(last_digits) = 4 AND last_digits GLOB '[0-9][0-9][0-9][0-9]')),
+                limit_minor            INTEGER NOT NULL CHECK (limit_minor >= 0),
+                currency               TEXT    NOT NULL CHECK (length(currency) = 3),
+                color                  TEXT    NOT NULL,
+                payment_account_id     TEXT    REFERENCES fin_accounts (id) ON DELETE SET NULL,
+                closing_day_goes_next  INTEGER NOT NULL CHECK (closing_day_goes_next IN (0, 1)),
+                archived_at_ms         INTEGER,
+                sort_order             INTEGER NOT NULL,
+                created_at_ms          INTEGER NOT NULL,
+                updated_at_ms          INTEGER NOT NULL
+            ) STRICT;
+
+            -- Regras de ciclo com vigência: mudar fechamento/vencimento não move faturas passadas.
+            CREATE TABLE fin_card_cycle_rules (
+                card_id         TEXT    NOT NULL REFERENCES fin_cards (id) ON DELETE CASCADE,
+                effective_from  TEXT    NOT NULL,
+                closing_day     INTEGER NOT NULL CHECK (closing_day BETWEEN 1 AND 31),
+                due_day         INTEGER NOT NULL CHECK (due_day BETWEEN 1 AND 31),
+                PRIMARY KEY (card_id, effective_from)
+            ) STRICT;
+
+            CREATE TABLE fin_card_purchases (
+                id              TEXT    NOT NULL PRIMARY KEY,
+                card_id         TEXT    NOT NULL REFERENCES fin_cards (id) ON DELETE RESTRICT,
+                date            TEXT    NOT NULL CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+                description     TEXT    NOT NULL CHECK (length(description) BETWEEN 1 AND 200),
+                category_id     TEXT    REFERENCES fin_categories (id) ON DELETE RESTRICT,
+                total_minor     INTEGER NOT NULL CHECK (total_minor > 0),
+                installments    INTEGER NOT NULL CHECK (installments BETWEEN 1 AND 72 AND installments <= total_minor),
+                notes           TEXT,
+                tags            TEXT,
+                created_at_ms   INTEGER NOT NULL,
+                updated_at_ms   INTEGER NOT NULL
+            ) STRICT;
+
+            CREATE TABLE fin_statement_overrides (
+                card_id       TEXT NOT NULL REFERENCES fin_cards (id) ON DELETE CASCADE,
+                closing_date  TEXT NOT NULL,
+                due_date      TEXT NOT NULL CHECK (due_date > closing_date),
+                PRIMARY KEY (card_id, closing_date)
+            ) STRICT;
+
+            -- Parcelas: lançamentos ligados à compra (apagados junto com ela).
+            ALTER TABLE fin_transactions ADD COLUMN purchase_id TEXT REFERENCES fin_card_purchases (id) ON DELETE CASCADE;
+            ALTER TABLE fin_transactions ADD COLUMN installment_number INTEGER CHECK (installment_number IS NULL OR installment_number BETWEEN 1 AND 72);
+            CREATE UNIQUE INDEX ux_fin_transactions_installment ON fin_transactions (purchase_id, installment_number) WHERE purchase_id IS NOT NULL;
+
+            -- Partidas de cartão guardam a fatura (data de fechamento) a que pertencem.
+            ALTER TABLE fin_postings ADD COLUMN statement_closing TEXT CHECK (statement_closing IS NULL OR statement_closing GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]');
+            CREATE INDEX ix_fin_postings_card ON fin_postings (card_id, statement_closing);
+
+            -- card_id não pode ter chave estrangeira por ALTER: gatilhos garantem que aponta para um cartão
+            -- existente e que partida de cartão sempre tem fatura.
+            CREATE TRIGGER trg_fin_postings_card_insert BEFORE INSERT ON fin_postings
+            WHEN NEW.card_id IS NOT NULL
+            BEGIN
+                SELECT RAISE(ABORT, 'cartão inexistente') WHERE NOT EXISTS (SELECT 1 FROM fin_cards WHERE id = NEW.card_id);
+                SELECT RAISE(ABORT, 'partida de cartão sem fatura') WHERE NEW.statement_closing IS NULL;
+            END;
+            CREATE TRIGGER trg_fin_cards_delete BEFORE DELETE ON fin_cards
+            BEGIN
+                SELECT RAISE(ABORT, 'cartão com lançamentos') WHERE EXISTS (SELECT 1 FROM fin_postings WHERE card_id = OLD.id);
+            END;
+            """),
     ];
 }

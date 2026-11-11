@@ -60,6 +60,9 @@ public sealed partial class FinanceService
             _accounts = [.. snapshot.Accounts];
             _categories = [.. snapshot.Categories];
             _transactions = [.. snapshot.Transactions];
+            _cards = [.. snapshot.Cards];
+            _purchases = [.. snapshot.Purchases];
+            _overrides = [.. snapshot.StatementOverrides];
         }
         _started = true;
         EnsureDefaultCategories();
@@ -194,29 +197,63 @@ public sealed partial class FinanceService
         }
     }
 
-    /// <summary>Patrimônio financeiro (por ora sem cartões): soma de todas as contas ativas na moeda base.</summary>
-    public long NetWorth()
+    /// <summary>
+    /// Patrimônio financeiro: soma de todas as contas ativas na moeda base (confirmados até hoje) menos a dívida
+    /// dos cartões, incluindo parcelas futuras de compras já feitas.
+    /// </summary>
+    public long NetWorth() => NetWorthAt(Today);
+
+    private long NetWorthAt(DateOnly date)
     {
-        var today = Today;
         lock (_gate)
         {
-            return Money.Sum(_accounts.Where(a => !a.IsArchived && a.Currency == BaseCurrency).Select(a => BalanceCore(a, today, includePending: false)));
+            var accounts = Money.Sum(_accounts.Where(a => !a.IsArchived && a.Currency == BaseCurrency).Select(a => BalanceCore(a, date, includePending: false)));
+            var cards = _cards.Where(c => c.Currency == BaseCurrency).Select(c => c.Id).ToHashSet();
+            var purchaseDates = _purchases.ToDictionary(p => p.Id, p => p.Date);
+            long cardBalance = 0;
+            foreach (var t in _transactions)
+            {
+                // Parcelas contam desde a data da compra (dívida assumida); o resto, pela própria data.
+                var effective = t.PurchaseId is { } pid && purchaseDates.TryGetValue(pid, out var d) ? d : t.Date;
+                if (effective > date)
+                {
+                    continue;
+                }
+                foreach (var p in t.Postings)
+                {
+                    if (p.CardId is { } card && cards.Contains(card))
+                    {
+                        cardBalance = checked(cardBalance + p.Amount);
+                    }
+                }
+            }
+            return checked(accounts + cardBalance);
         }
+    }
+
+    /// <summary>Moeda do lançamento: a da conta ou a do cartão.</summary>
+    private string? CurrencyOf(FinanceTransaction t)
+    {
+        if (t.CardId is { } cardId)
+        {
+            return _cards.FirstOrDefault(c => c.Id == cardId)?.Currency;
+        }
+        return _accounts.FirstOrDefault(a => a.Id == t.AccountId)?.Currency;
     }
 
     /// <summary>
     /// Receitas e despesas do período (datas inclusivas), na moeda base. Estornos reduzem a despesa;
-    /// transferências e ajustes não entram.
+    /// transferências, pagamentos de fatura e ajustes não entram. Compras no cartão contam na data de cada
+    /// parcela (competência), nunca no pagamento da fatura.
     /// </summary>
     public PeriodTotals Totals(DateOnly from, DateOnly to)
     {
         lock (_gate)
         {
-            var baseAccounts = _accounts.Where(a => a.Currency == BaseCurrency).Select(a => a.Id).ToHashSet();
             long incomeCleared = 0, incomePending = 0, expenseCleared = 0, expensePending = 0;
             foreach (var t in _transactions)
             {
-                if (t.Date < from || t.Date > to || !baseAccounts.Contains(t.AccountId))
+                if (t.Date < from || t.Date > to || CurrencyOf(t) != BaseCurrency)
                 {
                     continue;
                 }
@@ -561,6 +598,8 @@ public sealed partial class FinanceService
             Amount = t.Kind == TransactionKind.Adjustment ? t.Postings[0].Amount : t.Amount,
             AccountId = t.AccountId,
             ToAccountId = t.ToAccountId,
+            CardId = t.CardId,
+            StatementClosing = t.IsCardPayment ? t.StatementClosing : null,
             CategoryId = t.CategoryId,
             Status = t.Status,
             PaymentMethod = t.PaymentMethod,
@@ -574,7 +613,11 @@ public sealed partial class FinanceService
     public TransactionDraft Duplicate(Guid id)
     {
         var t = Find(id) ?? throw new FinanceValidationException("Lançamento não encontrado.");
-        return DraftFrom(t) with { Id = null, Date = Today, RefundOfId = null };
+        if (t.PurchaseId is not null)
+        {
+            throw new FinanceValidationException("Parcelas de cartão são duplicadas pela compra.");
+        }
+        return DraftFrom(t) with { Id = null, Date = Today, RefundOfId = null, StatementClosing = null };
     }
 
     /// <summary>Monta o lançamento (partidas com sinal) ou devolve o erro de validação.</summary>
@@ -590,6 +633,11 @@ public sealed partial class FinanceService
         var amount = draft.Amount;
         IReadOnlyList<Posting> postings = draft.Kind switch
         {
+            // Estorno no cartão: reduz a dívida na fatura do dia do estorno.
+            TransactionKind.Refund when draft.CardId is { } refundCard => [Posting.ForCard(refundCard, amount, StatementCalendar.ClosingFor(Card(refundCard)!, draft.Date))],
+            // Pagamento de fatura: sai da conta, abate a dívida do cartão na fatura escolhida.
+            TransactionKind.Transfer when draft.CardId is { } payCard =>
+                [new(draft.AccountId, -amount), Posting.ForCard(payCard, amount, draft.StatementClosing ?? StatementCalendar.ClosingFor(Card(payCard)!, draft.Date))],
             TransactionKind.Income or TransactionKind.Refund => [new(draft.AccountId, amount)],
             TransactionKind.Expense => [new(draft.AccountId, -amount)],
             TransactionKind.Adjustment => [new(draft.AccountId, amount)],
@@ -603,6 +651,10 @@ public sealed partial class FinanceService
             TransactionKind.Refund when draft.CategoryId is null && draft.RefundOfId is { } of => Find(of)?.CategoryId,
             _ => draft.CategoryId,
         };
+        if (draft.Kind == TransactionKind.Transfer && draft.CardId is not null)
+        {
+            category = null;
+        }
         return new FinanceTransaction
         {
             Id = existing?.Id ?? draft.Id ?? Guid.CreateVersion7(Now),
@@ -658,12 +710,49 @@ public sealed partial class FinanceService
         {
             return "Uma transferência não pode virar outro tipo de lançamento (exclua e crie de novo).";
         }
-
-        if (AccountError(d.AccountId, d.Date, existing) is { } accountError)
+        if (existing?.PurchaseId is not null)
+        {
+            return "Esta é uma parcela de compra no cartão: edite a compra.";
+        }
+        if (existing is not null && (existing.CardId is null) != (d.CardId is null))
+        {
+            return "Lançamentos de cartão e de conta não podem ser trocados entre si (exclua e crie de novo).";
+        }
+        if (d.CardId is { } cardId)
+        {
+            if (d.Kind is not (TransactionKind.Refund or TransactionKind.Transfer))
+            {
+                return "Compras no cartão são registradas em \"Compra no cartão\".";
+            }
+            if (Card(cardId) is not { } card)
+            {
+                return "Cartão não encontrado.";
+            }
+            if (card.IsArchived && existing?.CardId != cardId)
+            {
+                return $"O cartão {card.Name} está arquivado.";
+            }
+            if (d.Kind == TransactionKind.Transfer)
+            {
+                if (AccountError(d.AccountId, d.Date, existing) is { } payError)
+                {
+                    return payError;
+                }
+                if (Account(d.AccountId)!.Currency != card.Currency)
+                {
+                    return "A conta precisa ser da mesma moeda do cartão.";
+                }
+                if (d.StatementClosing is { } closing && StatementCalendar.ClosingFor(card, closing.AddDays(card.ClosingDayGoesNext ? -1 : 0)) != closing)
+                {
+                    return "Fatura inválida para este cartão.";
+                }
+            }
+        }
+        else if (AccountError(d.AccountId, d.Date, existing) is { } accountError)
         {
             return accountError;
         }
-        if (d.Kind == TransactionKind.Transfer)
+        if (d.Kind == TransactionKind.Transfer && d.CardId is null)
         {
             if (d.ToAccountId is not { } to)
             {
@@ -709,10 +798,17 @@ public sealed partial class FinanceService
             {
                 return "O estorno precisa apontar para uma despesa.";
             }
-            var alreadyRefunded = Money.Sum(Transactions.Where(t => t.RefundOfId == refundOf && t.Id != d.Id).Select(t => t.Amount));
-            if (alreadyRefunded + d.Amount > original.Amount)
+            if (original.CardId != d.CardId)
             {
-                return $"O estorno passa do valor da despesa (restam {Money.Format(original.Amount - alreadyRefunded, Account(original.AccountId)?.Currency ?? BaseCurrency)}).";
+                return original.CardId is null ? "Essa despesa foi paga por conta, não no cartão." : "Estorno de compra no cartão precisa ser lançado no mesmo cartão.";
+            }
+            // Compra parcelada: o limite é o total da compra, somando estornos ligados a qualquer parcela.
+            var related = original.PurchaseId is { } pid ? Transactions.Where(t => t.PurchaseId == pid).Select(t => t.Id).ToHashSet() : [refundOf];
+            var limit = original.PurchaseId is { } purchaseId && Purchase(purchaseId) is { } purchase ? purchase.Total : original.Amount;
+            var alreadyRefunded = Money.Sum(Transactions.Where(t => t.RefundOfId is { } r && related.Contains(r) && t.Id != d.Id).Select(t => t.Amount));
+            if (alreadyRefunded + d.Amount > limit)
+            {
+                return $"O estorno passa do valor da despesa (restam {Money.Format(limit - alreadyRefunded, CurrencyOf(original) ?? BaseCurrency)}).";
             }
         }
         return null;
@@ -782,6 +878,10 @@ public sealed partial class FinanceService
     public DeletedTransaction Delete(Guid id)
     {
         var value = Find(id) ?? throw new FinanceValidationException("Lançamento não encontrado.");
+        if (value.PurchaseId is not null)
+        {
+            throw new FinanceValidationException("Esta é uma parcela de compra no cartão: exclua a compra (ou registre um estorno).");
+        }
         _store.DeleteTransaction(id, Now);
         var unlinked = new List<Guid>();
         lock (_gate)
@@ -805,7 +905,7 @@ public sealed partial class FinanceService
     {
         ArgumentNullException.ThrowIfNull(deleted);
         var value = deleted.Transaction;
-        if (value.Postings.Any(p => Account(p.AccountId) is null))
+        if (value.Postings.Any(p => p.CardId is { } c ? Card(c) is null : Account(p.AccountId) is null))
         {
             throw new FinanceValidationException("A conta deste lançamento não existe mais.");
         }

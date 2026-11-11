@@ -11,8 +11,13 @@ roadmap e critérios de teste.
 > etiqueta no banco); `fin_postings.card_id` já existe, sem chave estrangeira até a Fase 10 criar os cartões.
 > A **Fase 9 (dashboard)** também: indicadores da seção 3.4 que já têm dados (saldo em contas, previsto
 > decomposto, receitas e despesas confirmadas/pendentes, patrimônio, comparação mensal), Visão geral com gráficos
-> e tabelas, modo privacidade salvo e cartão opcional no Dashboard. Ainda sem faturas (Fase 10) e sem
-> "Reservado" (Fase 11). As demais seções descrevem o que vem nas próximas fases.
+> e tabelas, modo privacidade salvo e cartão opcional no Dashboard.
+> A **Fase 10 (cartões)** também, com três ajustes em relação à seção 3.3, registrados no ADR-032:
+> (1) a parcela k tem competência na data da compra + (k−1) meses (não no mês da fatura), que é como o usuário
+> lembra do gasto; (2) uma troca de fechamento/vencimento vale a partir do mês seguinte ao da fatura aberta, para
+> cada mês ter um único fechamento (o ciclo de transição fica mais curto ou mais longo); (3) o saldo de uma fatura só
+> passa para a seguinte depois do vencimento — antes disso ela ainda vai ser paga. Sem compras com outras taxas:
+> o app não calcula juros. Ainda sem "Reservado" (Fase 11). As demais seções descrevem o que vem nas próximas fases.
 
 > **Nomes.** A especificação fala em "Orbit" e "Orbit Learn". Este repositório é o **Diary Ghost**, e não há
 > módulo "Learn" nele. O módulo se chama **Finanças** na navegação e **Diary Ghost Finance** nos documentos.

@@ -42,6 +42,7 @@
       <Button x:Name="TabOverview" Style="{StaticResource Chip}" Content="Visão geral" Tag="Overview" Click="Tab_Click" />
       <Button x:Name="TabTransactions" Style="{StaticResource Chip}" Content="Lançamentos" Tag="Transactions" Click="Tab_Click" />
       <Button x:Name="TabAccounts" Style="{StaticResource Chip}" Content="Contas" Tag="Accounts" Click="Tab_Click" />
+      <Button x:Name="TabCards" Style="{StaticResource Chip}" Content="Cartões" Tag="Cards" Click="Tab_Click" />
       <Button x:Name="TabCategories" Style="{StaticResource Chip}" Content="Categorias" Tag="Categories" Click="Tab_Click" />
     </WrapPanel>
 

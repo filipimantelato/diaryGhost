@@ -103,6 +103,25 @@ internal static class FinanceUi
         _ => kind.ToString(),
     };
 
+    /// <summary>Tipo para exibição, distinguindo lançamentos de cartão.</summary>
+    public static string Kind(FinanceTransaction t) => t switch
+    {
+        { IsCardPayment: true } => "Pagamento de fatura",
+        { PurchaseId: not null } => "Compra no cartão",
+        { Kind: TransactionKind.Refund, CardId: not null } => "Estorno no cartão",
+        _ => Kind(t.Kind),
+    };
+
+    public static string StatementStatus(StatementStatus status) => status switch
+    {
+        Core.Finance.StatementStatus.Future => "futura",
+        Core.Finance.StatementStatus.Open => "aberta",
+        Core.Finance.StatementStatus.Closed => "fechada",
+        Core.Finance.StatementStatus.Paid => "paga",
+        Core.Finance.StatementStatus.PartiallyPaid => "paga em parte",
+        _ => "vencida",
+    };
+
     public static string Kind(AccountKind kind) => kind switch
     {
         AccountKind.Checking => "Conta corrente",
@@ -150,7 +169,7 @@ internal static class FinanceUi
 
     /// <summary>Efeito do lançamento visto de uma conta (ou do conjunto, sem conta: transferências valem 0).</summary>
     public static long SignedFor(FinanceTransaction t, Guid? accountId) =>
-        accountId is { } id ? t.Postings.Where(p => p.AccountId == id).Sum(p => p.Amount)
+        accountId is { } id ? t.Postings.Where(p => p.AccountId == id || p.CardId == id).Sum(p => p.Amount)
         : t.Kind == TransactionKind.Transfer ? 0 : t.Postings.Sum(p => p.Amount);
 
     public static List<Choice<Guid?>> CategoryChoices(FinanceService finance, CategoryKind kind, string none, Guid? keep = null)

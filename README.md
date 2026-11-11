@@ -34,9 +34,10 @@ aplicação completa — leve, local-first e sem telemetria.
 - **Finanças** (em construção, [proposta](docs/FINANCE.md)): contas e carteiras, categorias com subcategorias,
   receitas, despesas, transferências, estornos e ajustes de saldo; busca e filtros; **visão geral do mês** com
   saldo previsto explicado, comparação com o mês anterior, gráficos (receitas × despesas, gastos por categoria,
-  saldo dia a dia) ou tabelas; cartão opcional no Dashboard; modo privacidade. Valores em centavos inteiros,
-  saldos sempre calculados dos lançamentos, banco próprio e nenhum acesso à rede. Cartões de crédito,
-  orçamentos, metas e projeções chegam nas próximas fases.
+  saldo dia a dia) ou tabelas; **cartões de crédito** com compras parceladas, faturas (aberta, fechada, paga,
+  vencida, futuras), pagamento total ou parcial, estornos, limite e vencimentos; cartão opcional no Dashboard;
+  modo privacidade. Valores em centavos inteiros, saldos sempre calculados dos lançamentos, banco próprio e
+  nenhum acesso à rede. Orçamentos, metas e projeções chegam nas próximas fases.
 - **Calendário local**: dia e semana em grade de horas, mês e lista; eventos de dia inteiro ou com
   horário, recorrentes (todo dia, dias úteis, semanal, "2ª terça do mês", "último dia do mês", anual ou
   RRULE), com exceções e até 2 avisos. Horário de verão e fusos tratados corretamente.

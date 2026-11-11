@@ -21,7 +21,63 @@ internal sealed class MemoryFinanceStore : IFinanceStore
         }
     }
 
-    public FinanceSnapshot Load() => new([.. Accounts.Values], [.. Categories.Values], [.. Transactions.Values]);
+    public Dictionary<Guid, CreditCard> Cards { get; } = [];
+    public Dictionary<Guid, CardPurchase> Purchases { get; } = [];
+    public List<StatementOverride> Overrides { get; } = [];
+
+    public FinanceSnapshot Load() => new([.. Accounts.Values], [.. Categories.Values], [.. Transactions.Values])
+    {
+        Cards = [.. Cards.Values],
+        Purchases = [.. Purchases.Values],
+        StatementOverrides = [.. Overrides],
+    };
+
+    public void SaveCard(CreditCard card)
+    {
+        Guard();
+        Cards[card.Id] = card;
+    }
+
+    public void DeleteCard(Guid id)
+    {
+        Guard();
+        Cards.Remove(id);
+    }
+
+    public void SavePurchase(CardPurchase purchase, IReadOnlyList<FinanceTransaction> installments)
+    {
+        Guard();
+        Assert.Equal(purchase.Total, installments.Sum(i => -i.Postings.Single().Amount)); // mesma regra do banco
+        Purchases[purchase.Id] = purchase;
+        foreach (var old in Transactions.Values.Where(t => t.PurchaseId == purchase.Id).ToList())
+        {
+            Transactions.Remove(old.Id);
+        }
+        installments.ToList().ForEach(i => Transactions[i.Id] = i);
+    }
+
+    public void DeletePurchase(Guid id, DateTimeOffset at)
+    {
+        Guard();
+        Purchases.Remove(id);
+        foreach (var old in Transactions.Values.Where(t => t.PurchaseId == id).ToList())
+        {
+            Transactions.Remove(old.Id);
+        }
+    }
+
+    public void SaveStatementOverride(StatementOverride value)
+    {
+        Guard();
+        Overrides.RemoveAll(o => o.CardId == value.CardId && o.Closing == value.Closing);
+        Overrides.Add(value);
+    }
+
+    public void SaveTransactions(IReadOnlyList<FinanceTransaction> transactions)
+    {
+        Guard();
+        transactions.ToList().ForEach(t => Transactions[t.Id] = t);
+    }
 
     public void SaveAccount(FinancialAccount account)
     {
@@ -677,5 +733,370 @@ public sealed class FinanceMetricsTests
         Assert.Empty(s.SpendingByCategory(D(11, 1), D(11, 30)));
         Assert.Equal(28, s.DailyBalances(2026, 2).Count);
         Assert.All(s.DailyBalances(2026, 2), d => Assert.Equal(0, d.Balance));
+    }
+}
+
+public sealed class StatementCalendarTests
+{
+    private static CreditCard Card(int closing, int due, bool goesNext = true, params CardCycleRule[] extra) => new()
+    {
+        Id = Guid.NewGuid(),
+        Name = "Teste",
+        ClosingDayGoesNext = goesNext,
+        Rules = [new CardCycleRule(DateOnly.MinValue, closing, due), .. extra],
+        CreatedAt = DateTimeOffset.UnixEpoch,
+        UpdatedAt = DateTimeOffset.UnixEpoch,
+    };
+
+    private static DateOnly D(int y, int m, int d) => new(y, m, d);
+
+    [Fact]
+    public void Purchase_before_on_and_after_the_closing_day()
+    {
+        var card = Card(3, 10);
+        Assert.Equal(D(2026, 11, 3), StatementCalendar.ClosingFor(card, D(2026, 11, 2)));
+        Assert.Equal(D(2026, 12, 3), StatementCalendar.ClosingFor(card, D(2026, 11, 3))); // no dia: vai para a próxima
+        Assert.Equal(D(2026, 12, 3), StatementCalendar.ClosingFor(card, D(2026, 11, 4)));
+        Assert.Equal(D(2027, 1, 3), StatementCalendar.ClosingFor(card, D(2026, 12, 31)));
+        var sameDay = Card(3, 10, goesNext: false);
+        Assert.Equal(D(2026, 11, 3), StatementCalendar.ClosingFor(sameDay, D(2026, 11, 3)));
+        Assert.Equal(D(2026, 11, 3), StatementCalendar.Opening(card, D(2026, 12, 3)));
+        Assert.Equal(D(2026, 11, 4), StatementCalendar.Opening(sameDay, D(2026, 12, 3)));
+    }
+
+    [Fact]
+    public void Closing_day_31_follows_short_months_and_leap_years()
+    {
+        var card = Card(31, 8);
+        Assert.Equal(D(2026, 2, 28), StatementCalendar.ClosingFor(card, D(2026, 2, 10)));
+        Assert.Equal(D(2026, 3, 31), StatementCalendar.ClosingFor(card, D(2026, 2, 28)));
+        Assert.Equal(D(2028, 2, 29), StatementCalendar.ClosingFor(card, D(2028, 2, 28)));
+        Assert.Equal(D(2026, 4, 30), StatementCalendar.NextClosing(card, D(2026, 3, 31)));
+        Assert.Equal(D(2026, 3, 8), StatementCalendar.Due(card, D(2026, 2, 28)));
+        Assert.Equal(D(2026, 2, 28), StatementCalendar.PreviousClosing(card, D(2026, 3, 31)));
+    }
+
+    [Fact]
+    public void Due_date_is_the_first_due_day_after_closing()
+    {
+        Assert.Equal(D(2026, 11, 10), StatementCalendar.Due(Card(3, 10), D(2026, 11, 3)));     // mesmo mês
+        Assert.Equal(D(2026, 12, 5), StatementCalendar.Due(Card(25, 5), D(2026, 11, 25)));     // mês seguinte
+        Assert.Equal(D(2026, 2, 28), StatementCalendar.Due(Card(20, 31), D(2026, 2, 20)));     // 31 limitado
+        Assert.Equal(D(2026, 2, 28), StatementCalendar.Due(Card(31, 30), D(2026, 1, 31)));     // 30 < 31: mês seguinte
+        var card = Card(3, 10);
+        Assert.Equal(D(2026, 11, 12), StatementCalendar.Due(card, D(2026, 11, 3), [new StatementOverride(card.Id, D(2026, 11, 3), D(2026, 11, 12))]));
+    }
+
+    [Fact]
+    public void New_cycle_rule_only_applies_from_its_date()
+    {
+        var card = Card(3, 10, true, new CardCycleRule(D(2027, 1, 1), 15, 25));
+        Assert.Equal(D(2026, 12, 3), StatementCalendar.ClosingFor(card, D(2026, 11, 20))); // regra antiga
+        Assert.Equal(D(2027, 1, 15), StatementCalendar.ClosingFor(card, D(2026, 12, 3)));  // depois de 03/12: nova (ciclo de transição)
+        Assert.Equal(D(2026, 12, 10), StatementCalendar.Due(card, D(2026, 12, 3)));
+        Assert.Equal(D(2027, 1, 25), StatementCalendar.Due(card, D(2027, 1, 15)));
+        Assert.Equal(D(2027, 1, 15), StatementCalendar.NextClosing(card, D(2026, 12, 3)));
+    }
+
+    [Fact]
+    public void Advancing_cycles_never_skips_or_repeats_a_month()
+    {
+        foreach (var day in new[] { 1, 15, 28, 29, 30, 31 })
+        {
+            var card = Card(day, day == 1 ? 10 : 5);
+            var closing = StatementCalendar.ClosingFor(card, D(2026, 1, 1));
+            for (var i = 0; i < 36; i++)
+            {
+                var next = StatementCalendar.NextClosing(card, closing);
+                Assert.Equal(closing.AddMonths(1).Month, next.Month);
+                Assert.True(StatementCalendar.Due(card, next) > next);
+                closing = next;
+            }
+        }
+    }
+}
+
+public sealed class CreditCardTests
+{
+    // Hoje = 15/11/2026. Cartão: fecha dia 3, vence dia 10.
+    private static readonly DateTimeOffset T0 = new(2026, 11, 15, 12, 0, 0, TimeSpan.Zero);
+
+    private static DateOnly D(int m, int d, int y = 2026) => new(y, m, d);
+
+    private static (FinanceService S, Guid Bank, Guid Card, FakeTimeProvider Time, MemoryFinanceStore Store) Create(long bankOpening = 1_000_000, long limit = 500_000)
+    {
+        var store = new MemoryFinanceStore();
+        var time = new FakeTimeProvider(T0);
+        time.SetLocalTimeZone(TimeZoneInfo.Utc);
+        var s = new FinanceService(store, new EventBus(NullLogger<EventBus>.Instance), time, NullLogger<FinanceService>.Instance);
+        s.Start();
+        var bank = s.SaveAccount(s.NewAccount() with { Name = "Banco", OpeningBalance = bankOpening, OpeningDate = D(9, 1) }).Id;
+        var card = s.SaveCard(s.NewCard() with { Name = "Roxo", Limit = limit, PaymentAccountId = bank, Rules = [new CardCycleRule(DateOnly.MinValue, 3, 10)] }).Id;
+        return (s, bank, card, time, store);
+    }
+
+    private static Guid Cat(FinanceService s, string name) => s.Categories.First(c => c.Name == name).Id;
+
+    private static CardPurchase Buy(FinanceService s, Guid card, long total, DateOnly date, int installments = 1, string category = "Tecnologia") =>
+        s.SavePurchase(new PurchaseDraft { CardId = card, Date = date, Description = "Compra", Total = total, Installments = installments, CategoryId = Cat(s, category) });
+
+    private static FinanceTransaction Pay(FinanceService s, Guid bank, Guid card, long amount, DateOnly date, DateOnly closing, TransactionStatus status = TransactionStatus.Cleared) =>
+        s.Save(new TransactionDraft { Kind = TransactionKind.Transfer, Date = date, Description = "Pagamento da fatura", Amount = amount, AccountId = bank, CardId = card, StatementClosing = closing, Status = status });
+
+    [Fact]
+    public void Installments_add_up_get_monthly_dates_and_consecutive_statements()
+    {
+        var (s, _, card, _, _) = Create();
+        var purchase = Buy(s, card, 10_000, D(11, 10), 3);
+        var installments = s.Installments(purchase.Id);
+        Assert.Equal([3_334, 3_333, 3_333], installments.Select(t => t.Amount));
+        Assert.Equal(10_000, installments.Sum(t => t.Amount));
+        Assert.Equal([D(11, 10), D(12, 10), D(1, 10, 2027)], installments.Select(t => t.Date));
+        Assert.Equal([D(12, 3), D(1, 3, 2027), D(2, 3, 2027)], installments.Select(t => t.StatementClosing!.Value));
+        Assert.Equal([1, 2, 3], installments.Select(t => t.InstallmentNumber!.Value));
+        Assert.All(installments, t => Assert.Equal(TransactionKind.Expense, t.Kind));
+        var plan = s.Plan(FinanceService.DraftFrom(purchase));
+        Assert.Equal([D(12, 10), D(1, 10, 2027), D(2, 10, 2027)], plan.Select(p => p.Due));
+    }
+
+    [Fact]
+    public void Debt_and_limit_include_future_installments()
+    {
+        var (s, _, card, _, _) = Create(limit: 500_000);
+        Buy(s, card, 120_000, D(11, 10), 12);
+        Assert.Equal(120_000, s.Debt(card));
+        var summary = s.Summary(card);
+        Assert.Equal(380_000, summary.Available);
+        Assert.Equal(10_000, summary.OpenStatement!.Charges); // só a 1ª parcela na fatura aberta
+    }
+
+    [Fact]
+    public void Card_purchase_and_its_payment_count_as_one_expense()
+    {
+        var (s, bank, card, _, _) = Create();
+        Buy(s, card, 30_000, D(11, 10));
+        Pay(s, bank, card, 30_000, D(11, 12), D(12, 3));
+        var (from, to) = FinanceService.MonthRange(2026, 11);
+        Assert.Equal(30_000, s.Totals(from, to).Expense);          // a compra
+        Assert.Equal(1_000_000 - 30_000, s.Balance(bank, D(11, 15))); // o pagamento saiu da conta
+        Assert.Equal(0, s.Debt(card));
+        Assert.Equal(30_000, s.SpendingByCategory(from, to).Single().Amount);
+        Assert.Equal(1_000_000 - 30_000, s.NetWorth());            // conta − dívida: contado uma vez
+    }
+
+    [Fact]
+    public void Partial_payment_carries_the_rest_and_overpayment_becomes_credit()
+    {
+        var (s, bank, card, time, _) = Create();
+        Buy(s, card, 50_000, D(10, 20));                             // fatura 03/11, vence 10/11
+        Pay(s, bank, card, 20_000, D(11, 8), D(11, 3));
+        var statements = s.Statements(card);
+        var november = statements.Single(x => x.Closing == D(11, 3));
+        Assert.Equal((50_000L, 20_000L, 30_000L), (november.Charges, november.Payments, november.Remaining));
+        Assert.Equal(StatementStatus.PartiallyPaid, november.Status);   // hoje (15/11) já venceu
+        var december = statements.Single(x => x.Closing == D(12, 3));
+        Assert.Equal(30_000, december.Previous);                        // o restante foi para a próxima
+        Assert.Equal(StatementStatus.Open, december.Status);
+        Assert.Equal(D(11, 3), s.StatementToPay(card)!.Closing);       // a fechada com saldo vem primeiro
+
+        Pay(s, bank, card, 40_000, D(11, 16), D(12, 3));                // paga a mais
+        time.Advance(TimeSpan.FromDays(30));                            // 15/12: fatura de 03/12 fechada
+        var after = s.Statements(card);
+        var dec = after.Single(x => x.Closing == D(12, 3));
+        Assert.Equal(-10_000, dec.Remaining);
+        Assert.Equal(StatementStatus.Paid, dec.Status);
+        Assert.Equal(-10_000, after.Single(x => x.Closing == D(1, 3, 2027)).Previous); // crédito na seguinte
+        Assert.Equal(-10_000, s.Debt(card));
+    }
+
+    [Fact]
+    public void Statement_status_follows_closing_and_due_dates()
+    {
+        var (s, _, card, time, _) = Create();
+        Buy(s, card, 10_000, D(11, 1));                                 // fatura 03/11
+        Buy(s, card, 5_000, D(1, 20, 2027));                            // fatura 03/02/2027 (futura)
+        var list = s.Statements(card);
+        Assert.Equal(StatementStatus.Overdue, list.Single(x => x.Closing == D(11, 3)).Status);
+        Assert.Equal(StatementStatus.Open, list.Single(x => x.Closing == D(12, 3)).Status);
+        Assert.Equal(StatementStatus.Future, list.Single(x => x.Closing == D(2, 3, 2027)).Status);
+        Assert.Equal([D(11, 3), D(12, 3), D(1, 3, 2027), D(2, 3, 2027)], list.Select(x => x.Closing)); // sem buracos
+
+        Buy(s, card, 2_000, D(11, 20));                                 // fatura 03/12
+        time.SetUtcNow(new DateTimeOffset(2026, 12, 5, 12, 0, 0, TimeSpan.Zero)); // fechou, vence 10/12
+        Assert.Equal(StatementStatus.Closed, s.Statements(card).Single(x => x.Closing == D(12, 3)).Status);
+        Assert.Equal(StatementStatus.Open, s.Statements(card).Single(x => x.Closing == D(1, 3, 2027)).Status);
+    }
+
+    [Fact]
+    public void Forecast_subtracts_statements_due_by_the_end_of_the_month_and_stays_exact()
+    {
+        var (s, bank, card, _, _) = Create(bankOpening: 1_000_000);
+        Buy(s, card, 100_000, D(11, 10));                               // fatura 03/12, vence 10/12
+        var november = s.Overview(2026, 11);
+        Assert.Equal(0, november.CardStatements);                       // nada vence até 30/11
+        Assert.Equal(1_000_000, november.Forecast);
+        Assert.Equal(100_000, november.CardSpending);
+        Assert.Equal(100_000, november.Totals.Expense);
+
+        var december = s.Overview(2026, 12);
+        Assert.Equal(100_000, december.CardStatements);
+        Assert.Equal(900_000, december.Forecast);
+        Assert.Equal(100_000, december.StatementsDue);
+        Assert.Equal(december.Forecast, s.DailyBalances(2026, 12)[^1].Balance);
+        Assert.Equal(1_000_000, s.DailyBalances(2026, 12)[8].Balance);  // 09/12: ainda não venceu
+        Assert.Equal(900_000, s.DailyBalances(2026, 12)[9].Balance);    // 10/12: vencimento
+
+        Pay(s, bank, card, 100_000, D(12, 9), D(12, 3), TransactionStatus.Pending); // pagamento agendado
+        var paid = s.Overview(2026, 12);
+        Assert.Equal(0, paid.CardStatements);                           // não conta duas vezes
+        Assert.Equal(900_000, paid.Forecast);
+    }
+
+    [Fact]
+    public void Future_statements_do_not_accumulate_unpaid_statements_that_are_not_due_yet()
+    {
+        var (s, _, card, _, _) = Create(bankOpening: 1_000_000);
+        Buy(s, card, 240_000, D(11, 10), 12);                           // 12× 200,00
+        Buy(s, card, 15_000, D(11, 5));                                 // à vista, mesma fatura
+        var list = s.Statements(card);
+        Assert.Equal(35_000, list.Single(x => x.Closing == D(12, 3)).AmountDue);
+        Assert.Equal(20_000, list.Single(x => x.Closing == D(1, 3, 2027)).AmountDue); // não 55.000
+        Assert.All(list.Where(x => x.Status == StatementStatus.Future), x => Assert.Equal(0, x.Previous));
+        // Previsto de janeiro: saem a fatura de dezembro (vence 10/12) e a de janeiro (vence 10/01).
+        Assert.Equal(55_000, s.StatementOutflow(D(1, 31, 2027)));
+        Assert.Equal(1_000_000 - 55_000, s.Overview(2027, 1).Forecast);
+    }
+
+    [Fact]
+    public void Overdue_statement_is_reported_and_included_in_the_forecast()
+    {
+        var (s, _, card, _, _) = Create();
+        Buy(s, card, 20_000, D(10, 20));                                // venceu em 10/11 sem pagamento
+        var o = s.Overview(2026, 11);
+        Assert.Equal(1, o.OverdueStatements);
+        Assert.Equal(20_000, o.CardStatements);
+        Assert.Equal(1_000_000 - 20_000, o.Forecast);
+    }
+
+    [Fact]
+    public void Refund_on_card_reduces_debt_and_spending_and_is_capped_by_the_whole_purchase()
+    {
+        var (s, _, card, _, _) = Create();
+        var purchase = Buy(s, card, 90_000, D(11, 10), 3);
+        var first = s.Installments(purchase.Id)[0];
+        var refund = s.Save(new TransactionDraft { Kind = TransactionKind.Refund, Date = D(11, 14), Description = "Estorno", Amount = 50_000, CardId = card, RefundOfId = first.Id });
+        Assert.Equal(D(12, 3), refund.StatementClosing);
+        Assert.Equal(first.CategoryId, refund.CategoryId);
+        Assert.Equal(40_000, s.Debt(card));
+        Assert.Equal(30_000 - 50_000, s.Totals(D(11, 1), D(11, 30)).Expense);
+        Assert.Contains("restam", s.Validate(new TransactionDraft { Kind = TransactionKind.Refund, Date = D(11, 14), Description = "x", Amount = 40_001, CardId = card, RefundOfId = first.Id }));
+        Assert.Null(s.Validate(new TransactionDraft { Kind = TransactionKind.Refund, Date = D(11, 14), Description = "x", Amount = 40_000, CardId = card, RefundOfId = first.Id }));
+        Assert.Contains("mesmo cartão", s.Validate(new TransactionDraft { Kind = TransactionKind.Refund, Date = D(11, 14), Description = "x", Amount = 1, AccountId = s.Accounts[0].Id, RefundOfId = first.Id }));
+    }
+
+    [Fact]
+    public void Installments_cannot_be_edited_or_deleted_one_by_one()
+    {
+        var (s, _, card, _, _) = Create();
+        var purchase = Buy(s, card, 9_000, D(11, 10), 3);
+        var installment = s.Installments(purchase.Id)[1];
+        Assert.Contains("edite a compra", s.Validate(FinanceService.DraftFrom(installment) with { Description = "x" }));
+        Assert.Throws<FinanceValidationException>(() => s.Delete(installment.Id));
+        Assert.Throws<FinanceValidationException>(() => s.Duplicate(installment.Id));
+        Assert.Contains("Compra no cartão", s.Validate(new TransactionDraft { Kind = TransactionKind.Expense, Date = D(11, 10), Description = "x", Amount = 1, CardId = card }));
+    }
+
+    [Fact]
+    public void Purchases_lock_once_an_installment_is_in_a_closed_statement()
+    {
+        var (s, _, card, time, _) = Create();
+        var purchase = Buy(s, card, 30_000, D(11, 10), 3);
+        var ids = s.Installments(purchase.Id).Select(t => t.Id).ToList();
+        Assert.False(s.IsLocked(purchase.Id));
+        var edited = s.SavePurchase(FinanceService.DraftFrom(purchase) with { Total = 60_000, Installments = 2 });
+        Assert.Equal([30_000, 30_000], s.Installments(edited.Id).Select(t => t.Amount));
+        Assert.Equal(ids.Take(2), s.Installments(edited.Id).Select(t => t.Id)); // parcelas mantêm o ID
+
+        time.SetUtcNow(new DateTimeOffset(2026, 12, 4, 12, 0, 0, TimeSpan.Zero)); // fatura de 03/12 fechou
+        Assert.True(s.IsLocked(purchase.Id));
+        Assert.Contains("fatura fechada", s.Validate(FinanceService.DraftFrom(edited) with { Total = 1_000 }));
+        var renamed = s.SavePurchase(FinanceService.DraftFrom(edited) with { Description = "Novo nome", CategoryId = Cat(s, "Lazer") });
+        Assert.All(s.Installments(renamed.Id), t => Assert.Equal(("Novo nome", Cat(s, "Lazer")), (t.Description, t.CategoryId!.Value)));
+        Assert.Throws<FinanceValidationException>(() => s.DeletePurchase(purchase.Id));
+    }
+
+    [Fact]
+    public void Deleting_an_open_purchase_removes_all_installments()
+    {
+        var (s, _, card, _, store) = Create();
+        var purchase = Buy(s, card, 30_000, D(11, 10), 3);
+        s.DeletePurchase(purchase.Id);
+        Assert.Empty(s.Transactions);
+        Assert.Empty(store.Transactions);
+        Assert.Equal(0, s.Debt(card));
+    }
+
+    [Fact]
+    public void Changing_the_cycle_moves_only_future_statements()
+    {
+        var (s, _, card, _, _) = Create();
+        var purchase = Buy(s, card, 30_000, D(11, 10), 3);              // faturas 03/12, 03/01, 03/02
+        var moved = s.ChangeCycle(card, 15, 25);
+        Assert.Equal(2, moved);
+        Assert.Equal([D(12, 3), D(1, 15, 2027), D(2, 15, 2027)], s.Installments(purchase.Id).Select(t => t.StatementClosing!.Value));
+        Assert.Equal(D(1, 25, 2027), s.DueDate(s.Card(card)!, D(1, 15, 2027)));
+        Assert.Equal(D(12, 10), s.DueDate(s.Card(card)!, D(12, 3)));    // a aberta não muda
+        Assert.Equal(0, s.ChangeCycle(card, 15, 25));                   // mesma regra: nada
+    }
+
+    [Fact]
+    public void Statement_due_date_can_be_corrected()
+    {
+        var (s, _, card, _, _) = Create();
+        Buy(s, card, 10_000, D(11, 10));
+        s.SetStatementDue(card, D(12, 3), D(12, 11));
+        Assert.Equal(D(12, 11), s.Statements(card).Single(x => x.Closing == D(12, 3)).Due);
+        Assert.Throws<FinanceValidationException>(() => s.SetStatementDue(card, D(12, 3), D(12, 3)));
+    }
+
+    [Fact]
+    public void Net_worth_counts_card_debt_from_the_purchase_date()
+    {
+        var (s, _, card, _, _) = Create(bankOpening: 1_000_000);
+        Buy(s, card, 120_000, D(11, 10), 12);
+        Assert.Equal(1_000_000 - 120_000, s.NetWorth());
+        Assert.Equal(1_000_000, s.Overview(2026, 10).NetWorth);         // antes da compra
+    }
+
+    [Fact]
+    public void Card_and_payment_validation()
+    {
+        var (s, bank, card, _, _) = Create();
+        Assert.Contains("4 números", s.Validate(s.Card(card)! with { LastDigits = "12345" }));
+        Assert.Contains("4 números", s.Validate(s.Card(card)! with { LastDigits = "12a4" }));
+        Assert.Null(s.Validate(s.Card(card)! with { LastDigits = "1234" }));
+        Assert.Contains("diferente", s.Validate(s.Card(card)! with { Rules = [new CardCycleRule(DateOnly.MinValue, 10, 10)] }));
+        Assert.Contains("1 a 31", s.Validate(s.Card(card)! with { Rules = [new CardCycleRule(DateOnly.MinValue, 0, 10)] }));
+        var draft = new PurchaseDraft { CardId = card, Date = D(11, 10), Description = "x", Total = 5, Installments = 6 };
+        Assert.Contains("1 centavo", s.Validate(draft));
+        Assert.Contains("1 a 72", s.Validate(draft with { Total = 1_000, Installments = 73 }));
+        Assert.Contains("categoria de despesa", s.Validate(draft with { Total = 1_000, Installments = 1, CategoryId = Cat(s, "Salário") }));
+        Assert.Contains("Fatura inválida", s.Validate(new TransactionDraft { Kind = TransactionKind.Transfer, Date = D(11, 15), Description = "x", Amount = 1, AccountId = bank, CardId = card, StatementClosing = D(12, 4) }));
+        var usd = s.SaveAccount(s.NewAccount() with { Name = "USD", Currency = "USD", OpeningDate = D(9, 1) }).Id;
+        Assert.Contains("mesma moeda", s.Validate(new TransactionDraft { Kind = TransactionKind.Transfer, Date = D(11, 15), Description = "x", Amount = 1, AccountId = usd, CardId = card, StatementClosing = D(12, 3) }));
+        Assert.False(s.CanDeleteCard(card) && s.Transactions.Any());
+    }
+
+    [Fact]
+    public void Card_with_history_is_archived_not_deleted()
+    {
+        var (s, _, card, _, _) = Create();
+        var empty = s.SaveCard(s.NewCard() with { Name = "Vazio" });
+        s.DeleteCard(empty.Id);
+        Assert.Null(s.Card(empty.Id));
+        Buy(s, card, 1_000, D(11, 10));
+        Assert.Throws<FinanceValidationException>(() => s.DeleteCard(card));
+        s.SetArchived(s.Card(card)!, true);
+        Assert.Contains("arquivado", s.Validate(new PurchaseDraft { CardId = card, Date = D(11, 10), Description = "x", Total = 100 }));
     }
 }

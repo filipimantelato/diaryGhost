@@ -9,8 +9,11 @@ namespace DesktopHub.Core.Finance;
 /// <param name="ToReceive">Receitas que ainda vão entrar até o fim do mês (pendentes, ou com data depois do corte).</param>
 /// <param name="ToPay">Despesas que ainda vão sair até o fim do mês, já descontados estornos a receber.</param>
 /// <param name="OtherChanges">Transferências com contas fora do disponível e ajustes, ainda por acontecer no mês.</param>
-/// <param name="Forecast">Saldo previsto no fim do mês = saldo em contas + a receber − a pagar + outros (exato).</param>
+/// <param name="Forecast">Saldo previsto no fim do mês = saldo em contas + a receber − a pagar − faturas + outros (exato).</param>
 /// <param name="OverduePending">Lançamentos pendentes com data anterior a hoje (atrasados ou esquecidos).</param>
+/// <param name="CardStatements">Faturas que ainda vão sair do caixa até o fim do mês (só no mês atual e futuros).</param>
+/// <param name="CardSpending">Gastos no cartão do mês (competência: data de cada parcela), menos estornos no cartão.</param>
+/// <param name="StatementsDue">Soma do valor devido das faturas que vencem no mês.</param>
 public sealed record MonthOverview(
     int Year,
     int Month,
@@ -28,6 +31,10 @@ public sealed record MonthOverview(
     bool HasPreviousMonth)
 {
     public DateOnly End => FinanceService.MonthRange(Year, Month).To;
+    public long CardStatements { get; init; }
+    public long CardSpending { get; init; }
+    public long StatementsDue { get; init; }
+    public int OverdueStatements { get; init; }
 }
 
 public sealed record MonthFlow(int Year, int Month, long Income, long Expense)
@@ -74,7 +81,6 @@ public sealed partial class FinanceService
             var accounts = _accounts.Where(a => available.Contains(a.Id)).ToList();
             balance = Money.Sum(accounts.Select(a => BalanceCore(a, reference, includePending: false)));
             forecast = Money.Sum(accounts.Select(a => BalanceCore(a, end, includePending: true)));
-            netWorth = Money.Sum(_accounts.Where(a => !a.IsArchived && a.Currency == BaseCurrency).Select(a => BalanceCore(a, reference, includePending: false)));
             foreach (var t in _transactions)
             {
                 // Tudo que entra no previsto mas ainda não está no saldo do corte.
@@ -99,12 +105,53 @@ public sealed partial class FinanceService
         // "Outros" fecha a conta por construção: transferências com contas fora do disponível, ajustes e
         // saldos iniciais de contas abertas depois do corte. Assim a decomposição sempre soma o previsto.
         var other = checked(forecast - balance - toReceive + toPay);
+        netWorth = NetWorthAt(reference);
+        // Faturas saem do caixa no vencimento: entram no previsto do mês atual e dos futuros. Num mês passado o
+        // "previsto" é o saldo do último dia, que já reflete os pagamentos feitos.
+        var statementsOut = end > today ? StatementOutflow(end) : 0;
+        forecast = checked(forecast - statementsOut);
+
+        long cardSpending = 0;
+        lock (_gate)
+        {
+            foreach (var t in _transactions)
+            {
+                if (t.CardId is null || t.Date < start || t.Date > end || CurrencyOf(t) != BaseCurrency)
+                {
+                    continue;
+                }
+                cardSpending = t.Kind switch
+                {
+                    TransactionKind.Expense => checked(cardSpending + t.Amount),
+                    TransactionKind.Refund => checked(cardSpending - t.Amount),
+                    _ => cardSpending,
+                };
+            }
+        }
+        long statementsDue = 0;
+        var overdueStatements = 0;
+        foreach (var card in Cards.Where(c => !c.IsArchived && c.Currency == BaseCurrency))
+        {
+            var statements = Statements(card.Id);
+            statementsDue = checked(statementsDue + Money.Sum(statements.Where(s => s.Due >= start && s.Due <= end).Select(s => s.AmountDue)));
+            if (statements.LastOrDefault(s => s.Due < today) is { Status: StatementStatus.Overdue or StatementStatus.PartiallyPaid })
+            {
+                overdueStatements++;
+            }
+        }
+
         var previous = start.AddMonths(-1);
         var (prevStart, prevEnd) = MonthRange(previous.Year, previous.Month);
         // Comparar com um mês em que nenhuma conta existia ainda daria "+100%" enganoso: sem comparação.
         var hasPrevious = Accounts.Any(a => a.OpeningDate <= prevEnd);
         return new MonthOverview(year, month, reference, balance, toReceive, toPay, other, forecast, netWorth,
-            Totals(start, end), Totals(prevStart, prevEnd), AvailableForecastAt(prevEnd), overdue, hasPrevious);
+            Totals(start, end), Totals(prevStart, prevEnd), AvailableForecastAt(prevEnd), overdue, hasPrevious)
+        {
+            CardStatements = statementsOut,
+            CardSpending = cardSpending,
+            StatementsDue = statementsDue,
+            OverdueStatements = overdueStatements,
+        };
     }
 
     /// <summary>Saldo do disponível ao fim de um dia, com pendentes (o "previsto" daquele dia).</summary>
@@ -143,10 +190,9 @@ public sealed partial class FinanceService
         long uncategorized = 0;
         lock (_gate)
         {
-            var baseAccounts = _accounts.Where(a => a.Currency == BaseCurrency).Select(a => a.Id).ToHashSet();
             foreach (var t in _transactions)
             {
-                if (t.Date < from || t.Date > to || t.Kind is not (TransactionKind.Expense or TransactionKind.Refund) || !baseAccounts.Contains(t.AccountId))
+                if (t.Date < from || t.Date > to || t.Kind is not (TransactionKind.Expense or TransactionKind.Refund) || CurrencyOf(t) != BaseCurrency)
                 {
                     continue;
                 }
@@ -180,13 +226,21 @@ public sealed partial class FinanceService
 
     /// <summary>
     /// Saldo do disponível ao fim de cada dia do mês: confirmado até hoje; do dia seguinte em diante, previsto
-    /// (com pendentes). Dias antes da abertura de uma conta contam zero para ela.
+    /// (com pendentes e com as faturas que vencem até o dia). Dias antes da abertura de uma conta contam zero para ela.
     /// </summary>
     public IReadOnlyList<DailyBalance> DailyBalances(int year, int month)
     {
         var (start, end) = MonthRange(year, month);
         var today = Today;
         var result = new List<DailyBalance>();
+        var outflows = new Dictionary<DateOnly, long>();
+        for (var d = start; d <= end; d = d.AddDays(1))
+        {
+            if (d > today)
+            {
+                outflows[d] = StatementOutflow(d);
+            }
+        }
         lock (_gate)
         {
             var available = AvailableAccounts();
@@ -194,7 +248,8 @@ public sealed partial class FinanceService
             for (var d = start; d <= end; d = d.AddDays(1))
             {
                 var forecast = d > today;
-                result.Add(new DailyBalance(d, Money.Sum(accounts.Select(a => BalanceCore(a, d, includePending: forecast))), forecast));
+                var value = Money.Sum(accounts.Select(a => BalanceCore(a, d, includePending: forecast)));
+                result.Add(new DailyBalance(d, forecast ? checked(value - outflows[d]) : value, forecast));
             }
         }
         return result;

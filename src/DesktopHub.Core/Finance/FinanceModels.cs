@@ -88,8 +88,23 @@ public enum PaymentMethod
     Other,
 }
 
-/// <summary>Efeito de uma transação numa conta. Sinal do ponto de vista do patrimônio: + entra, − sai.</summary>
-public sealed record Posting(Guid AccountId, long Amount);
+/// <summary>
+/// Efeito de uma transação numa conta ou num cartão. Sinal do ponto de vista do patrimônio: + entra, − sai
+/// (no cartão, − é dívida a mais). Partida de cartão: <see cref="AccountId"/> vazio, <see cref="CardId"/> e a
+/// fatura (<see cref="StatementClosing"/>) preenchidos.
+/// </summary>
+public sealed record Posting(Guid AccountId, long Amount)
+{
+    public Guid? CardId { get; init; }
+
+    /// <summary>Data de fechamento da fatura a que a partida de cartão pertence (gravada; não muda com o ciclo).</summary>
+    public DateOnly? StatementClosing { get; init; }
+
+    public bool IsCard => CardId is not null;
+
+    public static Posting ForCard(Guid cardId, long amount, DateOnly statementClosing) =>
+        new(Guid.Empty, amount) { CardId = cardId, StatementClosing = statementClosing };
+}
 
 /// <summary>Um fato financeiro com 1 partida (receita, despesa, estorno, ajuste) ou 2 (transferência, soma zero).</summary>
 public sealed record FinanceTransaction
@@ -104,6 +119,9 @@ public sealed record FinanceTransaction
     public string? Notes { get; init; }
     public IReadOnlyList<string> Tags { get; init; } = [];
     public Guid? RefundOfId { get; init; }
+    /// <summary>Parcela de uma compra no cartão (a compra guarda total e número de parcelas).</summary>
+    public Guid? PurchaseId { get; init; }
+    public int? InstallmentNumber { get; init; }
     public required IReadOnlyList<Posting> Postings { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
@@ -111,13 +129,22 @@ public sealed record FinanceTransaction
     /// <summary>Valor do lançamento, sempre positivo (para transferências, o valor transferido).</summary>
     public long Amount => Postings.Count == 0 ? 0 : Postings.Max(p => Math.Abs(p.Amount));
 
-    /// <summary>Conta de origem (saída) ou a única conta.</summary>
+    /// <summary>Conta de origem (saída) ou a única conta; vazio quando a única partida é de cartão.</summary>
     public Guid AccountId => Postings.Count == 2 ? Postings.First(p => p.Amount < 0).AccountId : Postings[0].AccountId;
 
-    /// <summary>Conta de destino de uma transferência.</summary>
-    public Guid? ToAccountId => Postings.Count == 2 ? Postings.First(p => p.Amount > 0).AccountId : null;
+    /// <summary>Conta de destino de uma transferência entre contas (não de pagamento de fatura).</summary>
+    public Guid? ToAccountId => Postings.Count == 2 && Postings.First(p => p.Amount > 0) is { IsCard: false } to ? to.AccountId : null;
 
-    public bool Touches(Guid accountId) => Postings.Any(p => p.AccountId == accountId);
+    /// <summary>Cartão envolvido (compra, estorno ou pagamento de fatura).</summary>
+    public Guid? CardId => Postings.FirstOrDefault(p => p.IsCard)?.CardId;
+
+    /// <summary>Fatura da partida de cartão.</summary>
+    public DateOnly? StatementClosing => Postings.FirstOrDefault(p => p.IsCard)?.StatementClosing;
+
+    /// <summary>Pagamento de fatura: transferência da conta para o cartão (não é despesa).</summary>
+    public bool IsCardPayment => Kind == TransactionKind.Transfer && CardId is not null;
+
+    public bool Touches(Guid id) => Postings.Any(p => p.AccountId == id || p.CardId == id);
 }
 
 /// <summary>
@@ -127,6 +154,10 @@ public sealed record FinanceTransaction
 public sealed record TransactionDraft
 {
     public Guid? Id { get; init; }
+    /// <summary>Estorno no cartão (com <see cref="TransactionKind.Refund"/>) ou cartão destino de um pagamento de fatura.</summary>
+    public Guid? CardId { get; init; }
+    /// <summary>Pagamento de fatura: qual fatura (data de fechamento).</summary>
+    public DateOnly? StatementClosing { get; init; }
     public TransactionKind Kind { get; init; } = TransactionKind.Expense;
     public required DateOnly Date { get; init; }
     public string Description { get; init; } = "";
@@ -171,12 +202,33 @@ public sealed record DeletedTransaction(FinanceTransaction Transaction, IReadOnl
 public sealed record FinanceSnapshot(
     IReadOnlyList<FinancialAccount> Accounts,
     IReadOnlyList<TransactionCategory> Categories,
-    IReadOnlyList<FinanceTransaction> Transactions);
+    IReadOnlyList<FinanceTransaction> Transactions)
+{
+    public IReadOnlyList<CreditCard> Cards { get; init; } = [];
+    public IReadOnlyList<CardPurchase> Purchases { get; init; } = [];
+    public IReadOnlyList<StatementOverride> StatementOverrides { get; init; } = [];
+}
 
 /// <summary>Persistência do módulo. Cada método é atômico (uma transação SQLite).</summary>
 public interface IFinanceStore
 {
     FinanceSnapshot Load();
+
+    /// <summary>Cartão e suas regras de ciclo (substituídas por completo).</summary>
+    void SaveCard(CreditCard card);
+
+    void DeleteCard(Guid id);
+
+    /// <summary>Compra e suas parcelas, juntas: as parcelas antigas da compra são substituídas.</summary>
+    void SavePurchase(CardPurchase purchase, IReadOnlyList<FinanceTransaction> installments);
+
+    /// <summary>Remove a compra e todas as parcelas.</summary>
+    void DeletePurchase(Guid id, DateTimeOffset at);
+
+    void SaveStatementOverride(StatementOverride value);
+
+    /// <summary>Várias transações de uma vez (ex.: parcelas futuras remanejadas após mudar o ciclo do cartão).</summary>
+    void SaveTransactions(IReadOnlyList<FinanceTransaction> transactions);
 
     void SaveAccount(FinancialAccount account);
 
