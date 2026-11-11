@@ -7,6 +7,8 @@ using DesktopHub.App.Theme;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Agenda;
+using DesktopHub.Core.Finance;
+using DesktopHub.Infrastructure.Finance;
 using DesktopHub.Core.Events;
 using DesktopHub.Infrastructure.Agenda;
 using DesktopHub.Core.News;
@@ -92,6 +94,8 @@ public partial class App : Application
             return;
         }
 
+        StartFinance();
+
         var settings = _services.GetRequiredService<SettingsService>();
         settings.Load();
         ThemeManager.ApplyAccent(settings.General.AccentColor);
@@ -105,6 +109,34 @@ public partial class App : Application
         using var process = Process.GetCurrentProcess();
         LogStarted(_log, (int)(DateTime.Now - process.StartTime).TotalMilliseconds, options.Minimized, options.NoWidget);
     }
+
+    /// <summary>
+    /// Banco próprio das finanças (ADR-028). Se ele falhar, só o módulo fica indisponível, com o motivo na
+    /// página; o resto do app abre normalmente.
+    /// </summary>
+    private void StartFinance()
+    {
+        var services = _services!;
+        var finance = services.GetRequiredService<FinanceService>();
+        try
+        {
+            services.GetRequiredService<FinanceDatabase>().Initialize();
+            finance.Start();
+        }
+        catch (DatabaseNewerThanAppException ex)
+        {
+            LogFinanceUnavailable(_log!, ex);
+            finance.MarkUnavailable(ex.Message);
+        }
+        catch (Exception ex) when (ex is Microsoft.Data.Sqlite.SqliteException or IOException or UnauthorizedAccessException)
+        {
+            LogFinanceUnavailable(_log!, ex);
+            finance.MarkUnavailable("Não foi possível abrir o banco de finanças. Os detalhes estão no log do app; seus dados não foram alterados.");
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Módulo de finanças indisponível")]
+    private static partial void LogFinanceUnavailable(ILogger logger, Exception ex);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Inicialização concluída em {ElapsedMs} ms (minimizado: {Minimized}, sem widget: {NoWidget})")]
     private static partial void LogStarted(ILogger logger, int elapsedMs, bool minimized, bool noWidget);
@@ -149,6 +181,8 @@ public partial class App : Application
         services.AddSingleton<INotificationSink>(sp => sp.GetRequiredService<WindowsToastSink>());
         services.AddSingleton<IAgendaStore, SqliteAgendaStore>();
         services.AddSingleton<IReminderLog, SqliteReminderLog>();
+        services.AddSingleton<FinanceDatabase>();
+        services.AddSingleton<IFinanceStore, SqliteFinanceStore>();
         services.AddSingleton(_ => HttpClients.Create());
         services.AddSingleton<IFeedFetcher, HttpFeedFetcher>();
         services.AddSingleton<INewsStore, SqliteNewsStore>();
@@ -169,6 +203,7 @@ public partial class App : Application
         services.AddSingleton<WeatherService>();
         services.AddSingleton<ActivityService>();
         services.AddSingleton<CalendarSubscriptionService>();
+        services.AddSingleton<FinanceService>();
 
         // Plataforma e apresentação
         services.AddSingleton<FullscreenMonitor>();

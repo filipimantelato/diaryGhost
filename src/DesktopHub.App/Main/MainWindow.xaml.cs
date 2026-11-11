@@ -42,6 +42,7 @@ public partial class MainWindow : Window
             [NavNews] = "news",
             [NavCalendar] = "calendar",
             [NavTasks] = "tasks",
+            [NavFinance] = "finance",
             [NavReminders] = "reminders",
             [NavMedia] = "media",
             [NavProductivity] = "productivity",
@@ -50,7 +51,7 @@ public partial class MainWindow : Window
         };
 
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 7";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 8";
 
         SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
         ApplyTextScale();
@@ -101,6 +102,7 @@ public partial class MainWindow : Window
         "news" => new NewsPage(_services.News, _settings, _bus),
         "calendar" => new CalendarPage(_services.Agenda, _bus),
         "tasks" => new TasksPage(_services.Agenda, _bus),
+        "finance" => new FinancePage(_services.Finance, _bus),
         "reminders" => new RemindersPage(_services.Agenda, _services.Reminders, _services.Notifications, _bus),
         "media" => new MediaPage(_media, _settings, _bus),
         "integrations" => new IntegrationsPage(_services),

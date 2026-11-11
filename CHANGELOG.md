@@ -2,6 +2,32 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.8.0] — 2026-11-11 — Fase 8: fundação financeira
+### Adicionado
+- Página **Finanças** (menu lateral, link `diaryghost:finance`):
+  - **Contas e carteiras**: corrente, poupança, carteira digital, dinheiro, investimentos e outras; instituição,
+    moeda, cor, saldo inicial com data, "entra no saldo disponível"; arquivar e reativar; ajustar saldo pelo extrato.
+  - **Lançamentos**: receita, despesa, transferência, estorno (ligado à despesa, sem passar do valor dela) e
+    ajuste de saldo; confirmado ou pendente; forma de pagamento, etiquetas e observações; editar, duplicar,
+    excluir com "desfazer" por 10 s; "Salvar e novo" para lançar vários seguidos.
+  - **Filtros e busca**: mês ou todo o período, conta, categoria (com subcategorias), tipo, situação, faixa de
+    valor e busca sem acentos em descrição, observações, etiquetas e categoria; totais da lista filtrada.
+  - **Categorias** padrão de despesa e receita, com subcategorias; criar, renomear, arquivar e excluir as sem uso.
+  - **Resumo do mês**: saldo em contas, patrimônio, receitas e despesas (confirmadas e pendentes) e resultado,
+    cada um com a definição no próprio cartão.
+  - **Modo privacidade** (botão ou `Ctrl+Shift+H`): oculta todos os valores.
+- Banco próprio `finance.db` (ADR-028), com verificação de integridade, quarentena e backup antes de migrar,
+  como o banco principal. Se ele falhar, só o módulo fica indisponível.
+- Proposta completa do módulo em `docs/FINANCE.md`; ADR-028 a 031.
+- 55 testes novos (275 no total).
+
+### Segurança e correção
+- Dinheiro em centavos inteiros com aritmética verificada; o banco recusa ponto flutuante (tabelas STRICT).
+- Saldos nunca armazenados: saldo inicial + partidas. Transferência e ajuste não contam como receita ou despesa.
+- Cada lançamento e suas partidas são gravados numa única transação; restrições no banco impedem partida sem
+  conta, valor zero e transferência com categoria.
+- Logs só com contagens (há teste que procura valores e descrições nos logs); o módulo não referencia a rede.
+
 ## [0.7.0] — 2026-11-07 — Fase 7: instalação, notificações e acessibilidade
 ### Adicionado
 - `DiaryGhost.exe --install`: instalação por usuário (sem administrador) em `%LOCALAPPDATA%\Programs\DiaryGhost`,

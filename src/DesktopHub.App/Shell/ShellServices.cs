@@ -2,6 +2,7 @@ using DesktopHub.App.Platform;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Agenda;
+using DesktopHub.Core.Finance;
 using DesktopHub.Core.Activity;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.News;
@@ -29,4 +30,5 @@ internal sealed record ShellServices(
     NewsService News,
     WeatherService Weather,
     ActivityService Activity,
-    CalendarSubscriptionService Subscriptions);
+    CalendarSubscriptionService Subscriptions,
+    FinanceService Finance);

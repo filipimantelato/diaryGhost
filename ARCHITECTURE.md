@@ -272,6 +272,20 @@ memória privada de 50 MB (bandeja), 71 MB (widget) e 71 MB (janela principal); 
   da notícia entra como dado, nunca como instrução).
 - Pipe local aceita apenas o usuário atual (ACL do named pipe) e valida o JSON contra o contrato.
 
+## 10a. Módulo Finanças (Fase 8 implementada)
+
+Detalhado em [docs/FINANCE.md](docs/FINANCE.md). Já existem `Core/Finance` (`Money`, modelos, `FinanceService`),
+`Infrastructure/Finance` (`FinanceDatabase`, `FinanceMigrations`, `SqliteFinanceStore`) e `App/Finance` + página
+`FinancePage`. O `SqliteDatabase` passou a aceitar outro arquivo e outra lista de migrações. O que muda na
+arquitetura:
+- Novo módulo `Finance` em Core, Infrastructure e App, no mesmo padrão de portas e adaptadores.
+- **Banco próprio `finance.db`** (mesmo `Migrator`, migrações próprias), sem JOIN com tabelas de outros módulos.
+- Dinheiro como `long` em centavos + moeda; datas financeiras como `DateOnly`; saldos sempre derivados das partidas.
+- Integrações por portas novas: `ICalendarOverlaySource` (vencimentos no calendário, somente leitura) e
+  `IReminderSource` (o `ReminderScheduler` passa a aceitar várias fontes).
+- Nenhuma chamada de rede no módulo (garantida por teste de arquitetura); logs sem valores; widget com
+  valores ocultos por padrão.
+
 ## 11. Estrutura do repositório
 
 ```

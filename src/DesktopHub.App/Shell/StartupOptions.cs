@@ -34,7 +34,7 @@ public sealed record StartupOptions(bool Minimized, bool ShowMain, bool NoWidget
     /// só navegam, nunca executam ações.</summary>
     public static readonly IReadOnlySet<string> LinkPages = new HashSet<string>(StringComparer.Ordinal)
     {
-        "dashboard", "news", "calendar", "tasks", "reminders", "media", "productivity", "integrations", "settings",
+        "dashboard", "news", "calendar", "tasks", "finance", "reminders", "media", "productivity", "integrations", "settings",
     };
 
     /// <summary>"diaryghost:reminders", "diaryghost://reminders/" → "reminders"; qualquer outra coisa → null.</summary>

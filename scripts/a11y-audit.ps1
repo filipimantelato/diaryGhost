@@ -27,7 +27,7 @@ function Window {
   throw 'Janela principal não encontrada'
 }
 
-$pages = 'Dashboard', 'Notícias', 'Calendário', 'Tarefas', 'Lembretes', 'Mídia', 'Produtividade', 'Atividades e integrações', 'Configurações'
+$pages = 'Dashboard', 'Notícias', 'Calendário', 'Tarefas', 'Finanças', 'Lembretes', 'Mídia', 'Produtividade', 'Atividades e integrações', 'Configurações'
 $problems = 0
 $checked = 0
 foreach ($page in $pages) {

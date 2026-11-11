@@ -15,6 +15,13 @@ flowchart LR
   F5 --> F6
   F2 --> F7[Fase 7<br/>Refinamento + instalador]
   F6 --> F7
+  F7 --> F8[Fase 8<br/>Finanças: fundação]
+  F8 --> F9[Fase 9<br/>Finanças: dashboard]
+  F8 --> F10[Fase 10<br/>Finanças: cartões]
+  F9 --> F11[Fase 11<br/>Finanças: planejamento]
+  F10 --> F11
+  F11 --> F12[Fase 12<br/>Finanças: integração]
+  F12 --> F13[Fase 13<br/>Finanças: refinamento]
 ```
 Fases 2 e 3 são independentes entre si; a 3 vem antes da 4 porque a central de notificações nasce nela.
 
@@ -190,3 +197,46 @@ Não entregue (ADR-027):
   Control pode bloquear o executável baixado).
 - **Atualização automática** (sem servidor de distribuição; atualizar = rodar `--install` da versão nova).
 - **Widget expandido com renderização por GPU** e **i18n** (só pt-BR).
+
+---
+
+# Diary Ghost Finance
+
+Módulo de finanças pessoais local-first. A proposta completa (análise da referência, arquitetura, modelo de
+dados e regras de contabilização, interface, segurança e testes) está em [docs/FINANCE.md](docs/FINANCE.md).
+Proposta aprovada em 2026-11-11.
+
+## Fase 8 — Fundação financeira ✅ (2026-11-11)
+Entregue:
+- `Money` (centavos em `long`, aritmética verificada, leitura de "1.234,56"/"1234.56", formatação pt-BR, rateio
+  com o resto na 1ª parte), `finance.db` com migração própria, backup e quarentena (ADR-028).
+- Contas (6 tipos, moeda, cor, saldo inicial com data, disponível ou não, arquivar), categorias padrão com
+  subcategorias (um nível), receitas, despesas, transferências (soma zero), estornos ligados à despesa, ajustes
+  de saldo (categoria de sistema), confirmados ou pendentes, etiquetas, forma de pagamento.
+- Saldos derivados; resumo do mês (saldo em contas, patrimônio, receitas, despesas, resultado), filtros e busca,
+  duplicar, excluir com desfazer, modo privacidade.
+- 275 testes (55 novos: dinheiro, invariantes contábeis, validações, persistência, restrições do banco,
+  atomicidade, logs sem valores, módulo sem rede).
+
+Critérios do MVP financeiro: **1 ✅** (conta), **2 ✅** (receitas e despesas), **3 ✅** (saldo e histórico),
+**4 ✅** (categorias personalizadas), **13 ✅** (fechar e reabrir sem perder dados), **14 ✅** (sem internet: o
+módulo não usa a rede).
+
+Verificado ao vivo (instância isolada): 2 contas, receita, despesa com subcategoria e etiquetas, despesa
+pendente futura, transferência e estorno criados pela interface; saldos conferidos à mão (9.187,53 → 9.200,00
+após estorno de 12,47; 11.000,00 na poupança); transferência fora de receitas e despesas; busca por etiqueta;
+excluir e desfazer; modo privacidade; fechar e reabrir com tudo preservado; auditoria de acessibilidade (240
+controles na varredura padrão + 56 com dados e editor aberto, todos com nome).
+
+Pendências levadas adiante:
+- Painel lateral de edição divide a largura com a lista; em janelas pequenas a lista fica baixa (rolável).
+- Desempenho com 50 mil lançamentos (meta definida na proposta) → Fase 13.
+
+| Fase | Entrega | Critérios do MVP financeiro |
+|---|---|---|
+| 8 — Fundação (A) ✅ | `Money` em centavos, `finance.db`, contas, categorias, lançamentos, transferências, ajustes, saldos derivados, página Lançamentos | 1, 2, 3, 4, 13, 14 |
+| 9 — Dashboard (B) | indicadores com definição formal, Visão geral por mês, gráficos, comparação mensal, modo privacidade, cartões no dashboard | 8 |
+| 10 — Cartões (C) | ciclos com vigência, compras, parcelas, faturas, limite, pagamentos totais e parciais, estornos | 5, 6, 7 |
+| 11 — Planejamento (D) | orçamentos, recorrências, contas e assinaturas, metas (real × planejado), projeções e simulador | 9, 10 |
+| 12 — Integração (E) | lembretes, sobreposição no calendário, painel do widget (valores ocultos), importação CSV/OFX | 11, 12 |
+| 13 — Refinamento (F) | relatórios e CSV, anexos, backup cifrado, avaliação de cifragem e Windows Hello, desempenho, acessibilidade | — |

@@ -36,6 +36,8 @@ Todo controle interativo tem `AutomationProperties.Name` ou conteúdo textual �
 Dashboard · Notícias · Calendário · Agenda e tarefas · Lembretes · Mídia · Produtividade ·
 Atividades e integrações · Configurações. Módulos ainda não implementados mostram uma página que diz
 em qual fase chegam — nunca dados de exemplo.
+Proposto: **Finanças**, com subnavegação Visão geral · Lançamentos · Contas · Cartões · Planejamento ·
+Projeções · Relatórios · Importar (ver [FINANCE.md](FINANCE.md), seção 4).
 
 ## Estados do widget (Modo B)
 Estrutura derivada do vídeo de referência ([análise](VIDEO-ANALYSIS.md)): cabeçalho (painel + data/hora),

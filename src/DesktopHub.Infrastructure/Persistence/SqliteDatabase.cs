@@ -23,20 +23,33 @@ public sealed partial class SqliteDatabase
     private readonly AppPaths _paths;
     private readonly ILogger<SqliteDatabase> _logger;
     private readonly string _connectionString;
+    private readonly string _file;
+    private readonly string _prefix;
+    private readonly IReadOnlyList<Migration> _migrations;
 
     public SqliteDatabase(AppPaths paths, ILogger<SqliteDatabase> logger)
+        : this(paths, logger, paths.DatabaseFile, Migrations.All)
     {
+    }
+
+    /// <summary>Outro arquivo com o mesmo tratamento (integridade, quarentena, backup, migrações), ex.: finance.db.</summary>
+    public SqliteDatabase(AppPaths paths, ILogger<SqliteDatabase> logger, string file, IReadOnlyList<Migration> migrations)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
         _paths = paths;
         _logger = logger;
+        _file = file;
+        _prefix = Path.GetFileNameWithoutExtension(file);
+        _migrations = migrations;
         _connectionString = new SqliteConnectionStringBuilder
         {
-            DataSource = paths.DatabaseFile,
+            DataSource = file,
             Mode = SqliteOpenMode.ReadWriteCreate,
             Pooling = true,
         }.ToString();
     }
 
-    public string FilePath => _paths.DatabaseFile;
+    public string FilePath => _file;
 
     public DatabaseStartupReport Initialize(IReadOnlyList<Migration>? migrations = null)
     {
@@ -58,7 +71,7 @@ public sealed partial class SqliteDatabase
             cmd.ExecuteNonQuery();
         }
 
-        var result = Migrator.Migrate(connection, migrations ?? Migrations.All, fromVersion =>
+        var result = Migrator.Migrate(connection, migrations ?? _migrations, fromVersion =>
         {
             if (fromVersion > 0)
             {
@@ -111,7 +124,7 @@ public sealed partial class SqliteDatabase
     {
         Directory.CreateDirectory(_paths.Corrupt);
         var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        var target = Path.Combine(_paths.Corrupt, $"hub-{stamp}.db");
+        var target = Path.Combine(_paths.Corrupt, $"{_prefix}-{stamp}.db");
         File.Move(FilePath, target, overwrite: false);
         foreach (var suffix in new[] { "-wal", "-shm" })
         {
@@ -127,7 +140,7 @@ public sealed partial class SqliteDatabase
     {
         Directory.CreateDirectory(_paths.Backups);
         var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        var target = Path.Combine(_paths.Backups, $"hub-v{fromVersion}-{stamp}.db");
+        var target = Path.Combine(_paths.Backups, $"{_prefix}-v{fromVersion}-{stamp}.db");
         using (var cmd = connection.CreateCommand())
         {
             // VACUUM INTO gera uma cópia consistente mesmo com WAL.
@@ -136,7 +149,7 @@ public sealed partial class SqliteDatabase
             cmd.ExecuteNonQuery();
         }
 
-        foreach (var old in new DirectoryInfo(_paths.Backups).GetFiles("hub-v*.db")
+        foreach (var old in new DirectoryInfo(_paths.Backups).GetFiles($"{_prefix}-v*.db")
                      .OrderByDescending(f => f.CreationTimeUtc).Skip(MaxBackups))
         {
             old.Delete();

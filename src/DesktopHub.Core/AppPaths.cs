@@ -47,6 +47,9 @@ public sealed class AppPaths
 
     public string Root { get; }
     public string DatabaseFile => Path.Combine(Root, "hub.db");
+
+    /// <summary>Banco próprio do módulo de finanças (ADR-028).</summary>
+    public string FinanceDatabaseFile => Path.Combine(Root, "finance.db");
     public string Logs => Path.Combine(Root, "logs");
     public string Backups => Path.Combine(Root, "backups");
     public string Corrupt => Path.Combine(Root, "corrupt");

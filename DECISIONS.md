@@ -324,5 +324,34 @@ continuam em primeiro plano e funcionam com o app aberto.
   orçamento; trocar a janela em camadas por composição DWM é uma reescrita do widget sem ganho percebido hoje.
 - **i18n:** só pt-BR. Textos estão no código; extrair para recursos `.resx` é o caminho quando houver demanda.
 
+## ADR-028 — Finanças em banco próprio (`finance.db`)
+**Status:** aceita (2026-11-11; ver [docs/FINANCE.md](docs/FINANCE.md))
+
+O módulo financeiro usa um arquivo SQLite separado, com o mesmo `Migrator` e uma lista própria de migrações.
+Isso permite backup e exportação protegidos só do financeiro, cifragem futura só deste arquivo e
+independência do módulo. Custo: dois bancos para abrir e verificar, mas nenhuma consulta precisa cruzar os dois.
+
+## ADR-029 — Sem cifragem do banco no MVP; BitLocker e backups cifrados
+**Status:** aceita (2026-11-11)
+
+SQLCipher com chave DPAPI não protege contra o usuário logado nem contra malware na sessão; só cobre o que o
+BitLocker já cobre. No MVP: ACL da pasta de dados, recomendação de BitLocker e backups `.dgfin` com
+AES-256-GCM e chave derivada de senha (PBKDF2-SHA256). Na Fase 13, reavaliar a cifragem com senha própria e o
+bloqueio por Windows Hello (barreira de interface, não criptografia).
+
+## ADR-030 — Contabilização por partidas: competência, obrigação e caixa separadas
+**Status:** aceita (2026-11-11)
+
+Cada transação tem 1 ou 2 partidas, em contas ou cartões. Compra no cartão = despesa + dívida. Pagamento de
+fatura = transferência da conta para o cartão, sem nova despesa. Saldos nunca são armazenados, só derivados.
+Valores em `long` (centavos). Nas parcelas, o resto da divisão vai na 1ª. Os ciclos de cartão têm regras de
+vigência, para que mudar o fechamento ou o vencimento não mova faturas passadas.
+
+## ADR-031 — Uma moeda base, sem conversão
+**Status:** aceita (2026-11-11)
+
+Contas podem ter outra moeda, mas os totais consolidados usam só a moeda base; as demais aparecem separadas.
+Converter exigiria cotações de um serviço externo, o que contraria o módulo sem rede.
+
 ## Decisões pendentes
 - Nenhuma no momento.

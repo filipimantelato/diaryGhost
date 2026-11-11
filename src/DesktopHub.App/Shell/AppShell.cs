@@ -5,6 +5,7 @@ using DesktopHub.App.Platform;
 using DesktopHub.App.Widget;
 using DesktopHub.Core;
 using DesktopHub.Core.Agenda;
+using DesktopHub.Core.Finance;
 using DesktopHub.Core.Activity;
 using DesktopHub.Core.Events;
 using DesktopHub.Core.News;
@@ -49,6 +50,7 @@ internal sealed partial class AppShell(
     WeatherService weather,
     ActivityService activity,
     CalendarSubscriptionService subscriptions,
+    FinanceService finance,
     ILogger<AppShell> logger) : IDisposable
 {
     private readonly List<IDisposable> _subscriptions = [];
@@ -59,7 +61,7 @@ internal sealed partial class AppShell(
 
     public bool IsExiting => _exiting;
 
-    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders, news, weather, activity, subscriptions);
+    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders, news, weather, activity, subscriptions, finance);
 
     public void Start()
     {
