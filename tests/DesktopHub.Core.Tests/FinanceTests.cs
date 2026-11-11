@@ -37,6 +37,7 @@ internal sealed class MemoryFinanceStore : IFinanceStore
         Contributions = [.. Contributions.Values],
         Scenarios = [.. Scenarios.Values],
         ImportBatches = [.. Batches.Values],
+        Rules = [.. RuleSet.Values],
     };
 
     public void SaveCard(CreditCard card)
@@ -219,6 +220,19 @@ internal sealed class MemoryFinanceStore : IFinanceStore
     }
 
     public Dictionary<Guid, ImportBatch> Batches { get; } = [];
+    public Dictionary<Guid, CategoryRule> RuleSet { get; } = [];
+
+    public void SaveRule(CategoryRule rule)
+    {
+        Guard();
+        RuleSet[rule.Id] = rule;
+    }
+
+    public void DeleteRule(Guid id)
+    {
+        Guard();
+        RuleSet.Remove(id);
+    }
 
     public void SaveImport(ImportBatch batch, IReadOnlyList<FinanceTransaction> transactions)
     {

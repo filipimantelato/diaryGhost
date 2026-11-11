@@ -272,7 +272,7 @@ memória privada de 50 MB (bandeja), 71 MB (widget) e 71 MB (janela principal); 
   da notícia entra como dado, nunca como instrução).
 - Pipe local aceita apenas o usuário atual (ACL do named pipe) e valida o JSON contra o contrato.
 
-## 10a. Módulo Finanças (Fases 8–12 implementadas)
+## 10a. Módulo Finanças (Fases 8–13 implementadas)
 
 Detalhado em [docs/FINANCE.md](docs/FINANCE.md). Já existem `Core/Finance` (`Money`, modelos, `FinanceService`),
 `Infrastructure/Finance` (`FinanceDatabase`, `FinanceMigrations`, `SqliteFinanceStore`) e `App/Finance` + página
@@ -286,7 +286,12 @@ arquitetura:
 - Nenhuma chamada de rede no módulo (garantida por teste de arquitetura); logs sem valores; widget com
   valores ocultos por padrão.
 - Migrações do `finance.db`: 1 fundação, 2 cartões, 3 planejamento (recorrências, orçamentos, metas, cenários),
-  4 importação (lotes e colunas de lote, identificador do banco e impressão digital nos lançamentos).
+  4 importação (lotes e colunas de lote, identificador do banco e impressão digital nos lançamentos), 5 regras de
+  categorização.
+- Fase 13: `FinanceReports.cs` (relatórios, CSV, regras e `ProtectedBackup`, puros) e `FinanceBackupFiles`
+  (Infrastructure: VACUUM INTO, conferência e restauração pendente aplicada em `App.StartFinance` antes de abrir o banco).
+- Tema: `ThemeManager.ApplyTheme` troca os pincéis dos tokens (referenciados com DynamicResource) e avisa
+  `ThemeChanged`; janela principal e widget redesenham o que foi montado em código.
 - Planejamento e projeções ficam em `FinanceService.Planning.cs` e `FinanceProjection.cs`: ocorrências previstas são
   calculadas (nunca gravadas), e a projeção é feita por eventos (lançamentos futuros, vencimentos de fatura,
   recorrências, contribuições planejadas, hipóteses) a partir do saldo de hoje. A página foi dividida em parciais

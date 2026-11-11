@@ -52,6 +52,7 @@ internal sealed partial class AppShell(
     CalendarSubscriptionService subscriptions,
     FinanceService finance,
     IEnumerable<ICalendarOverlaySource> overlays,
+    DesktopHub.Infrastructure.Finance.FinanceBackupFiles financeBackup,
     ILogger<AppShell> logger) : IDisposable
 {
     private readonly List<IDisposable> _subscriptions = [];
@@ -62,7 +63,7 @@ internal sealed partial class AppShell(
 
     public bool IsExiting => _exiting;
 
-    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders, news, weather, activity, subscriptions, finance, [.. overlays]);
+    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders, news, weather, activity, subscriptions, finance, [.. overlays], financeBackup);
 
     public void Start()
     {

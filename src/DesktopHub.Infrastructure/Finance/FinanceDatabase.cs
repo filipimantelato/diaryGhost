@@ -273,5 +273,16 @@ public static class FinanceMigrations
             CREATE INDEX ix_fin_transactions_import ON fin_transactions (import_batch_id) WHERE import_batch_id IS NOT NULL;
             CREATE INDEX ix_fin_transactions_fingerprint ON fin_transactions (fingerprint) WHERE fingerprint IS NOT NULL;
             """),
+
+        new(5, "regras_de_categoria", """
+            -- Regras de categorização: descrição que contém o texto → categoria (aplicadas na importação e sob demanda).
+            CREATE TABLE fin_rules (
+                id             TEXT    NOT NULL PRIMARY KEY,
+                pattern        TEXT    NOT NULL CHECK (length(pattern) BETWEEN 2 AND 80),
+                category_id    TEXT    NOT NULL REFERENCES fin_categories (id) ON DELETE CASCADE,
+                sort_order     INTEGER NOT NULL,
+                created_at_ms  INTEGER NOT NULL
+            ) STRICT;
+            """),
     ];
 }

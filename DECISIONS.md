@@ -403,5 +403,19 @@ Converter exigiria cotações de um serviço externo, o que contraria o módulo 
   desmarcada. Lote com SHA-256 do arquivo; desfazer remove os lançamentos do lote (inclusive editados) e marca o lote.
 - **Widget**: valores ocultos por padrão, revelar é temporário (30 s) e o modo privacidade sempre prevalece.
 
+## ADR-035 — Proteção dos dados financeiros: backup cifrado sim; banco cifrado e Windows Hello depois
+**Data:** 2026-11-11 · **Status:** aceita
+
+- **Backup protegido**: o arquivo exportado é o que sai do computador (pendrive, nuvem), então é ele que é cifrado:
+  AES-256-GCM, chave por PBKDF2-SHA256 com 600 mil iterações e sal aleatório; a senha nunca é guardada nem registrada
+  e não há recuperação. A tag do GCM detecta senha errada e arquivo alterado.
+- **Restaurar** nunca troca o banco aberto: o backup é decifrado, conferido (integridade, tabelas, versão não mais nova
+  que o app) e fica pendente; na abertura seguinte o banco atual vai para `backups/` e o restaurado entra no lugar.
+- **Banco inteiro cifrado (SQLCipher)** e **bloqueio com Windows Hello**: avaliados e adiados. O SQLCipher troca o
+  provedor SQLite e exige guardar a chave (DPAPI protege contra outro usuário, não contra quem usa a sua sessão); o
+  Hello protege a tela, não o arquivo. Com BitLocker + permissões da pasta + backups cifrados, o ganho não paga a
+  complexidade agora; reavaliar se houver sincronização entre computadores.
+- **CSV** é exportação explícita e avisada como "sem proteção", com células de texto neutralizadas contra fórmulas.
+
 ## Decisões pendentes
 - Nenhuma no momento.

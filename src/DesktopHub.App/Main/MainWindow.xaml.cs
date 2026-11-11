@@ -51,7 +51,7 @@ public partial class MainWindow : Window
         };
 
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 12";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 13";
 
         SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle, !Theme.ThemeManager.IsLight);
         Theme.ThemeManager.ThemeChanged += OnThemeChanged;
@@ -132,7 +132,7 @@ public partial class MainWindow : Window
         "news" => new NewsPage(_services.News, _settings, _bus),
         "calendar" => new CalendarPage(_services.Agenda, _bus, _services.Overlays),
         "tasks" => new TasksPage(_services.Agenda, _bus),
-        "finance" => new FinancePage(_services.Finance, _bus),
+        "finance" => new FinancePage(_services.Finance, _bus, _services.FinanceBackup),
         "reminders" => new RemindersPage(_services.Agenda, _services.Reminders, _services.Notifications, _bus),
         "media" => new MediaPage(_media, _settings, _bus),
         "integrations" => new IntegrationsPage(_services),

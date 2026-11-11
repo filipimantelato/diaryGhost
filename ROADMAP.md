@@ -387,6 +387,43 @@ Pendências levadas adiante:
 - Importar fatura de cartão (OFX/CSV do cartão) para conferir com a fatura calculada → Fase 13.
 - Regras de categorização automática além da sugestão pelo histórico → Fase 13.
 
+## Ajustes visuais (2026-11-11)
+- **Modo claro e escuro** no app inteiro (janela, widget e barra de título), trocado na hora pelo sol/lua na barra
+  lateral ou em Configurações › Geral. Os tokens de cor passaram a ser `DynamicResource`; telas montadas em código são
+  redesenhadas ao trocar.
+- **Finanças**: as abas ficam sempre no mesmo lugar, logo abaixo do título (antes desciam quando o resumo aparecia);
+  barra de abas em pílula; Visão geral organizada em seções nomeadas (Resumo, Metas, Tendências, Indicadores) com
+  ícones coloridos por tipo de informação e cores vivas na barra do saldo e nos dias de vencimento, seguindo a
+  referência visual enviada.
+
+## Fase 13 — Refinamento ✅ (2026-11-11)
+Entregue:
+- **Relatórios** (aba própria): este mês, 3, 6 ou 12 meses, este ano ou ano passado; receitas, despesas, resultado e
+  contas fixas com comparação ao período anterior de mesma duração; mês a mês (gráfico e tabela, com saldo do
+  disponível no fim de cada mês); gastos por categoria com variação; 10 maiores despesas; o que já está comprometido em
+  faturas nos próximos 12 meses.
+- **Exportar CSV** dos lançamentos do período no padrão brasileiro (";" e vírgula decimal, UTF-8 com BOM), com proteção
+  contra fórmulas maliciosas; o próprio leitor de extratos lê o arquivo de volta (ida e volta testada).
+- **Regras de categorização** ("descrição contém → categoria"), usadas na importação antes do histórico e aplicáveis aos
+  lançamentos sem categoria. Migração 5 do `finance.db`.
+- **Backup protegido** (`.dgfin`): cópia consistente do banco (VACUUM INTO) cifrada com AES-256-GCM e chave da senha
+  (PBKDF2-SHA256, 600 mil iterações). Restaurar confere senha, integridade, tabelas e versão e fica pendente até a
+  próxima abertura, quando o banco atual vai para `backups/` e o restaurado entra no lugar (ADR-035).
+- **Desempenho com 50 mil lançamentos** (teste automatizado): visão geral 78 ms, saldo dia a dia 104 ms, lançamentos do
+  mês 3 ms, busca em tudo 157 ms, faturas 1 ms, orçamento 20 ms, projeção de 12 meses 56 ms, relatório de 12 meses 97 ms.
+- 359 testes (5 novos no núcleo e 3 de persistência): relatório com período anterior, CSV seguro e ida e volta, regras,
+  cifra (ida e volta, senha errada, arquivo alterado), exportar → conferir → restaurar na abertura, arquivo que não é
+  banco recusado, regras após reabrir, desempenho.
+
+Verificado ao vivo: aba Relatórios (6 meses) com receitas 8.000,00, despesas 2.696,30, contas fixas 203,30/mês, faturas
+comprometidas de dezembro/2026 a novembro/2027; regra "MERCADO" → Alimentação criada; nenhum controle sem nome em
+Relatórios e Categorias.
+
+Avaliado e não feito agora (ADR-035):
+- Cifrar o banco inteiro (SQLCipher) e bloquear o módulo com Windows Hello: mantidos para depois; a proteção em repouso
+  continua sendo BitLocker + permissões da pasta + backups cifrados.
+- Anexos (comprovantes), importar fatura de cartão para conferência e PDF dos relatórios: ficam como próximos passos.
+
 | Fase | Entrega | Critérios do MVP financeiro |
 |---|---|---|
 | 8 — Fundação (A) ✅ | `Money` em centavos, `finance.db`, contas, categorias, lançamentos, transferências, ajustes, saldos derivados, página Lançamentos | 1, 2, 3, 4, 13, 14 |
@@ -394,4 +431,4 @@ Pendências levadas adiante:
 | 10 — Cartões (C) ✅ | ciclos com vigência, compras, parcelas, faturas, limite, pagamentos totais e parciais, estornos | 5, 6, 7 |
 | 11 — Planejamento (D) ✅ | orçamentos, recorrências, contas e assinaturas, metas (real × planejado), projeções e simulador | 9, 10 |
 | 12 — Integração (E) ✅ | lembretes, sobreposição no calendário, painel do widget (valores ocultos), importação CSV/OFX | 11, 12 |
-| 13 — Refinamento (F) | relatórios e CSV, anexos, backup cifrado, avaliação de cifragem e Windows Hello, desempenho, acessibilidade | — |
+| 13 — Refinamento (F) ✅ | relatórios e CSV, anexos, backup cifrado, avaliação de cifragem e Windows Hello, desempenho, acessibilidade | — |

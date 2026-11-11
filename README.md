@@ -6,7 +6,7 @@ Central pessoal residente para Windows 11: widget flutuante estilo "ilha", bande
 aplicação completa — leve, local-first e sem telemetria.
 
 > **Estado:** Fases 1 (fundação), 2 (widget e mídia), 3 (produtividade e notificações), 4 (agenda e
-> lembretes), 5 (notícias, clima e dashboard), 6 (integrações) e 7 (instalação e acessibilidade) concluídas; módulo Finanças nas Fases 8–12.
+> lembretes), 5 (notícias, clima e dashboard), 6 (integrações) e 7 (instalação e acessibilidade) concluídas; módulo Finanças nas Fases 8–13. Modo claro e escuro (sol/lua na barra lateral).
 > O que ficou de fora (OAuth, assinatura de código, atualização automática) está em [ROADMAP.md](ROADMAP.md).
 > Módulos ainda não implementados dizem isso explicitamente na interface.
 
@@ -43,7 +43,8 @@ aplicação completa — leve, local-first e sem telemetria.
   altera seus dados. Visão geral em grade de cartões: saldo previsto explicado, contas a pagar por dia, cartão com
   fatura e próximas faturas, orçamento e metas. **Integração**: avisos de vencimento (sem valores no aviso),
   vencimentos no Calendário, painel Finanças no widget (valores ocultos até você revelar) e **importação de extratos**
-  OFX e CSV com detecção de duplicatas e "desfazer o lote".
+  OFX e CSV com detecção de duplicatas e "desfazer o lote". **Relatórios** por período com exportação CSV, regras de
+  categorização e **backup protegido por senha**.
 - **Calendário local**: dia e semana em grade de horas, mês e lista; eventos de dia inteiro ou com
   horário, recorrentes (todo dia, dias úteis, semanal, "2ª terça do mês", "último dia do mês", anual ou
   RRULE), com exceções e até 2 avisos. Horário de verão e fusos tratados corretamente.

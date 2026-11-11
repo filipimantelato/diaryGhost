@@ -32,4 +32,5 @@ internal sealed record ShellServices(
     ActivityService Activity,
     CalendarSubscriptionService Subscriptions,
     FinanceService Finance,
-    IReadOnlyList<ICalendarOverlaySource> Overlays);
+    IReadOnlyList<ICalendarOverlaySource> Overlays,
+    DesktopHub.Infrastructure.Finance.FinanceBackupFiles FinanceBackup);

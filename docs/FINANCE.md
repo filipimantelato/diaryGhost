@@ -23,6 +23,8 @@ roadmap e critérios de teste.
 > A **Fase 12 (integração)** também (ADR-034): avisos de vencimento pelo agendador de lembretes (nova porta
 > `IReminderSource`), vencimentos sobrepostos no calendário (`ICalendarOverlaySource`), painel do widget com valores
 > ocultos e importação de extratos OFX/CSV (só contas; importar fatura de cartão fica para depois). As demais seções
+> A **Fase 13 (refinamento)** também (ADR-035): relatórios, exportação CSV, regras de categorização, backup protegido
+> por senha e teste de desempenho com 50 mil lançamentos; anexos, PDF, banco cifrado e Windows Hello ficaram para depois.
 > descrevem o que vem nas próximas fases.
 
 > **Nomes.** A especificação fala em "Orbit" e "Orbit Learn". Este repositório é o **Diary Ghost**, e não há

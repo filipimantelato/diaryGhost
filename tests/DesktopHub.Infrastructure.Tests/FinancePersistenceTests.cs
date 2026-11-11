@@ -500,4 +500,58 @@ public sealed class FinancePersistenceTests
         Assert.Equal(100_000, third.Balance(bank, new DateOnly(2026, 11, 15)));
         Assert.Contains(new SqliteFinanceStore(OpenDb(dir), NullLogger<SqliteFinanceStore>.Instance).AuditLog(), e => e.Action == "undo" && e.Entity == "import");
     }
+
+    [Fact]
+    public void Rules_survive_reopening()
+    {
+        using var dir = new TempDataDir();
+        var s = Service(OpenDb(dir));
+        var rule = s.SaveRule(null, "uber", Cat(s, "Aplicativos e táxi"));
+        SqliteConnection.ClearAllPools();
+        var again = Service(OpenDb(dir));
+        Assert.Equal(rule, Assert.Single(again.Rules));
+    }
+
+    [Fact]
+    public void Protected_backup_exports_stages_and_restores_on_next_start()
+    {
+        using var dir = new TempDataDir();
+        var db = OpenDb(dir);
+        var s = Service(db);
+        var bank = s.SaveAccount(s.NewAccount() with { Name = "Banco", OpeningBalance = 50_000, OpeningDate = new DateOnly(2026, 1, 1) }).Id;
+        s.Save(new TransactionDraft { Kind = TransactionKind.Expense, Date = new DateOnly(2026, 11, 2), Description = "Antes do backup", Amount = 1_000, AccountId = bank });
+        var files = new FinanceBackupFiles(dir.Paths, db, NullLogger<FinanceBackupFiles>.Instance);
+        var target = Path.Combine(dir.Paths.Root, "copia.dgfin");
+        files.Export(target, "senha-forte-1");
+        Assert.DoesNotContain("Antes do backup", File.ReadAllText(target), StringComparison.Ordinal); // cifrado
+
+        // Depois do backup, mais um lançamento (que a restauração deve desfazer).
+        s.Save(new TransactionDraft { Kind = TransactionKind.Expense, Date = new DateOnly(2026, 11, 3), Description = "Depois do backup", Amount = 2_000, AccountId = bank });
+        Assert.Throws<FinanceValidationException>(() => files.StageRestore(target, "senha-errada"));
+        Assert.False(files.HasPendingRestore);
+        var (accounts, transactions) = files.StageRestore(target, "senha-forte-1");
+        Assert.Equal((1, 1), (accounts, transactions));
+        Assert.True(files.HasPendingRestore);
+
+        SqliteConnection.ClearAllPools();
+        var safety = files.ApplyPendingRestore(); // o que o app faz ao abrir, antes de inicializar o banco
+        Assert.NotNull(safety);
+        Assert.True(File.Exists(safety));
+        Assert.False(files.HasPendingRestore);
+        var restored = Service(OpenDb(dir));
+        Assert.Equal(["Antes do backup"], restored.Transactions.Select(t => t.Description).ToArray());
+        Assert.Equal(49_000, restored.Balance(bank, new DateOnly(2026, 11, 30)));
+    }
+
+    [Fact]
+    public void Restore_rejects_files_that_are_not_finance_databases()
+    {
+        using var dir = new TempDataDir();
+        var db = OpenDb(dir);
+        var files = new FinanceBackupFiles(dir.Paths, db, NullLogger<FinanceBackupFiles>.Instance);
+        var fake = Path.Combine(dir.Paths.Root, "falso.dgfin");
+        File.WriteAllBytes(fake, ProtectedBackup.Encrypt("não é sqlite"u8.ToArray(), "senha-forte-1"));
+        Assert.Throws<FinanceValidationException>(() => files.StageRestore(fake, "senha-forte-1"));
+        Assert.False(files.HasPendingRestore);
+    }
 }

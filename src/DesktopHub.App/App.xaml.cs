@@ -129,6 +129,8 @@ public partial class App : Application
         var finance = services.GetRequiredService<FinanceService>();
         try
         {
+            // Restauração de backup pedida na sessão anterior: entra antes de abrir o banco (o atual vai para backups/).
+            services.GetRequiredService<FinanceBackupFiles>().ApplyPendingRestore();
             services.GetRequiredService<FinanceDatabase>().Initialize();
             finance.Start();
         }
@@ -192,6 +194,7 @@ public partial class App : Application
         services.AddSingleton<IReminderLog, SqliteReminderLog>();
         services.AddSingleton<FinanceDatabase>();
         services.AddSingleton<IFinanceStore, SqliteFinanceStore>();
+        services.AddSingleton<FinanceBackupFiles>();
         services.AddSingleton(_ => HttpClients.Create());
         services.AddSingleton<IFeedFetcher, HttpFeedFetcher>();
         services.AddSingleton<INewsStore, SqliteNewsStore>();

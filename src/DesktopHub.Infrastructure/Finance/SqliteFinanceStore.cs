@@ -221,6 +221,14 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
             ScenarioJson.Parse(r.GetString(r.GetOrdinal("items"))),
             Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
             Ms(r.GetInt64(r.GetOrdinal("updated_at_ms")))));
+        var categoryRules = Read(connection, "SELECT * FROM fin_rules;", r => new CategoryRule
+        {
+            Id = Guid.Parse(r.GetString(r.GetOrdinal("id"))),
+            Pattern = r.GetString(r.GetOrdinal("pattern")),
+            CategoryId = Guid.Parse(r.GetString(r.GetOrdinal("category_id"))),
+            SortOrder = (int)r.GetInt64(r.GetOrdinal("sort_order")),
+            CreatedAt = Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
+        });
         var batches = Read(connection, "SELECT * FROM fin_import_batches;", r => new ImportBatch
         {
             Id = Guid.Parse(r.GetString(r.GetOrdinal("id"))),
@@ -245,6 +253,7 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
             Contributions = contributions,
             Scenarios = scenarios,
             ImportBatches = batches,
+            Rules = categoryRules,
         };
     }
 
@@ -446,6 +455,25 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
             }
         });
     }
+
+    public void SaveRule(CategoryRule rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        Write((connection, tx) => Execute(connection, tx, """
+            INSERT INTO fin_rules (id, pattern, category_id, sort_order, created_at_ms) VALUES ($id, $pattern, $category, $sort, $created)
+            ON CONFLICT(id) DO UPDATE SET pattern = excluded.pattern, category_id = excluded.category_id, sort_order = excluded.sort_order;
+            """, p =>
+        {
+            p.AddWithValue("$id", rule.Id.ToString());
+            p.AddWithValue("$pattern", rule.Pattern);
+            p.AddWithValue("$category", rule.CategoryId.ToString());
+            p.AddWithValue("$sort", rule.SortOrder);
+            p.AddWithValue("$created", rule.CreatedAt.ToUnixTimeMilliseconds());
+        }));
+    }
+
+    public void DeleteRule(Guid id) => Write((connection, tx) =>
+        Execute(connection, tx, "DELETE FROM fin_rules WHERE id = $id;", p => p.AddWithValue("$id", id.ToString())));
 
     public void UndoImport(Guid batchId, DateTimeOffset at) => Write((connection, tx) =>
     {

@@ -24,6 +24,7 @@ public sealed partial class FinanceService
         _contributions = [.. snapshot.Contributions];
         _scenarios = [.. snapshot.Scenarios];
         _batches = [.. snapshot.ImportBatches];
+        _rules = [.. snapshot.Rules];
     }
 
     // ---------- Recorrências ----------

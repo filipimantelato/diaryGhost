@@ -2,6 +2,19 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.13.0] — 2026-11-11 — Fase 13: refinamento (e modo claro)
+### Adicionado
+- **Modo claro e escuro** para o app inteiro e o widget, trocado na hora (sol/lua na barra lateral ou Configurações).
+- Aba **Relatórios** em Finanças: períodos prontos, comparação com o período anterior, mês a mês, categorias com
+  variação, maiores despesas e o que já está comprometido em faturas.
+- **Exportar lançamentos em CSV** (padrão brasileiro, protegido contra fórmulas).
+- **Regras de categorização** ("descrição contém → categoria") na aba Categorias, usadas na importação.
+- **Backup protegido por senha** (`.dgfin`, AES-256) e restauração conferida que entra na próxima abertura.
+- Migração 5 do banco de finanças e ADR-035.
+
+### Alterado
+- Finanças: abas fixas logo abaixo do título (não pulam mais), Visão geral em seções com ícones coloridos.
+
 ## [0.12.0] — 2026-11-11 — Fase 12: integração
 ### Adicionado
 - **Avisos de vencimento** de contas, assinaturas e faturas de cartão como notificações do Windows (N dias antes, às

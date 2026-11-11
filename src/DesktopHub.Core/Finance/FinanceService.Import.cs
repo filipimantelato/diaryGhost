@@ -71,7 +71,8 @@ public sealed partial class FinanceService
             var repeat = repeats.GetValueOrDefault(key);
             repeats[key] = repeat + 1;
             var fingerprint = Fingerprint(accountId, row, repeat);
-            var suggestion = categories.GetValueOrDefault((DescriptionKey(row.Description), row.Amount > 0));
+            // Regra do usuário primeiro; depois, a categoria usada da última vez com a mesma descrição.
+            var suggestion = MatchRule(row.Description, row.Amount > 0) ?? categories.GetValueOrDefault((DescriptionKey(row.Description), row.Amount > 0));
             if (row.Date < account.OpeningDate)
             {
                 result.Add(new ImportCandidate(row, fingerprint, ImportRowStatus.BeforeOpening, null, suggestion));

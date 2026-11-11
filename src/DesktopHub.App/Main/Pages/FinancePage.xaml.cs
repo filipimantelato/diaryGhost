@@ -28,6 +28,7 @@ public partial class FinancePage : UserControl, IDisposable
         Planning,
         Projections,
         Import,
+        Reports,
         Categories,
     }
 
@@ -37,6 +38,7 @@ public partial class FinancePage : UserControl, IDisposable
     private static (int Year, int Month)? s_lastMonth;
 
     private readonly FinanceService _finance;
+    private readonly DesktopHub.Infrastructure.Finance.FinanceBackupFiles? _backup;
     private readonly List<IDisposable> _subscriptions = [];
     private readonly DispatcherTimer _undoTimer = new() { Interval = TimeSpan.FromSeconds(10) };
     private Tab _tab = s_lastTab;
@@ -48,9 +50,10 @@ public partial class FinancePage : UserControl, IDisposable
     private DeletedTransaction? _undo;
     private bool _ready;
 
-    internal FinancePage(FinanceService finance, IEventBus bus)
+    internal FinancePage(FinanceService finance, IEventBus bus, DesktopHub.Infrastructure.Finance.FinanceBackupFiles? backup = null)
     {
         _finance = finance;
+        _backup = backup;
         InitializeComponent();
         var today = finance.IsAvailable ? finance.Today : DateOnly.FromDateTime(DateTime.Today);
         (_year, _month) = s_lastMonth ?? (today.Year, today.Month);
@@ -86,7 +89,7 @@ public partial class FinancePage : UserControl, IDisposable
     {
         FilterBar.Visibility = Visibility.Collapsed;
         NewButton.IsEnabled = false;
-        foreach (var b in new UIElement[] { PrevMonth, NextMonth, TodayButton, TabOverview, TabTransactions, TabAccounts, TabCards, TabPlanning, TabProjections, TabImport, TabCategories })
+        foreach (var b in new UIElement[] { PrevMonth, NextMonth, TodayButton, TabOverview, TabTransactions, TabAccounts, TabCards, TabPlanning, TabProjections, TabImport, TabReports, TabCategories })
         {
             b.IsEnabled = false;
         }
@@ -144,15 +147,15 @@ public partial class FinancePage : UserControl, IDisposable
         }
         s_lastTab = _tab;
         s_lastMonth = (_year, _month);
-        foreach (var (button, tab) in new[] { (TabOverview, Tab.Overview), (TabTransactions, Tab.Transactions), (TabAccounts, Tab.Accounts), (TabCards, Tab.Cards), (TabPlanning, Tab.Planning), (TabProjections, Tab.Projections), (TabImport, Tab.Import), (TabCategories, Tab.Categories) })
+        foreach (var (button, tab) in new[] { (TabOverview, Tab.Overview), (TabTransactions, Tab.Transactions), (TabAccounts, Tab.Accounts), (TabCards, Tab.Cards), (TabPlanning, Tab.Planning), (TabProjections, Tab.Projections), (TabImport, Tab.Import), (TabReports, Tab.Reports), (TabCategories, Tab.Categories) })
         {
             button.DataContext = new ChipState(tab == _tab);
         }
         // A visão geral tem seus próprios cartões: sem o resumo de cima e sem a moldura da lista.
-        var overview = _tab is Tab.Overview or Tab.Planning or Tab.Projections or Tab.Import;
+        var overview = _tab is Tab.Overview or Tab.Planning or Tab.Projections or Tab.Import or Tab.Reports;
         foreach (var e in new UIElement[] { PrevMonth, NextMonth, MonthText })
         {
-            e.Visibility = _tab is Tab.Projections or Tab.Import ? Visibility.Collapsed : Visibility.Visible;
+            e.Visibility = _tab is Tab.Projections or Tab.Import or Tab.Reports ? Visibility.Collapsed : Visibility.Visible;
         }
         SummaryGrid.Visibility = overview ? Visibility.Collapsed : Visibility.Visible;
         ListCard.Background = overview ? Brushes.Transparent : FinanceUi.Res("SurfaceBrush");
@@ -162,7 +165,7 @@ public partial class FinancePage : UserControl, IDisposable
         PrivacyButton.Content = FinanceUi.Privacy ? "" : "";
         MonthText.Text = FinanceUi.MonthTitle(_year, _month);
         var today = _finance.Today;
-        TodayButton.Visibility = today.Year == _year && today.Month == _month || _tab is Tab.Projections or Tab.Import ? Visibility.Collapsed : Visibility.Visible;
+        TodayButton.Visibility = today.Year == _year && today.Month == _month || _tab is Tab.Projections or Tab.Import or Tab.Reports ? Visibility.Collapsed : Visibility.Visible;
         FilterBar.Visibility = _tab == Tab.Transactions ? Visibility.Visible : Visibility.Collapsed;
         RenderSummary();
 
@@ -190,6 +193,9 @@ public partial class FinancePage : UserControl, IDisposable
                 break;
             case Tab.Import:
                 RenderImport();
+                break;
+            case Tab.Reports:
+                RenderReports();
                 break;
             default:
                 RenderTransactions();
@@ -1026,6 +1032,7 @@ public partial class FinancePage : UserControl, IDisposable
         RenderCategoryKind(CategoryKind.Expense);
         ListPanel.Children.Add(SectionHeader("Categorias de receita"));
         RenderCategoryKind(CategoryKind.Income);
+        RenderRules();
         FooterText.Text = "Categorias em uso não podem ser excluídas: arquive para escondê-las sem perder o histórico.";
     }
 

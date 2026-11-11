@@ -224,6 +224,7 @@ public sealed record FinanceSnapshot(
     public IReadOnlyList<GoalContribution> Contributions { get; init; } = [];
     public IReadOnlyList<SavedScenario> Scenarios { get; init; } = [];
     public IReadOnlyList<ImportBatch> ImportBatches { get; init; } = [];
+    public IReadOnlyList<CategoryRule> Rules { get; init; } = [];
 }
 
 /// <summary>Persistência do módulo. Cada método é atômico (uma transação SQLite).</summary>
@@ -290,6 +291,10 @@ public interface IFinanceStore
 
     /// <summary>Marca o lote como desfeito e remove os lançamentos dele.</summary>
     void UndoImport(Guid batchId, DateTimeOffset at);
+
+    void SaveRule(CategoryRule rule);
+
+    void DeleteRule(Guid id);
 }
 
 /// <summary>Algo mudou no módulo de finanças (telas recalculam; nada é enviado para fora).</summary>
