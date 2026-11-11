@@ -315,3 +315,155 @@ internal sealed class BalanceChart : FrameworkElement
         }
     }
 }
+
+/// <summary>
+/// Barra de progresso em camadas: real (cheio), previsto/planejado (cheio claro) e o resto; uma marca opcional no limite
+/// quando o valor passa dele. Usada no orçamento (gasto × limite) e nas metas (guardado × alvo).
+/// </summary>
+internal static class Meter
+{
+    public static FrameworkElement Build(long actual, long planned, long total, Brush actualBrush, string automationName, double height = 10)
+    {
+        var grid = new Grid { Height = height, Margin = new Thickness(0, 6, 0, 0) };
+        var track = new Border { Background = FinanceUi.Res("SurfaceElevatedBrush"), CornerRadius = new CornerRadius(height / 2) };
+        grid.Children.Add(track);
+        if (total > 0)
+        {
+            // Escala até o maior entre o total e o que já passou dele (estouro aparece além da marca).
+            var scale = Math.Max(total, Math.Max(0, actual) + Math.Max(0, planned));
+            var a = (double)Math.Clamp(actual, 0, scale) / scale;
+            var p = (double)Math.Clamp(planned, 0, scale - Math.Clamp(actual, 0, scale)) / scale;
+            var bars = new Grid();
+            bars.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(a, GridUnitType.Star) });
+            bars.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(p, GridUnitType.Star) });
+            bars.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(0, 1 - a - p), GridUnitType.Star) });
+            bars.Children.Add(new Border { Background = actualBrush, CornerRadius = new CornerRadius(height / 2, p > 0 ? 0 : height / 2, p > 0 ? 0 : height / 2, height / 2) });
+            if (p > 0)
+            {
+                var plannedBrush = actualBrush.Clone();
+                plannedBrush.Opacity = 0.35;
+                var planBar = new Border { Background = plannedBrush, BorderBrush = actualBrush, BorderThickness = new Thickness(0, 1, 1, 1), CornerRadius = new CornerRadius(0, height / 2, height / 2, 0) };
+                Grid.SetColumn(planBar, 1);
+                bars.Children.Add(planBar);
+            }
+            grid.Children.Add(bars);
+            if (scale > total)
+            {
+                // Marca do limite (100%).
+                var marker = new Grid();
+                marker.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(total, GridUnitType.Star) });
+                marker.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(scale - total, GridUnitType.Star) });
+                var line = new Border { Width = 2, Margin = new Thickness(0, -3, 0, -3), HorizontalAlignment = HorizontalAlignment.Right, Background = FinanceUi.Res("TextPrimaryBrush") };
+                marker.Children.Add(line);
+                grid.Children.Add(marker);
+            }
+        }
+        AutomationProperties.SetName(grid, automationName);
+        grid.ToolTip = automationName;
+        return grid;
+    }
+}
+
+/// <summary>
+/// Linha do disponível projetado (cheia) e, quando há hipóteses, a linha simulada (tracejada, cor de aviso). Sem eixo
+/// de valores: os pontos importantes vão em texto ao lado (e o modo privacidade não vaza valores pelo gráfico).
+/// </summary>
+internal sealed class ProjectionChart : FrameworkElement
+{
+    private readonly IReadOnlyList<ProjectionPoint> _points;
+    private readonly bool _simulated;
+    private readonly Pen _baseline;
+    private readonly Pen _simulation;
+    private readonly Pen _zero;
+    private readonly Pen _month;
+    private readonly Brush _label;
+    private readonly Typeface _typeface = new("Segoe UI");
+
+    public ProjectionChart(Projection projection, string currency)
+    {
+        ArgumentNullException.ThrowIfNull(projection);
+        _points = projection.Points;
+        _simulated = projection.HasSimulation;
+        Height = 180;
+        var accent = (Brush)Application.Current.FindResource("AccentBrush");
+        _baseline = new Pen(accent, 2) { LineJoin = PenLineJoin.Round };
+        _simulation = new Pen(FinanceUi.Res("WarningBrush"), 2) { DashStyle = new DashStyle([3, 2], 0), LineJoin = PenLineJoin.Round };
+        _zero = new Pen(FinanceUi.Res("BorderStrongBrush"), 1);
+        _month = new Pen(FinanceUi.Res("BorderBrush"), 1) { DashStyle = new DashStyle([1, 3], 0) };
+        _label = FinanceUi.Res("TextTertiaryBrush");
+        var low = projection.Lowest;
+        var name = $"Disponível projetado de {FinanceUi.Date(projection.From)} a {FinanceUi.Date(projection.To)}: começa em {FinanceUi.Amount(_points[0].Baseline, currency)}, " +
+            $"termina em {FinanceUi.Amount(_points[^1].Baseline, currency)}, menor {FinanceUi.Amount(low.Baseline, currency)} em {FinanceUi.Date(low.Date)}";
+        if (_simulated)
+        {
+            var sl = projection.LowestSimulated;
+            name += $". Com a simulação: termina em {FinanceUi.Amount(_points[^1].Simulated, currency)}, menor {FinanceUi.Amount(sl.Simulated, currency)} em {FinanceUi.Date(sl.Date)}";
+        }
+        AutomationProperties.SetName(this, name);
+        ToolTip = name;
+    }
+
+    protected override void OnRender(DrawingContext dc)
+    {
+        ArgumentNullException.ThrowIfNull(dc);
+        if (_points.Count < 2 || ActualWidth < 20)
+        {
+            return;
+        }
+        var values = _points.Select(p => p.Baseline).Concat(_simulated ? _points.Select(p => p.Simulated) : []).ToList();
+        // Escala pelos dados (com folga), não a partir de zero: a variação é o que importa. Zero aparece só se estiver no intervalo.
+        long min = values.Min(), max = values.Max();
+        var pad = Math.Max(1, (max - min) / 8);
+        if (max == min)
+        {
+            pad = Math.Max(100, Math.Abs(max) / 10);
+        }
+        min -= pad;
+        max += pad;
+        const double top = 8, bottom = 18;
+        var h = ActualHeight - top - bottom;
+        var w = ActualWidth;
+        double X(int i) => i * w / (_points.Count - 1);
+        double Y(long v) => top + (1 - ((v - min) / (double)(max - min))) * h;
+        var dpi = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        void Label(string text, double x, TextAlignment align)
+        {
+            var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, _typeface, 11, _label, dpi) { TextAlignment = align };
+            dc.DrawText(ft, new Point(x, ActualHeight - 14));
+        }
+        // Início de cada mês (a partir do segundo), com o nome abreviado.
+        var longRange = _points.Count > 40;
+        for (var i = 1; i < _points.Count; i++)
+        {
+            if (_points[i].Date.Day == 1)
+            {
+                dc.DrawLine(_month, new Point(X(i), top), new Point(X(i), top + h));
+                if (longRange)
+                {
+                    Label(_points[i].Date.ToString("MMM", FinanceUi.PtBr).TrimEnd('.'), X(i) + 2, TextAlignment.Left);
+                }
+            }
+        }
+        if (min < 0 && max > 0)
+        {
+            dc.DrawLine(_zero, new Point(0, Y(0)), new Point(w, Y(0)));
+        }
+        for (var i = 1; i < _points.Count; i++)
+        {
+            dc.DrawLine(_baseline, new Point(X(i - 1), Y(_points[i - 1].Baseline)), new Point(X(i), Y(_points[i].Baseline)));
+        }
+        if (_simulated)
+        {
+            for (var i = 1; i < _points.Count; i++)
+            {
+                dc.DrawLine(_simulation, new Point(X(i - 1), Y(_points[i - 1].Simulated)), new Point(X(i), Y(_points[i].Simulated)));
+            }
+        }
+        dc.DrawEllipse(_baseline.Brush, null, new Point(0, Y(_points[0].Baseline)), 3.5, 3.5);
+        Label("hoje", 0, TextAlignment.Left);
+        if (!longRange)
+        {
+            Label(_points[^1].Date.ToString("dd/MM", FinanceUi.PtBr), w, TextAlignment.Right);
+        }
+    }
+}

@@ -63,6 +63,7 @@ public sealed partial class FinanceService
             _cards = [.. snapshot.Cards];
             _purchases = [.. snapshot.Purchases];
             _overrides = [.. snapshot.StatementOverrides];
+            LoadPlanning(snapshot);
         }
         _started = true;
         EnsureDefaultCategories();
@@ -398,13 +399,14 @@ public sealed partial class FinanceService
     }
 
     /// <summary>Só contas sem lançamentos podem ser excluídas; as demais são arquivadas (o histórico fica).</summary>
-    public bool CanDeleteAccount(Guid id) => !Transactions.Any(t => t.Touches(id));
+    public bool CanDeleteAccount(Guid id) => !Transactions.Any(t => t.Touches(id)) && !Recurring.Any(r => r.AccountId == id)
+        && !Goals.Any(g => g.AccountId == id) && !AllContributions().Any(c => c.AccountId == id);
 
     public void DeleteAccount(Guid id)
     {
         if (!CanDeleteAccount(id))
         {
-            throw new FinanceValidationException("A conta tem lançamentos. Arquive-a para escondê-la sem perder o histórico.");
+            throw new FinanceValidationException("A conta tem lançamentos, recorrências ou metas. Arquive-a para escondê-la sem perder o histórico.");
         }
         _store.DeleteAccount(id);
         lock (_gate)
@@ -510,7 +512,8 @@ public sealed partial class FinanceService
 
     /// <summary>Excluir só categorias sem uso e sem subcategorias; as demais são arquivadas.</summary>
     public bool CanDeleteCategory(Guid id) =>
-        Category(id) is { Kind: not CategoryKind.System } && !Categories.Any(c => c.ParentId == id) && !Transactions.Any(t => t.CategoryId == id);
+        Category(id) is { Kind: not CategoryKind.System } && !Categories.Any(c => c.ParentId == id) && !Transactions.Any(t => t.CategoryId == id)
+        && !Recurring.Any(r => r.CategoryId == id);
 
     public void DeleteCategory(Guid id)
     {
@@ -606,6 +609,8 @@ public sealed partial class FinanceService
             Notes = t.Notes,
             Tags = t.Tags,
             RefundOfId = t.RefundOfId,
+            RecurringId = t.RecurringId,
+            OccurrenceDate = t.OccurrenceDate,
         };
     }
 
@@ -617,7 +622,7 @@ public sealed partial class FinanceService
         {
             throw new FinanceValidationException("Parcelas de cartão são duplicadas pela compra.");
         }
-        return DraftFrom(t) with { Id = null, Date = Today, RefundOfId = null, StatementClosing = null };
+        return DraftFrom(t) with { Id = null, Date = Today, RefundOfId = null, StatementClosing = null, RecurringId = null, OccurrenceDate = null };
     }
 
     /// <summary>Monta o lançamento (partidas com sinal) ou devolve o erro de validação.</summary>
@@ -667,6 +672,8 @@ public sealed partial class FinanceService
             Notes = string.IsNullOrWhiteSpace(draft.Notes) ? null : draft.Notes.Trim(),
             Tags = NormalizeTags(draft.Tags),
             RefundOfId = draft.Kind == TransactionKind.Refund ? draft.RefundOfId : null,
+            RecurringId = draft.Kind is TransactionKind.Income or TransactionKind.Expense ? draft.RecurringId : null,
+            OccurrenceDate = draft.Kind is TransactionKind.Income or TransactionKind.Expense ? draft.OccurrenceDate : null,
             Postings = postings,
             CreatedAt = existing?.CreatedAt ?? Now,
             UpdatedAt = Now,
@@ -713,6 +720,29 @@ public sealed partial class FinanceService
         if (existing?.PurchaseId is not null)
         {
             return "Esta é uma parcela de compra no cartão: edite a compra.";
+        }
+        if (existing is not null && ContributionOf(existing.Id) is { } contribution)
+        {
+            return $"Esta transferência é uma contribuição para a meta {Goal(contribution.GoalId)?.Name}: altere pela meta.";
+        }
+        if (d.RecurringId is { } recurringId)
+        {
+            if (RecurringItem(recurringId) is not { } recurring)
+            {
+                return "Recorrência não encontrada.";
+            }
+            if (d.OccurrenceDate is not { } occurrence)
+            {
+                return "Falta a data da ocorrência.";
+            }
+            if (d.Kind != (recurring.IsIncome ? TransactionKind.Income : TransactionKind.Expense))
+            {
+                return recurring.IsIncome ? "A ocorrência de uma receita recorrente é uma receita." : "A ocorrência de uma conta recorrente é uma despesa.";
+            }
+            if (Transactions.Any(t => t.RecurringId == recurringId && t.OccurrenceDate == occurrence && t.Id != d.Id))
+            {
+                return "Essa ocorrência já foi confirmada.";
+            }
         }
         if (existing is not null && (existing.CardId is null) != (d.CardId is null))
         {
@@ -882,6 +912,10 @@ public sealed partial class FinanceService
         {
             throw new FinanceValidationException("Esta é uma parcela de compra no cartão: exclua a compra (ou registre um estorno).");
         }
+        if (ContributionOf(id) is { } contribution)
+        {
+            throw new FinanceValidationException($"Esta transferência é uma contribuição para a meta {Goal(contribution.GoalId)?.Name}: exclua pela meta.");
+        }
         _store.DeleteTransaction(id, Now);
         var unlinked = new List<Guid>();
         lock (_gate)
@@ -910,6 +944,10 @@ public sealed partial class FinanceService
             throw new FinanceValidationException("A conta deste lançamento não existe mais.");
         }
         var restored = value.RefundOfId is { } of && Find(of) is null ? value with { RefundOfId = null } : value;
+        if (restored.RecurringId is { } rid && (RecurringItem(rid) is null || Transactions.Any(t => t.RecurringId == rid && t.OccurrenceDate == restored.OccurrenceDate && t.Id != restored.Id)))
+        {
+            restored = restored with { RecurringId = null, OccurrenceDate = null };
+        }
         var relinked = deleted.UnlinkedRefunds.Select(Find).OfType<FinanceTransaction>().Where(r => r.RefundOfId is null)
             .Select(r => r with { RefundOfId = restored.Id }).ToList();
         _store.SaveTransaction(restored);

@@ -273,5 +273,8 @@ public sealed record FinanceSettings
     /// <summary>Modo privacidade: oculta os valores em todas as telas do módulo e no dashboard.</summary>
     public bool HideValues { get; init; }
 
-    public FinanceSettings Sanitize() => this;
+    /// <summary>Margem de segurança do "quanto posso reservar" (centavos, moeda base). Padrão 0.</summary>
+    public long SafetyMargin { get; init; }
+
+    public FinanceSettings Sanitize() => this with { SafetyMargin = Math.Clamp(SafetyMargin, 0, 1_000_000_000_00) };
 }

@@ -370,5 +370,23 @@ Converter exigiria cotações de um serviço externo, o que contraria o módulo 
 - `fin_postings.card_id` foi criado na migração 1 sem chave estrangeira; como o SQLite não adiciona FK por ALTER,
   gatilhos garantem que o cartão existe, que partida de cartão tem fatura e que cartão com lançamentos não é apagado.
 
+## ADR-033 — Planejamento: recorrências próprias, previstas até confirmar, e "Reservado" só com dinheiro real
+**Data:** 2026-11-11 · **Status:** aceita
+
+- **Recorrências financeiras não reusam o RRULE da Agenda** (diferente do previsto na proposta): no RFC 5545 "todo dia
+  31" pula os meses sem dia 31, e conta de dia 31 precisa vencer no último dia do mês. O modelo é próprio e simples:
+  semanal, mensal ou anual, a cada N períodos, dia limitado ao fim do mês, fim opcional.
+- **Ocorrências são calculadas**, nunca gravadas como lançamentos. Só a confirmação cria o lançamento real, com
+  `(recurring_id, occurrence_date)` único no banco. Atrasadas do mês atual entram no previsto (ainda vão sair);
+  atrasadas de meses anteriores não (provavelmente pagas sem confirmar) — aparecem como "atrasada" para o usuário decidir.
+- **Assinatura no cartão** entra no previsto pelo vencimento da fatura em que cairia; confirmar cria uma compra à vista.
+- **Orçamento** usa a mesma competência dos relatórios (parcela na data da parcela, ADR-032), não "o mês da fatura"
+  como dizia a proposta.
+- **Reservado** soma só contribuições reais de metas ativas cujo dinheiro está em contas do disponível. Meta com conta
+  fora do disponível (ex.: investimento) não reserva de novo. Planejado nunca entra; arquivar a meta libera a reserva.
+- **Projeções** medem o "disponível livre" (contas do disponível − faturas − reservado − contribuições planejadas),
+  calculado por eventos (sem recalcular saldos dia a dia). "Quanto posso reservar" usa o menor ponto do período, porque
+  reservar hoje baixa todos os dias seguintes.
+
 ## Decisões pendentes
 - Nenhuma no momento.

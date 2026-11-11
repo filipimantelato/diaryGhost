@@ -362,4 +362,109 @@ public sealed class FinancePersistenceTests
         var s = Service(new FinanceDatabase(dir.Paths, NullLogger<SqliteDatabase>.Instance));
         Assert.Equal(12_345 + 500_000, s.Balance(s.Accounts.Single().Id, Today));
     }
+
+    [Fact]
+    public void Phase_10_database_is_migrated_to_planning_with_a_backup()
+    {
+        using var dir = new TempDataDir();
+        var v2 = new SqliteDatabase(dir.Paths, NullLogger<SqliteDatabase>.Instance, dir.Paths.FinanceDatabaseFile, [FinanceMigrations.All[0], FinanceMigrations.All[1]]);
+        v2.Initialize();
+        using (var c = v2.OpenConnection())
+        using (var cmd = c.CreateCommand())
+        {
+            cmd.CommandText = "INSERT INTO fin_accounts VALUES ('0192f000-0000-7000-8000-000000000001', 'Antiga', 'Checking', NULL, 'BRL', 777, '2026-01-01', '#9A86C4', 1, NULL, 0, 0, 0);";
+            cmd.ExecuteNonQuery();
+        }
+        SqliteConnection.ClearAllPools();
+        var report = new FinanceDatabase(dir.Paths, NullLogger<SqliteDatabase>.Instance).Initialize();
+        Assert.Equal((2, 3), (report.Migration.FromVersion, report.Migration.ToVersion));
+        Assert.StartsWith("finance-v2-", Path.GetFileName(report.BackupFile));
+        var s = Service(new FinanceDatabase(dir.Paths, NullLogger<SqliteDatabase>.Instance));
+        Assert.Equal(777, s.Balance(s.Accounts.Single().Id, Today));
+        Assert.Empty(s.Recurring);
+    }
+
+    [Fact]
+    public void Planning_survives_reopening_and_recurring_delete_unlinks()
+    {
+        using var dir = new TempDataDir();
+        var s = Service(OpenDb(dir));
+        var bank = s.SaveAccount(s.NewAccount() with { Name = "Banco", OpeningBalance = 100_000, OpeningDate = new DateOnly(2026, 9, 1) }).Id;
+        var savings = s.SaveAccount(s.NewAccount() with { Name = "Poupança", Kind = AccountKind.Savings, OpeningDate = new DateOnly(2026, 9, 1) }).Id;
+        var card = s.SaveCard(s.NewCard() with { Name = "Roxo", Limit = 100_000, Rules = [new CardCycleRule(DateOnly.MinValue, 3, 10)] }).Id;
+        var bill = s.SaveRecurring(s.NewRecurring() with { Description = "Luz", Amount = 15_000, IsEstimated = true, AccountId = bank, CategoryId = Cat(s, "Energia"), StartDate = new DateOnly(2026, 10, 31), EndDate = new DateOnly(2027, 12, 31), RemindDaysBefore = 5, Notes = "boleto" });
+        var sub = s.SaveRecurring(s.NewRecurring(RecurringKind.Subscription) with { Description = "Streaming", Amount = 3_990, AccountId = null, CardId = card, StartDate = new DateOnly(2026, 11, 20) });
+        var paid = s.Confirm(bill.Id, new DateOnly(2026, 10, 31), amount: 14_000);
+        s.Skip(bill.Id, new DateOnly(2026, 11, 30));
+        var subPaid = s.Confirm(sub.Id, new DateOnly(2026, 11, 20));
+        var food = Cat(s, "Alimentação");
+        s.SetBudget(food, null, 50_000, 70);
+        s.SetBudget(food, new DateOnly(2026, 11, 1), 40_000);
+        var goal = s.SaveGoal(s.NewGoal() with { Name = "Reserva", Target = 90_000, Deadline = new DateOnly(2027, 6, 30), AccountId = savings });
+        var real = s.Contribute(goal.Id, ContributionKind.Real, new DateOnly(2026, 11, 10), 20_000, bank, "primeira");
+        s.Contribute(goal.Id, ContributionKind.Planned, new DateOnly(2026, 12, 10), 5_000, bank);
+        s.SaveScenario(null, "Notebook", [new SimulationItem { Kind = SimulationKind.CardPurchase, Description = "Notebook", Date = new DateOnly(2026, 12, 1), Amount = 360_000, Installments = 12, CardId = card }]);
+        SqliteConnection.ClearAllPools();
+
+        var again = Service(OpenDb(dir));
+        Assert.Equal(s.Recurring, again.Recurring);
+        Assert.Equal(bill.Id, again.Find(paid.Id)!.RecurringId);
+        Assert.Equal(new DateOnly(2026, 10, 31), again.Find(paid.Id)!.OccurrenceDate);
+        Assert.Equal(sub.Id, again.Find(subPaid.Id)!.RecurringId);
+        Assert.Equal(OccurrenceState.Skipped, again.Occurrences(new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 30)).Single(o => o.Item.Id == bill.Id).State);
+        Assert.Equal(40_000, again.BudgetFor(food, 2026, 11)!.Limit);
+        Assert.Equal(70, again.BudgetFor(food, 2026, 12)!.WarnPercent);
+        Assert.Equal(s.Goals, again.Goals);
+        Assert.Equal(s.Contributions(goal.Id), again.Contributions(goal.Id));
+        Assert.Equal(20_000, again.Progress(again.Goal(goal.Id)!).Real);
+        var scenario = Assert.Single(again.Scenarios);
+        Assert.Equal(s.Scenarios[0].Items, scenario.Items);
+
+        again.DeleteContribution(real.Id);
+        again.DeleteRecurring(bill.Id);
+        SqliteConnection.ClearAllPools();
+        var third = Service(OpenDb(dir));
+        Assert.Null(third.Find(real.TransactionId!.Value));
+        var unlinked = third.Find(paid.Id)!;
+        Assert.Null(unlinked.RecurringId);
+        Assert.Null(unlinked.OccurrenceDate);
+        Assert.Single(third.Recurring);
+    }
+
+    [Fact]
+    public void Database_guards_occurrences_budgets_and_goal_transfers()
+    {
+        using var dir = new TempDataDir();
+        var db = OpenDb(dir);
+        var s = Service(db);
+        var bank = s.SaveAccount(s.NewAccount() with { Name = "Banco", OpeningBalance = 100_000, OpeningDate = new DateOnly(2026, 9, 1) }).Id;
+        var savings = s.SaveAccount(s.NewAccount() with { Name = "Poupança", OpeningDate = new DateOnly(2026, 9, 1) }).Id;
+        var bill = s.SaveRecurring(s.NewRecurring() with { Description = "Luz", Amount = 15_000, AccountId = bank, StartDate = new DateOnly(2026, 11, 1) });
+        var paid = s.Confirm(bill.Id, new DateOnly(2026, 11, 1));
+        var goal = s.SaveGoal(s.NewGoal() with { Name = "Reserva", Target = 90_000, AccountId = savings });
+        var contribution = s.Contribute(goal.Id, ContributionKind.Real, new DateOnly(2026, 11, 10), 20_000, bank);
+        s.SetBudget(Cat(s, "Alimentação"), null, 50_000);
+
+        void Rejects(string sql)
+        {
+            using var c = db.OpenConnection();
+            using var cmd = c.CreateCommand();
+            cmd.CommandText = sql;
+            Assert.Throws<SqliteException>(() => cmd.ExecuteNonQuery());
+        }
+        // Segunda confirmação da mesma ocorrência.
+        Rejects($"""
+            INSERT INTO fin_transactions (id, kind, date, description, status, payment_method, recurring_id, occurrence_date, created_at_ms, updated_at_ms)
+            VALUES ('{Guid.NewGuid()}', 'Expense', '2026-11-01', 'dup', 'Cleared', 'Pix', '{bill.Id}', '2026-11-01', 0, 0);
+            """);
+        // Dois orçamentos padrão para a mesma categoria.
+        Rejects($"INSERT INTO fin_budgets (id, category_id, month, limit_minor, warn_percent) VALUES ('{Guid.NewGuid()}', '{Cat(s, "Alimentação")}', NULL, 1, 80);");
+        // Recorrência com conta e cartão ao mesmo tempo / receita no cartão.
+        Rejects($"UPDATE fin_recurring SET card_id = account_id WHERE id = '{bill.Id}';");
+        // A transferência de uma contribuição não sai sozinha.
+        Rejects($"DELETE FROM fin_transactions WHERE id = '{contribution.TransactionId}';");
+        // Cenário com JSON inválido.
+        Rejects($"INSERT INTO fin_scenarios VALUES ('{Guid.NewGuid()}', 'x', 'não é json', 0, 0);");
+        Assert.NotNull(paid);
+    }
 }

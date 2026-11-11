@@ -36,8 +36,11 @@ Todo controle interativo tem `AutomationProperties.Name` ou conteúdo textual �
 Dashboard · Notícias · Calendário · Agenda e tarefas · Lembretes · Mídia · Produtividade ·
 Atividades e integrações · Configurações. Módulos ainda não implementados mostram uma página que diz
 em qual fase chegam — nunca dados de exemplo.
-Proposto: **Finanças**, com subnavegação Visão geral · Lançamentos · Contas · Cartões · Planejamento ·
-Projeções · Relatórios · Importar (ver [FINANCE.md](FINANCE.md), seção 4).
+**Finanças**, com subnavegação Visão geral · Lançamentos · Contas · Cartões · Planejamento · Projeções ·
+Categorias (Relatórios e Importar nas próximas fases; ver [FINANCE.md](FINANCE.md), seção 4). A Visão geral é uma
+grade de cartões (3 colunas; 1 em janelas estreitas): valores grandes com símbolo e centavos menores, selo de ícone no
+canto (no lugar de ilustrações), legenda em colunas com %, dias de vencimento em blocos, círculo para "pago", cartão
+desenhado com a cor do cartão e barras com marca de limite. Tudo com os tokens do tema escuro.
 
 ## Estados do widget (Modo B)
 Estrutura derivada do vídeo de referência ([análise](VIDEO-ANALYSIS.md)): cabeçalho (painel + data/hora),

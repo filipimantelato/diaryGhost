@@ -35,6 +35,15 @@ public sealed record MonthOverview(
     public long CardSpending { get; init; }
     public long StatementsDue { get; init; }
     public int OverdueStatements { get; init; }
+    /// <summary>Receitas previstas por recorrências (ainda não lançadas), já somadas em <see cref="ToReceive"/>.</summary>
+    public long PlannedIncome { get; init; }
+    /// <summary>Contas e assinaturas previstas (ainda não lançadas), já somadas em <see cref="ToPay"/> ou nas faturas.</summary>
+    public long PlannedExpense { get; init; }
+    public int PlannedCount { get; init; }
+    /// <summary>Dinheiro guardado em metas, em contas do disponível (seção 3.6).</summary>
+    public long Reserved { get; init; }
+    /// <summary>Saldo disponível = saldo em contas − reservado.</summary>
+    public long Available => AccountsBalance - Reserved;
 }
 
 public sealed record MonthFlow(int Year, int Month, long Income, long Expense)
@@ -110,6 +119,14 @@ public sealed partial class FinanceService
         // "previsto" é o saldo do último dia, que já reflete os pagamentos feitos.
         var statementsOut = end > today ? StatementOutflow(end) : 0;
         forecast = checked(forecast - statementsOut);
+        // Contas, assinaturas e receitas previstas (recorrências ainda não confirmadas) entram no previsto e nas parcelas
+        // "a receber"/"a pagar"; assinaturas no cartão, nas faturas. "Outros" já foi fechado acima e não muda.
+        var planned = end > today ? PlannedUntil(end) : (Income: 0L, Expense: 0L, Card: 0L, Count: 0);
+        toReceive = checked(toReceive + planned.Income);
+        toPay = checked(toPay + planned.Expense);
+        statementsOut = checked(statementsOut + planned.Card);
+        forecast = checked(forecast + planned.Income - planned.Expense - planned.Card);
+        var reserved = Reserved(reference);
 
         long cardSpending = 0;
         lock (_gate)
@@ -151,6 +168,10 @@ public sealed partial class FinanceService
             CardSpending = cardSpending,
             StatementsDue = statementsDue,
             OverdueStatements = overdueStatements,
+            PlannedIncome = planned.Income,
+            PlannedExpense = checked(planned.Expense + planned.Card),
+            PlannedCount = planned.Count,
+            Reserved = reserved,
         };
     }
 
@@ -226,7 +247,7 @@ public sealed partial class FinanceService
 
     /// <summary>
     /// Saldo do disponível ao fim de cada dia do mês: confirmado até hoje; do dia seguinte em diante, previsto
-    /// (com pendentes e com as faturas que vencem até o dia). Dias antes da abertura de uma conta contam zero para ela.
+    /// (com pendentes, as faturas que vencem até o dia e as recorrências previstas). Dias antes da abertura de uma conta contam zero para ela.
     /// </summary>
     public IReadOnlyList<DailyBalance> DailyBalances(int year, int month)
     {
@@ -234,11 +255,15 @@ public sealed partial class FinanceService
         var today = Today;
         var result = new List<DailyBalance>();
         var outflows = new Dictionary<DateOnly, long>();
+        var planned = end > today ? PlannedDeltas(end) : [];
+        long plannedRunning = Money.Sum(planned.Where(kv => kv.Key < start).Select(kv => kv.Value));
         for (var d = start; d <= end; d = d.AddDays(1))
         {
             if (d > today)
             {
                 outflows[d] = StatementOutflow(d);
+                plannedRunning = checked(plannedRunning + planned.GetValueOrDefault(d));
+                outflows[d] = checked(outflows[d] - plannedRunning);
             }
         }
         lock (_gate)

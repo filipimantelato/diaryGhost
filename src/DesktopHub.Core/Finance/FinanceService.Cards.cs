@@ -13,6 +13,9 @@ public sealed record PurchaseDraft
     public Guid? CategoryId { get; init; }
     public string? Notes { get; init; }
     public IReadOnlyList<string> Tags { get; init; } = [];
+    /// <summary>Confirmação de uma assinatura cobrada no cartão.</summary>
+    public Guid? RecurringId { get; init; }
+    public DateOnly? OccurrenceDate { get; init; }
 }
 
 /// <summary>Uma parcela planejada: número, valor, data de competência e fatura (fechamento e vencimento).</summary>
@@ -225,7 +228,7 @@ public sealed partial class FinanceService
         SaveCard(card with { ArchivedAt = archived ? Now : null });
     }
 
-    public bool CanDeleteCard(Guid id) => !Transactions.Any(t => t.CardId == id) && !Purchases.Any(p => p.CardId == id);
+    public bool CanDeleteCard(Guid id) => !Transactions.Any(t => t.CardId == id) && !Purchases.Any(p => p.CardId == id) && !Recurring.Any(r => r.CardId == id);
 
     public void DeleteCard(Guid id)
     {
@@ -422,6 +425,9 @@ public sealed partial class FinanceService
         };
         // Mantém o ID de cada parcela existente (estornos continuam ligados a ela).
         var previous = existing is null ? [] : Installments(existing.Id).ToDictionary(t => t.InstallmentNumber ?? 0);
+        // O vínculo com a recorrência (assinatura no cartão) fica na parcela e sobrevive à edição da compra.
+        var recurringId = draft.RecurringId ?? previous.GetValueOrDefault(1)?.RecurringId;
+        var occurrenceDate = draft.RecurringId is not null ? draft.OccurrenceDate : previous.GetValueOrDefault(1)?.OccurrenceDate;
         var installments = Plan(draft).Select(p => new FinanceTransaction
         {
             Id = previous.TryGetValue(p.Number, out var old) ? old.Id : Guid.CreateVersion7(Now),
@@ -435,6 +441,8 @@ public sealed partial class FinanceService
             Tags = purchase.Tags,
             PurchaseId = purchase.Id,
             InstallmentNumber = p.Number,
+            RecurringId = p.Number == 1 ? recurringId : null,
+            OccurrenceDate = p.Number == 1 ? occurrenceDate : null,
             Postings = [Posting.ForCard(purchase.CardId, -p.Amount, p.Closing)],
             CreatedAt = old?.CreatedAt ?? Now,
             UpdatedAt = Now,

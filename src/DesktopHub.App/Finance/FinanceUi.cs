@@ -52,6 +52,26 @@ internal static class FinanceUi
         }
     }
 
+    private static long s_margin;
+
+    /// <summary>Margem de segurança do "quanto posso reservar" (salva nas configurações).</summary>
+    public static long SafetyMargin
+    {
+        get => s_settings?.Finance.SafetyMargin ?? s_margin;
+        set
+        {
+            if (s_settings is { } settings)
+            {
+                settings.UpdateFinance(f => f with { SafetyMargin = Math.Max(0, value) });
+            }
+            else if (s_margin != value)
+            {
+                s_margin = Math.Max(0, value);
+                PrivacyChanged?.Invoke();
+            }
+        }
+    }
+
     public static event Action? PrivacyChanged;
 
     public static string Amount(long minor, string currency = Money.DefaultCurrency, bool showPlus = false) =>

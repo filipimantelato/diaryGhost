@@ -272,7 +272,7 @@ memória privada de 50 MB (bandeja), 71 MB (widget) e 71 MB (janela principal); 
   da notícia entra como dado, nunca como instrução).
 - Pipe local aceita apenas o usuário atual (ACL do named pipe) e valida o JSON contra o contrato.
 
-## 10a. Módulo Finanças (Fase 8 implementada)
+## 10a. Módulo Finanças (Fases 8–11 implementadas)
 
 Detalhado em [docs/FINANCE.md](docs/FINANCE.md). Já existem `Core/Finance` (`Money`, modelos, `FinanceService`),
 `Infrastructure/Finance` (`FinanceDatabase`, `FinanceMigrations`, `SqliteFinanceStore`) e `App/Finance` + página
@@ -285,6 +285,11 @@ arquitetura:
   `IReminderSource` (o `ReminderScheduler` passa a aceitar várias fontes).
 - Nenhuma chamada de rede no módulo (garantida por teste de arquitetura); logs sem valores; widget com
   valores ocultos por padrão.
+- Migrações do `finance.db`: 1 fundação, 2 cartões, 3 planejamento (recorrências, orçamentos, metas, cenários).
+- Planejamento e projeções ficam em `FinanceService.Planning.cs` e `FinanceProjection.cs`: ocorrências previstas são
+  calculadas (nunca gravadas), e a projeção é feita por eventos (lançamentos futuros, vencimentos de fatura,
+  recorrências, contribuições planejadas, hipóteses) a partir do saldo de hoje. A página foi dividida em parciais
+  (`FinancePage.Overview.cs`, `FinancePage.Planning.cs`).
 
 ## 11. Estrutura do repositório
 

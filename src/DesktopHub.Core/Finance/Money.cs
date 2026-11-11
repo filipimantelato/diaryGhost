@@ -192,6 +192,16 @@ public static class Money
         return result;
     }
 
+    /// <summary>Divisão inteira arredondada (meio centavo longe do zero), em aritmética exata.</summary>
+    public static long DivideRounded(long value, long divisor)
+    {
+        if (divisor == 0)
+        {
+            throw new DivideByZeroException();
+        }
+        return (long)Math.Round((decimal)value / divisor, 0, MidpointRounding.AwayFromZero);
+    }
+
     /// <summary>Percentual para exibição (arredondado longe do zero), ou null se a base é zero.</summary>
     public static decimal? Percent(long part, long whole) =>
         whole == 0 ? null : Math.Round((decimal)part * 100m / whole, 1, MidpointRounding.AwayFromZero);

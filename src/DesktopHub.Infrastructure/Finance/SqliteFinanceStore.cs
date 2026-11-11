@@ -96,6 +96,8 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
                 RefundOfId = Text(r, "refund_of_id") is { } of ? Guid.Parse(of) : null,
                 PurchaseId = Text(r, "purchase_id") is { } pid ? Guid.Parse(pid) : null,
                 InstallmentNumber = Long(r, "installment_number") is { } k ? (int)k : null,
+                RecurringId = Text(r, "recurring_id") is { } rid ? Guid.Parse(rid) : null,
+                OccurrenceDate = Text(r, "occurrence_date") is { } od ? ParseDate(od) : null,
                 Postings = postings.TryGetValue(id, out var list) ? list : [],
                 CreatedAt = Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
                 UpdatedAt = Ms(r.GetInt64(r.GetOrdinal("updated_at_ms"))),
@@ -156,8 +158,253 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
         });
         var overrides = Read(connection, "SELECT * FROM fin_statement_overrides;", r => new StatementOverride(
             Guid.Parse(r.GetString(r.GetOrdinal("card_id"))), ParseDate(r.GetString(r.GetOrdinal("closing_date"))), ParseDate(r.GetString(r.GetOrdinal("due_date")))));
-        return new FinanceSnapshot(accounts, categories, valid) { Cards = cards, Purchases = purchases, StatementOverrides = overrides };
+        var recurring = Read(connection, "SELECT * FROM fin_recurring;", r => new RecurringItem
+        {
+            Id = Guid.Parse(r.GetString(r.GetOrdinal("id"))),
+            Kind = Enum.Parse<RecurringKind>(r.GetString(r.GetOrdinal("kind"))),
+            Description = r.GetString(r.GetOrdinal("description")),
+            Amount = r.GetInt64(r.GetOrdinal("amount_minor")),
+            IsEstimated = r.GetInt64(r.GetOrdinal("estimated")) == 1,
+            AccountId = Text(r, "account_id") is { } a ? Guid.Parse(a) : null,
+            CardId = Text(r, "card_id") is { } c ? Guid.Parse(c) : null,
+            CategoryId = Text(r, "category_id") is { } cat ? Guid.Parse(cat) : null,
+            Frequency = Enum.Parse<RecurringFrequency>(r.GetString(r.GetOrdinal("frequency"))),
+            Interval = (int)r.GetInt64(r.GetOrdinal("interval")),
+            StartDate = ParseDate(r.GetString(r.GetOrdinal("start_date"))),
+            EndDate = Text(r, "end_date") is { } e ? ParseDate(e) : null,
+            RemindDaysBefore = (int)r.GetInt64(r.GetOrdinal("remind_days_before")),
+            Notes = Text(r, "notes"),
+            ArchivedAt = Long(r, "archived_at_ms") is { } ar ? Ms(ar) : null,
+            CreatedAt = Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
+            UpdatedAt = Ms(r.GetInt64(r.GetOrdinal("updated_at_ms"))),
+        });
+        var skips = Read(connection, "SELECT * FROM fin_recurring_skips;", r => new RecurringSkip(
+            Guid.Parse(r.GetString(r.GetOrdinal("recurring_id"))), ParseDate(r.GetString(r.GetOrdinal("occurrence_date")))));
+        var budgets = Read(connection, "SELECT * FROM fin_budgets;", r => new Budget
+        {
+            Id = Guid.Parse(r.GetString(r.GetOrdinal("id"))),
+            CategoryId = Guid.Parse(r.GetString(r.GetOrdinal("category_id"))),
+            Month = Text(r, "month") is { } m ? ParseDate(m) : null,
+            Limit = r.GetInt64(r.GetOrdinal("limit_minor")),
+            WarnPercent = (int)r.GetInt64(r.GetOrdinal("warn_percent")),
+        });
+        var goals = Read(connection, "SELECT * FROM fin_goals;", r => new FinancialGoal
+        {
+            Id = Guid.Parse(r.GetString(r.GetOrdinal("id"))),
+            Name = r.GetString(r.GetOrdinal("name")),
+            Target = r.GetInt64(r.GetOrdinal("target_minor")),
+            Deadline = Text(r, "deadline") is { } d ? ParseDate(d) : null,
+            AccountId = Text(r, "account_id") is { } a ? Guid.Parse(a) : null,
+            Color = r.GetString(r.GetOrdinal("color")),
+            ArchivedAt = Long(r, "archived_at_ms") is { } ar ? Ms(ar) : null,
+            CreatedAt = Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
+            UpdatedAt = Ms(r.GetInt64(r.GetOrdinal("updated_at_ms"))),
+        });
+        var contributions = Read(connection, "SELECT * FROM fin_goal_contributions;", r => new GoalContribution
+        {
+            Id = Guid.Parse(r.GetString(r.GetOrdinal("id"))),
+            GoalId = Guid.Parse(r.GetString(r.GetOrdinal("goal_id"))),
+            Date = ParseDate(r.GetString(r.GetOrdinal("date"))),
+            Amount = r.GetInt64(r.GetOrdinal("amount_minor")),
+            Kind = Enum.Parse<ContributionKind>(r.GetString(r.GetOrdinal("kind"))),
+            AccountId = Text(r, "account_id") is { } a ? Guid.Parse(a) : null,
+            TransactionId = Text(r, "transaction_id") is { } t ? Guid.Parse(t) : null,
+            Notes = Text(r, "notes"),
+            CreatedAt = Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
+        });
+        var scenarios = Read(connection, "SELECT * FROM fin_scenarios;", r => new SavedScenario(
+            Guid.Parse(r.GetString(r.GetOrdinal("id"))),
+            r.GetString(r.GetOrdinal("name")),
+            ScenarioJson.Parse(r.GetString(r.GetOrdinal("items"))),
+            Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
+            Ms(r.GetInt64(r.GetOrdinal("updated_at_ms")))));
+        return new FinanceSnapshot(accounts, categories, valid)
+        {
+            Cards = cards,
+            Purchases = purchases,
+            StatementOverrides = overrides,
+            Recurring = recurring,
+            RecurringSkips = skips,
+            Budgets = budgets,
+            Goals = goals,
+            Contributions = contributions,
+            Scenarios = scenarios,
+        };
     }
+
+    // ---------- Planejamento ----------
+
+    public void SaveRecurring(RecurringItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        Write((connection, tx) => Execute(connection, tx, """
+            INSERT INTO fin_recurring (id, kind, description, amount_minor, estimated, account_id, card_id, category_id, frequency, interval, start_date, end_date, remind_days_before, notes, archived_at_ms, created_at_ms, updated_at_ms)
+            VALUES ($id, $kind, $description, $amount, $estimated, $account, $card, $category, $frequency, $interval, $start, $end, $remind, $notes, $archived, $created, $updated)
+            ON CONFLICT(id) DO UPDATE SET kind = excluded.kind, description = excluded.description, amount_minor = excluded.amount_minor,
+                estimated = excluded.estimated, account_id = excluded.account_id, card_id = excluded.card_id, category_id = excluded.category_id,
+                frequency = excluded.frequency, interval = excluded.interval, start_date = excluded.start_date, end_date = excluded.end_date,
+                remind_days_before = excluded.remind_days_before, notes = excluded.notes, archived_at_ms = excluded.archived_at_ms,
+                updated_at_ms = excluded.updated_at_ms;
+            """, p =>
+        {
+            p.AddWithValue("$id", item.Id.ToString());
+            p.AddWithValue("$kind", item.Kind.ToString());
+            p.AddWithValue("$description", item.Description);
+            p.AddWithValue("$amount", item.Amount);
+            p.AddWithValue("$estimated", item.IsEstimated ? 1 : 0);
+            p.AddWithValue("$account", Db(item.AccountId?.ToString()));
+            p.AddWithValue("$card", Db(item.CardId?.ToString()));
+            p.AddWithValue("$category", Db(item.CategoryId?.ToString()));
+            p.AddWithValue("$frequency", item.Frequency.ToString());
+            p.AddWithValue("$interval", item.Interval);
+            p.AddWithValue("$start", Date(item.StartDate));
+            p.AddWithValue("$end", Db(item.EndDate is { } e ? Date(e) : null));
+            p.AddWithValue("$remind", item.RemindDaysBefore);
+            p.AddWithValue("$notes", Db(item.Notes));
+            p.AddWithValue("$archived", Db(item.ArchivedAt?.ToUnixTimeMilliseconds()));
+            p.AddWithValue("$created", item.CreatedAt.ToUnixTimeMilliseconds());
+            p.AddWithValue("$updated", item.UpdatedAt.ToUnixTimeMilliseconds());
+        }));
+    }
+
+    public void DeleteRecurring(Guid id, DateTimeOffset at) => Write((connection, tx) =>
+    {
+        // Lançamentos confirmados ficam, sem o vínculo (e sem a data da ocorrência).
+        Execute(connection, tx, "UPDATE fin_transactions SET recurring_id = NULL, occurrence_date = NULL WHERE recurring_id = $id;", p => p.AddWithValue("$id", id.ToString()));
+        Execute(connection, tx, "DELETE FROM fin_recurring WHERE id = $id;", p => p.AddWithValue("$id", id.ToString()));
+        Audit(connection, tx, "delete", "recurring", id, null, at);
+    });
+
+    public void SetRecurringSkip(RecurringSkip skip, bool skipped)
+    {
+        ArgumentNullException.ThrowIfNull(skip);
+        Write((connection, tx) => Execute(connection, tx, skipped
+            ? "INSERT OR IGNORE INTO fin_recurring_skips (recurring_id, occurrence_date) VALUES ($id, $date);"
+            : "DELETE FROM fin_recurring_skips WHERE recurring_id = $id AND occurrence_date = $date;", p =>
+        {
+            p.AddWithValue("$id", skip.RecurringId.ToString());
+            p.AddWithValue("$date", Date(skip.Date));
+        }));
+    }
+
+    public void SaveBudget(Budget budget)
+    {
+        ArgumentNullException.ThrowIfNull(budget);
+        Write((connection, tx) => Execute(connection, tx, """
+            INSERT INTO fin_budgets (id, category_id, month, limit_minor, warn_percent) VALUES ($id, $category, $month, $limit, $warn)
+            ON CONFLICT(id) DO UPDATE SET category_id = excluded.category_id, month = excluded.month, limit_minor = excluded.limit_minor, warn_percent = excluded.warn_percent;
+            """, p =>
+        {
+            p.AddWithValue("$id", budget.Id.ToString());
+            p.AddWithValue("$category", budget.CategoryId.ToString());
+            p.AddWithValue("$month", Db(budget.Month is { } m ? Date(m) : null));
+            p.AddWithValue("$limit", budget.Limit);
+            p.AddWithValue("$warn", budget.WarnPercent);
+        }));
+    }
+
+    public void DeleteBudget(Guid id) => Write((connection, tx) =>
+        Execute(connection, tx, "DELETE FROM fin_budgets WHERE id = $id;", p => p.AddWithValue("$id", id.ToString())));
+
+    public void SaveGoal(FinancialGoal goal)
+    {
+        ArgumentNullException.ThrowIfNull(goal);
+        Write((connection, tx) => Execute(connection, tx, """
+            INSERT INTO fin_goals (id, name, target_minor, deadline, account_id, color, archived_at_ms, created_at_ms, updated_at_ms)
+            VALUES ($id, $name, $target, $deadline, $account, $color, $archived, $created, $updated)
+            ON CONFLICT(id) DO UPDATE SET name = excluded.name, target_minor = excluded.target_minor, deadline = excluded.deadline,
+                account_id = excluded.account_id, color = excluded.color, archived_at_ms = excluded.archived_at_ms, updated_at_ms = excluded.updated_at_ms;
+            """, p =>
+        {
+            p.AddWithValue("$id", goal.Id.ToString());
+            p.AddWithValue("$name", goal.Name);
+            p.AddWithValue("$target", goal.Target);
+            p.AddWithValue("$deadline", Db(goal.Deadline is { } d ? Date(d) : null));
+            p.AddWithValue("$account", Db(goal.AccountId?.ToString()));
+            p.AddWithValue("$color", goal.Color);
+            p.AddWithValue("$archived", Db(goal.ArchivedAt?.ToUnixTimeMilliseconds()));
+            p.AddWithValue("$created", goal.CreatedAt.ToUnixTimeMilliseconds());
+            p.AddWithValue("$updated", goal.UpdatedAt.ToUnixTimeMilliseconds());
+        }));
+    }
+
+    public void DeleteGoal(Guid id, DateTimeOffset at) => Write((connection, tx) =>
+    {
+        // As contribuições saem em cascata; transferências feitas ficam como lançamentos comuns.
+        Execute(connection, tx, "DELETE FROM fin_goals WHERE id = $id;", p => p.AddWithValue("$id", id.ToString()));
+        Audit(connection, tx, "delete", "goal", id, null, at);
+    });
+
+    public void SaveContribution(GoalContribution contribution, FinanceTransaction? transfer)
+    {
+        ArgumentNullException.ThrowIfNull(contribution);
+        if (transfer is not null)
+        {
+            CheckInvariants(transfer);
+        }
+        Write((connection, tx) =>
+        {
+            if (transfer is not null)
+            {
+                WriteTransaction(connection, tx, transfer);
+            }
+            Execute(connection, tx, """
+                INSERT INTO fin_goal_contributions (id, goal_id, date, amount_minor, kind, account_id, transaction_id, notes, created_at_ms)
+                VALUES ($id, $goal, $date, $amount, $kind, $account, $tx, $notes, $created)
+                ON CONFLICT(id) DO UPDATE SET date = excluded.date, amount_minor = excluded.amount_minor, kind = excluded.kind,
+                    account_id = excluded.account_id, transaction_id = excluded.transaction_id, notes = excluded.notes;
+                """, p =>
+            {
+                p.AddWithValue("$id", contribution.Id.ToString());
+                p.AddWithValue("$goal", contribution.GoalId.ToString());
+                p.AddWithValue("$date", Date(contribution.Date));
+                p.AddWithValue("$amount", contribution.Amount);
+                p.AddWithValue("$kind", contribution.Kind.ToString());
+                p.AddWithValue("$account", Db(contribution.AccountId?.ToString()));
+                p.AddWithValue("$tx", Db(contribution.TransactionId?.ToString()));
+                p.AddWithValue("$notes", Db(contribution.Notes));
+                p.AddWithValue("$created", contribution.CreatedAt.ToUnixTimeMilliseconds());
+            });
+        });
+    }
+
+    public void DeleteContribution(Guid id, DateTimeOffset at) => Write((connection, tx) =>
+    {
+        string? transactionId;
+        using (var cmd = connection.CreateCommand())
+        {
+            cmd.Transaction = tx;
+            cmd.CommandText = "SELECT transaction_id FROM fin_goal_contributions WHERE id = $id;";
+            cmd.Parameters.AddWithValue("$id", id.ToString());
+            transactionId = cmd.ExecuteScalar() as string;
+        }
+        Execute(connection, tx, "DELETE FROM fin_goal_contributions WHERE id = $id;", p => p.AddWithValue("$id", id.ToString()));
+        if (transactionId is not null)
+        {
+            Execute(connection, tx, "DELETE FROM fin_transactions WHERE id = $id;", p => p.AddWithValue("$id", transactionId));
+            Audit(connection, tx, "delete", "transaction", Guid.Parse(transactionId), "Transfer", at);
+        }
+        Audit(connection, tx, "delete", "contribution", id, null, at);
+    });
+
+    public void SaveScenario(SavedScenario scenario)
+    {
+        ArgumentNullException.ThrowIfNull(scenario);
+        Write((connection, tx) => Execute(connection, tx, """
+            INSERT INTO fin_scenarios (id, name, items, created_at_ms, updated_at_ms) VALUES ($id, $name, $items, $created, $updated)
+            ON CONFLICT(id) DO UPDATE SET name = excluded.name, items = excluded.items, updated_at_ms = excluded.updated_at_ms;
+            """, p =>
+        {
+            p.AddWithValue("$id", scenario.Id.ToString());
+            p.AddWithValue("$name", scenario.Name);
+            p.AddWithValue("$items", ScenarioJson.Write(scenario.Items));
+            p.AddWithValue("$created", scenario.CreatedAt.ToUnixTimeMilliseconds());
+            p.AddWithValue("$updated", scenario.UpdatedAt.ToUnixTimeMilliseconds());
+        }));
+    }
+
+    public void DeleteScenario(Guid id) => Write((connection, tx) =>
+        Execute(connection, tx, "DELETE FROM fin_scenarios WHERE id = $id;", p => p.AddWithValue("$id", id.ToString())));
 
     // ---------- Cartões ----------
 
@@ -383,12 +630,13 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
     {
         CheckInvariants(transaction);
         Execute(connection, tx, """
-            INSERT INTO fin_transactions (id, kind, date, description, category_id, status, payment_method, notes, tags, refund_of_id, purchase_id, installment_number, created_at_ms, updated_at_ms)
-            VALUES ($id, $kind, $date, $description, $category, $status, $method, $notes, $tags, $refundOf, $purchase, $installment, $created, $updated)
+            INSERT INTO fin_transactions (id, kind, date, description, category_id, status, payment_method, notes, tags, refund_of_id, purchase_id, installment_number, recurring_id, occurrence_date, created_at_ms, updated_at_ms)
+            VALUES ($id, $kind, $date, $description, $category, $status, $method, $notes, $tags, $refundOf, $purchase, $installment, $recurring, $occurrence, $created, $updated)
             ON CONFLICT(id) DO UPDATE SET kind = excluded.kind, date = excluded.date, description = excluded.description,
                 category_id = excluded.category_id, status = excluded.status, payment_method = excluded.payment_method,
                 notes = excluded.notes, tags = excluded.tags, refund_of_id = excluded.refund_of_id, purchase_id = excluded.purchase_id,
-                installment_number = excluded.installment_number, updated_at_ms = excluded.updated_at_ms;
+                installment_number = excluded.installment_number, recurring_id = excluded.recurring_id,
+                occurrence_date = excluded.occurrence_date, updated_at_ms = excluded.updated_at_ms;
             """, p =>
         {
             p.AddWithValue("$id", transaction.Id.ToString());
@@ -403,6 +651,8 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
             p.AddWithValue("$refundOf", Db(transaction.RefundOfId?.ToString()));
             p.AddWithValue("$purchase", Db(transaction.PurchaseId?.ToString()));
             p.AddWithValue("$installment", Db(transaction.InstallmentNumber));
+            p.AddWithValue("$recurring", Db(transaction.RecurringId?.ToString()));
+            p.AddWithValue("$occurrence", Db(transaction.OccurrenceDate is { } od ? Date(od) : null));
             p.AddWithValue("$created", transaction.CreatedAt.ToUnixTimeMilliseconds());
             p.AddWithValue("$updated", transaction.UpdatedAt.ToUnixTimeMilliseconds());
         });

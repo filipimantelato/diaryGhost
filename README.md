@@ -6,7 +6,7 @@ Central pessoal residente para Windows 11: widget flutuante estilo "ilha", bande
 aplicação completa — leve, local-first e sem telemetria.
 
 > **Estado:** Fases 1 (fundação), 2 (widget e mídia), 3 (produtividade e notificações), 4 (agenda e
-> lembretes), 5 (notícias, clima e dashboard), 6 (integrações) e 7 (instalação e acessibilidade) concluídas.
+> lembretes), 5 (notícias, clima e dashboard), 6 (integrações) e 7 (instalação e acessibilidade) concluídas; módulo Finanças nas Fases 8–11.
 > O que ficou de fora (OAuth, assinatura de código, atualização automática) está em [ROADMAP.md](ROADMAP.md).
 > Módulos ainda não implementados dizem isso explicitamente na interface.
 
@@ -37,7 +37,11 @@ aplicação completa — leve, local-first e sem telemetria.
   saldo dia a dia) ou tabelas; **cartões de crédito** com compras parceladas, faturas (aberta, fechada, paga,
   vencida, futuras), pagamento total ou parcial, estornos, limite e vencimentos; cartão opcional no Dashboard;
   modo privacidade. Valores em centavos inteiros, saldos sempre calculados dos lançamentos, banco próprio e
-  nenhum acesso à rede. Orçamentos, metas e projeções chegam nas próximas fases.
+  nenhum acesso à rede. **Planejamento**: orçamentos por categoria (aviso em 80% e no estouro), contas a pagar,
+  assinaturas e receitas recorrentes (previstas até você confirmar, sem duplicar), metas com dinheiro guardado e
+  planejado ("Reservado" e "Disponível"); **Projeções** até 12 meses com hipóteses listadas e simulador que nunca
+  altera seus dados. Visão geral em grade de cartões: saldo previsto explicado, contas a pagar por dia, cartão com
+  fatura e próximas faturas, orçamento e metas.
 - **Calendário local**: dia e semana em grade de horas, mês e lista; eventos de dia inteiro ou com
   horário, recorrentes (todo dia, dias úteis, semanal, "2ª terça do mês", "último dia do mês", anual ou
   RRULE), com exceções e até 2 avisos. Horário de verão e fusos tratados corretamente.

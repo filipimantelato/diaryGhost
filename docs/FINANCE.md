@@ -17,7 +17,9 @@ roadmap e critérios de teste.
 > lembra do gasto; (2) uma troca de fechamento/vencimento vale a partir do mês seguinte ao da fatura aberta, para
 > cada mês ter um único fechamento (o ciclo de transição fica mais curto ou mais longo); (3) o saldo de uma fatura só
 > passa para a seguinte depois do vencimento — antes disso ela ainda vai ser paga. Sem compras com outras taxas:
-> o app não calcula juros. Ainda sem "Reservado" (Fase 11). As demais seções descrevem o que vem nas próximas fases.
+> o app não calcula juros. A **Fase 11 (planejamento)** também, com os ajustes do ADR-033: recorrências com modelo próprio (dia 29–31
+> cai no último dia do mês; não reusa o RRULE da Agenda), orçamento pela mesma competência da Fase 10 (parcela na data
+> da parcela) e Visão geral redesenhada em grade de cartões a partir de uma nova referência visual do usuário. As demais seções descrevem o que vem nas próximas fases.
 
 > **Nomes.** A especificação fala em "Orbit" e "Orbit Learn". Este repositório é o **Diary Ghost**, e não há
 > módulo "Learn" nele. O módulo se chama **Finanças** na navegação e **Diary Ghost Finance** nos documentos.

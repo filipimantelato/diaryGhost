@@ -302,11 +302,59 @@ Pendências levadas adiante:
 - Lembrete de vencimento de fatura → Fase 12 (lembretes).
 - Importar a fatura do banco (OFX/CSV) para conferir → Fase 12.
 
+## Fase 11 — Planejamento ✅ (2026-11-11)
+Entregue:
+- **Recorrências** (contas a pagar, assinaturas e receitas): semanal, mensal ou anual, a cada N períodos, com fim
+  opcional; dia 29–31 cai no último dia dos meses curtos (ADR-033). Valor fixo ou **estimado** pela média das 3 últimas
+  ocorrências confirmadas. Ocorrências ficam **previstas** até serem confirmadas: confirmar cria o lançamento real (na
+  conta, ou compra à vista no cartão) com `(recurring_id, occurrence_date)` único — confirmar duas vezes é recusado
+  pelo serviço e pelo banco. Pular ocorrência, pausar, excluir (lançamentos confirmados ficam, sem vínculo). Custo
+  mensal e anual equivalente das assinaturas.
+- **Previsto** passa a incluir as recorrências previstas do mês (e as atrasadas do mês atual): receitas em "a
+  receber", contas em "a pagar", assinaturas no cartão nas faturas pelo vencimento; a decomposição continua exata.
+  O saldo dia a dia acompanha.
+- **Orçamentos** por categoria principal (inclui subcategorias): limite padrão para todo mês ou só para um mês (0 =
+  sem orçamento naquele mês), faixas de atenção (padrão 80%) e estouro, gasto + previsto ("vai passar do limite"),
+  "fora do orçamento", copiar do mês anterior. Transferências, pagamentos de fatura e ajustes nunca entram.
+- **Metas**: alvo, prazo, conta própria opcional. Contribuição **real** (até hoje) vira transferência para a conta da
+  meta ou reserva dentro de uma conta; **planejada** é só intenção, com "Realizar". Progresso real × planejado, "guarde
+  R$ X por mês" (arredondado para cima), atraso. **Reservado** = guardado de fato em metas ativas, em contas do
+  disponível; **Disponível** = saldo em contas − reservado. A transferência de uma meta só é alterada pela meta.
+- **Projeções** (aba própria): disponível livre dia a dia até o fim do mês, 3, 6 ou 12 meses, com hipóteses sempre
+  listadas; média opcional de gastos variáveis; **simulador** (gasto, receita, compra no cartão parcelada — cai no
+  vencimento de cada fatura —, guardar) em linha tracejada que nunca altera dados; "quanto posso reservar hoje" = menor
+  ponto do período − margem de segurança (salva nas configurações); mês mais apertado; cenários com nome.
+- **Visão geral redesenhada** em grade de cartões (inspirada na referência visual enviada): saldo previsto em destaque
+  com a decomposição em colunas e percentuais; "Contas a pagar" com dias de vencimento, total em aberto, "X de Y
+  pagas" e círculo para confirmar; gastos do mês por categoria; cartão desenhado com fatura, vencimento, limite livre
+  e próximas faturas; orçamento do mês; metas; gráficos e indicadores (com "Reservado").
+- Migração 3 do `finance.db` (recorrências, ocorrências puladas, orçamentos, metas, contribuições, cenários; colunas
+  de ocorrência nos lançamentos), com backup automático.
+- 337 testes (22 novos no núcleo e 3 de persistência): datas de recorrência (31, 29/02, semanal com intervalo),
+  custos equivalentes, confirmar sem duplicar, pular, média das 3 últimas, previsto antes e depois de confirmar,
+  assinatura no cartão, orçamento com subcategorias/estornos/ajuste do mês/cópia, metas com reserva e com conta
+  própria, reservado, projeção = previsto, simulação sem efeito nos dados, parcelas simuladas por vencimento,
+  variáveis, migração de um banco da Fase 10 e restrições do banco.
+
+Critérios do MVP financeiro: **9 ✅** (orçamento), **10 ✅** (recorrências e metas).
+
+Verificado ao vivo (instância de teste; banco da Fase 10 migrado com backup `finance-v2-…db`): orçamentos de
+Tecnologia (300,00) e Alimentação (800,00) → 650,00 de 1.100,00 (59%), parcela de 200,00 do notebook contando em
+novembro; Luz (estimada) confirmada por 163,40, Streaming no cartão, Freela 500,00; previsto de novembro 18.386,60 =
+19.686,60 − 1.800,00 (aluguel pendente) + 500,00, igual ao fim da projeção; notebook simulado de 3.600,00 em 12× →
+−3.300,00 até outubro de 2027 (11 vencimentos); meta Viagem 5.000,00 até 30/06/2027 com 1.000,00 guardados →
+guarde 500,00 por mês (8 meses), reservado 1.000,00, disponível 18.686,60; modo privacidade mascarando a nova
+Visão geral; nenhum controle sem nome nas abas novas; 0 ms de CPU em 30 s.
+
+Pendências levadas adiante:
+- Lembretes de contas, assinaturas e faturas (o "avisar N dias antes" já é guardado) → Fase 12.
+- Tema claro para a página (a referência visual é clara; o app hoje é só escuro) → avaliar na Fase 13.
+
 | Fase | Entrega | Critérios do MVP financeiro |
 |---|---|---|
 | 8 — Fundação (A) ✅ | `Money` em centavos, `finance.db`, contas, categorias, lançamentos, transferências, ajustes, saldos derivados, página Lançamentos | 1, 2, 3, 4, 13, 14 |
 | 9 — Dashboard (B) ✅ | indicadores com definição formal, Visão geral por mês, gráficos, comparação mensal, modo privacidade, cartões no dashboard | 8 |
 | 10 — Cartões (C) ✅ | ciclos com vigência, compras, parcelas, faturas, limite, pagamentos totais e parciais, estornos | 5, 6, 7 |
-| 11 — Planejamento (D) | orçamentos, recorrências, contas e assinaturas, metas (real × planejado), projeções e simulador | 9, 10 |
+| 11 — Planejamento (D) ✅ | orçamentos, recorrências, contas e assinaturas, metas (real × planejado), projeções e simulador | 9, 10 |
 | 12 — Integração (E) | lembretes, sobreposição no calendário, painel do widget (valores ocultos), importação CSV/OFX | 11, 12 |
 | 13 — Refinamento (F) | relatórios e CSV, anexos, backup cifrado, avaliação de cifragem e Windows Hello, desempenho, acessibilidade | — |

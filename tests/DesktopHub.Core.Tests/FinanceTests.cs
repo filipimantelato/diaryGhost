@@ -30,6 +30,12 @@ internal sealed class MemoryFinanceStore : IFinanceStore
         Cards = [.. Cards.Values],
         Purchases = [.. Purchases.Values],
         StatementOverrides = [.. Overrides],
+        Recurring = [.. Recurring.Values],
+        RecurringSkips = [.. Skips],
+        Budgets = [.. Budgets.Values],
+        Goals = [.. Goals.Values],
+        Contributions = [.. Contributions.Values],
+        Scenarios = [.. Scenarios.Values],
     };
 
     public void SaveCard(CreditCard card)
@@ -113,6 +119,102 @@ internal sealed class MemoryFinanceStore : IFinanceStore
     {
         Guard();
         Transactions.Remove(id);
+    }
+
+    public Dictionary<Guid, RecurringItem> Recurring { get; } = [];
+    public HashSet<RecurringSkip> Skips { get; } = [];
+    public Dictionary<Guid, Budget> Budgets { get; } = [];
+    public Dictionary<Guid, FinancialGoal> Goals { get; } = [];
+    public Dictionary<Guid, GoalContribution> Contributions { get; } = [];
+    public Dictionary<Guid, SavedScenario> Scenarios { get; } = [];
+
+    public void SaveRecurring(RecurringItem item)
+    {
+        Guard();
+        Recurring[item.Id] = item;
+    }
+
+    public void DeleteRecurring(Guid id, DateTimeOffset at)
+    {
+        Guard();
+        Recurring.Remove(id);
+        Skips.RemoveWhere(s => s.RecurringId == id);
+        foreach (var t in Transactions.Values.Where(t => t.RecurringId == id).ToList())
+        {
+            Transactions[t.Id] = t with { RecurringId = null, OccurrenceDate = null };
+        }
+    }
+
+    public void SetRecurringSkip(RecurringSkip skip, bool skipped)
+    {
+        Guard();
+        if (skipped)
+        {
+            Skips.Add(skip);
+        }
+        else
+        {
+            Skips.Remove(skip);
+        }
+    }
+
+    public void SaveBudget(Budget budget)
+    {
+        Guard();
+        Budgets[budget.Id] = budget;
+    }
+
+    public void DeleteBudget(Guid id)
+    {
+        Guard();
+        Budgets.Remove(id);
+    }
+
+    public void SaveGoal(FinancialGoal goal)
+    {
+        Guard();
+        Goals[goal.Id] = goal;
+    }
+
+    public void DeleteGoal(Guid id, DateTimeOffset at)
+    {
+        Guard();
+        Goals.Remove(id);
+        foreach (var c in Contributions.Values.Where(c => c.GoalId == id).ToList())
+        {
+            Contributions.Remove(c.Id);
+        }
+    }
+
+    public void SaveContribution(GoalContribution contribution, FinanceTransaction? transfer)
+    {
+        Guard();
+        if (transfer is not null)
+        {
+            Transactions[transfer.Id] = transfer;
+        }
+        Contributions[contribution.Id] = contribution;
+    }
+
+    public void DeleteContribution(Guid id, DateTimeOffset at)
+    {
+        Guard();
+        if (Contributions.Remove(id, out var c) && c.TransactionId is { } tx)
+        {
+            Transactions.Remove(tx);
+        }
+    }
+
+    public void SaveScenario(SavedScenario scenario)
+    {
+        Guard();
+        Scenarios[scenario.Id] = scenario;
+    }
+
+    public void DeleteScenario(Guid id)
+    {
+        Guard();
+        Scenarios.Remove(id);
     }
 }
 

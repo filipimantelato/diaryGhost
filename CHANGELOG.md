@@ -2,6 +2,26 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.11.0] — 2026-11-11 — Fase 11: planejamento
+### Adicionado
+- Aba **Planejamento** em Finanças:
+  - **Orçamento** por categoria (com subcategorias): limite para todo mês ou só para um mês, aviso em 80% e no
+    estouro, gasto + previsto, fora do orçamento, copiar do mês anterior.
+  - **Contas e assinaturas**: contas a pagar, assinaturas e receitas recorrentes (semanal, mensal, anual), valor fixo
+    ou estimado pela média das 3 últimas; vencimentos do mês com confirmar, pular e desfazer; custo mensal e anual
+    das assinaturas; pausar.
+  - **Metas**: alvo, prazo, conta própria ou reserva; guardar, retirar, planejar e realizar; "guarde R$ X por mês".
+- Aba **Projeções**: disponível projetado até o fim do mês ou 3/6/12 meses, hipóteses listadas, média opcional de
+  gastos variáveis, simulador (gasto, receita, compra parcelada no cartão, guardar), "quanto posso reservar hoje" com
+  margem de segurança, mês a mês e cenários salvos (sempre marcados como simulados).
+- Saldo previsto e saldo dia a dia incluem as contas, assinaturas e receitas previstas; "Reservado" e "Disponível".
+- Migração 3 do banco de finanças (com backup automático) e ADR-033.
+
+### Alterado
+- **Visão geral redesenhada** em grade de cartões: saldo previsto em destaque com a conta em colunas, contas a pagar
+  por dia com círculo para confirmar, gastos do mês, cartão com fatura e próximas faturas, orçamento, metas, gráficos e
+  indicadores.
+
 ## [0.10.0] — 2026-11-11 — Fase 10: cartões de crédito
 ### Adicionado
 - Aba **Cartões** em Finanças: cartões com limite, dias de fechamento e vencimento, bandeira, últimos 4 dígitos

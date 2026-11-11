@@ -168,5 +168,89 @@ public static class FinanceMigrations
                 SELECT RAISE(ABORT, 'cartão com lançamentos') WHERE EXISTS (SELECT 1 FROM fin_postings WHERE card_id = OLD.id);
             END;
             """),
+
+        new(3, "planejamento", """
+            -- Recorrências: o modelo (conta, assinatura, receita). Ocorrências previstas são calculadas; só a confirmação
+            -- vira lançamento, com (recurring_id, occurrence_date) único.
+            CREATE TABLE fin_recurring (
+                id                  TEXT    NOT NULL PRIMARY KEY,
+                kind                TEXT    NOT NULL CHECK (kind IN ('Bill', 'Subscription', 'Income')),
+                description         TEXT    NOT NULL CHECK (length(description) BETWEEN 1 AND 200),
+                amount_minor        INTEGER NOT NULL CHECK (amount_minor > 0),
+                estimated           INTEGER NOT NULL CHECK (estimated IN (0, 1)),
+                account_id          TEXT    REFERENCES fin_accounts (id) ON DELETE RESTRICT,
+                card_id             TEXT    REFERENCES fin_cards (id) ON DELETE RESTRICT,
+                category_id         TEXT    REFERENCES fin_categories (id) ON DELETE RESTRICT,
+                frequency           TEXT    NOT NULL CHECK (frequency IN ('Weekly', 'Monthly', 'Yearly')),
+                interval            INTEGER NOT NULL CHECK (interval BETWEEN 1 AND 24),
+                start_date          TEXT    NOT NULL CHECK (start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+                end_date            TEXT    CHECK (end_date IS NULL OR end_date >= start_date),
+                remind_days_before  INTEGER NOT NULL CHECK (remind_days_before BETWEEN 0 AND 30),
+                notes               TEXT,
+                archived_at_ms      INTEGER,
+                created_at_ms       INTEGER NOT NULL,
+                updated_at_ms       INTEGER NOT NULL,
+                CHECK ((account_id IS NULL) <> (card_id IS NULL)),
+                CHECK (card_id IS NULL OR kind <> 'Income')
+            ) STRICT;
+
+            CREATE TABLE fin_recurring_skips (
+                recurring_id     TEXT NOT NULL REFERENCES fin_recurring (id) ON DELETE CASCADE,
+                occurrence_date  TEXT NOT NULL,
+                PRIMARY KEY (recurring_id, occurrence_date)
+            ) STRICT;
+
+            ALTER TABLE fin_transactions ADD COLUMN recurring_id TEXT REFERENCES fin_recurring (id) ON DELETE SET NULL;
+            ALTER TABLE fin_transactions ADD COLUMN occurrence_date TEXT CHECK (occurrence_date IS NULL OR occurrence_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]');
+            CREATE UNIQUE INDEX ux_fin_transactions_occurrence ON fin_transactions (recurring_id, occurrence_date) WHERE recurring_id IS NOT NULL;
+
+            -- Orçamento por categoria principal: month NULL = padrão de todo mês; um mês específico substitui o padrão.
+            CREATE TABLE fin_budgets (
+                id            TEXT    NOT NULL PRIMARY KEY,
+                category_id   TEXT    NOT NULL REFERENCES fin_categories (id) ON DELETE CASCADE,
+                month         TEXT    CHECK (month IS NULL OR month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-01'),
+                limit_minor   INTEGER NOT NULL CHECK (limit_minor >= 0),
+                warn_percent  INTEGER NOT NULL CHECK (warn_percent BETWEEN 1 AND 100),
+                CHECK (month IS NOT NULL OR limit_minor > 0)
+            ) STRICT;
+            CREATE UNIQUE INDEX ux_fin_budgets_category_month ON fin_budgets (category_id, ifnull(month, ''));
+
+            CREATE TABLE fin_goals (
+                id              TEXT    NOT NULL PRIMARY KEY,
+                name            TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
+                target_minor    INTEGER NOT NULL CHECK (target_minor > 0),
+                deadline        TEXT    CHECK (deadline IS NULL OR deadline GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+                account_id      TEXT    REFERENCES fin_accounts (id) ON DELETE RESTRICT,
+                color           TEXT    NOT NULL,
+                archived_at_ms  INTEGER,
+                created_at_ms   INTEGER NOT NULL,
+                updated_at_ms   INTEGER NOT NULL
+            ) STRICT;
+
+            -- Real: dinheiro separado (com transferência, se a meta tem conta própria). Planejada: só intenção.
+            CREATE TABLE fin_goal_contributions (
+                id              TEXT    NOT NULL PRIMARY KEY,
+                goal_id         TEXT    NOT NULL REFERENCES fin_goals (id) ON DELETE CASCADE,
+                date            TEXT    NOT NULL CHECK (date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+                amount_minor    INTEGER NOT NULL CHECK (amount_minor <> 0),
+                kind            TEXT    NOT NULL CHECK (kind IN ('Real', 'Planned')),
+                account_id      TEXT    REFERENCES fin_accounts (id) ON DELETE RESTRICT,
+                transaction_id  TEXT    REFERENCES fin_transactions (id) ON DELETE RESTRICT,
+                notes           TEXT,
+                created_at_ms   INTEGER NOT NULL,
+                CHECK (kind = 'Real' OR transaction_id IS NULL)
+            ) STRICT;
+            CREATE INDEX ix_fin_goal_contributions_goal ON fin_goal_contributions (goal_id);
+            CREATE UNIQUE INDEX ux_fin_goal_contributions_transaction ON fin_goal_contributions (transaction_id) WHERE transaction_id IS NOT NULL;
+
+            -- Cenários do simulador: hipóteses em JSON, nunca lançamentos.
+            CREATE TABLE fin_scenarios (
+                id             TEXT    NOT NULL PRIMARY KEY,
+                name           TEXT    NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
+                items          TEXT    NOT NULL CHECK (json_valid(items)),
+                created_at_ms  INTEGER NOT NULL,
+                updated_at_ms  INTEGER NOT NULL
+            ) STRICT;
+            """),
     ];
 }

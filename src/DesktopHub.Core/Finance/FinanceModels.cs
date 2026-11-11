@@ -122,6 +122,9 @@ public sealed record FinanceTransaction
     /// <summary>Parcela de uma compra no cartão (a compra guarda total e número de parcelas).</summary>
     public Guid? PurchaseId { get; init; }
     public int? InstallmentNumber { get; init; }
+    /// <summary>Ocorrência confirmada de uma recorrência (par único com <see cref="OccurrenceDate"/>).</summary>
+    public Guid? RecurringId { get; init; }
+    public DateOnly? OccurrenceDate { get; init; }
     public required IReadOnlyList<Posting> Postings { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
@@ -170,6 +173,9 @@ public sealed record TransactionDraft
     public string? Notes { get; init; }
     public IReadOnlyList<string> Tags { get; init; } = [];
     public Guid? RefundOfId { get; init; }
+    /// <summary>Confirmação de uma ocorrência de recorrência.</summary>
+    public Guid? RecurringId { get; init; }
+    public DateOnly? OccurrenceDate { get; init; }
 }
 
 /// <summary>Filtros da lista de lançamentos. Nulo = sem filtro.</summary>
@@ -207,6 +213,12 @@ public sealed record FinanceSnapshot(
     public IReadOnlyList<CreditCard> Cards { get; init; } = [];
     public IReadOnlyList<CardPurchase> Purchases { get; init; } = [];
     public IReadOnlyList<StatementOverride> StatementOverrides { get; init; } = [];
+    public IReadOnlyList<RecurringItem> Recurring { get; init; } = [];
+    public IReadOnlyList<RecurringSkip> RecurringSkips { get; init; } = [];
+    public IReadOnlyList<Budget> Budgets { get; init; } = [];
+    public IReadOnlyList<FinancialGoal> Goals { get; init; } = [];
+    public IReadOnlyList<GoalContribution> Contributions { get; init; } = [];
+    public IReadOnlyList<SavedScenario> Scenarios { get; init; } = [];
 }
 
 /// <summary>Persistência do módulo. Cada método é atômico (uma transação SQLite).</summary>
@@ -241,6 +253,32 @@ public interface IFinanceStore
     void SaveTransaction(FinanceTransaction transaction);
 
     void DeleteTransaction(Guid id, DateTimeOffset at);
+
+    void SaveRecurring(RecurringItem item);
+
+    /// <summary>Remove o modelo; lançamentos já confirmados ficam (sem o vínculo).</summary>
+    void DeleteRecurring(Guid id, DateTimeOffset at);
+
+    void SetRecurringSkip(RecurringSkip skip, bool skipped);
+
+    void SaveBudget(Budget budget);
+
+    void DeleteBudget(Guid id);
+
+    void SaveGoal(FinancialGoal goal);
+
+    /// <summary>Remove a meta e as contribuições; transferências já feitas ficam como lançamentos comuns.</summary>
+    void DeleteGoal(Guid id, DateTimeOffset at);
+
+    /// <summary>Contribuição e, se houver, a transferência ligada a ela (juntas).</summary>
+    void SaveContribution(GoalContribution contribution, FinanceTransaction? transfer);
+
+    /// <summary>Remove a contribuição e a transferência ligada a ela, se houver.</summary>
+    void DeleteContribution(Guid id, DateTimeOffset at);
+
+    void SaveScenario(SavedScenario scenario);
+
+    void DeleteScenario(Guid id);
 }
 
 /// <summary>Algo mudou no módulo de finanças (telas recalculam; nada é enviado para fora).</summary>
