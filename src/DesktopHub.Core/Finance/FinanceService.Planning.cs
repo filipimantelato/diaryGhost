@@ -23,6 +23,7 @@ public sealed partial class FinanceService
         _goals = [.. snapshot.Goals];
         _contributions = [.. snapshot.Contributions];
         _scenarios = [.. snapshot.Scenarios];
+        _batches = [.. snapshot.ImportBatches];
     }
 
     // ---------- Recorrências ----------

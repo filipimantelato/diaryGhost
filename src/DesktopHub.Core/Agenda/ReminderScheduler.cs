@@ -32,12 +32,14 @@ public sealed partial class ReminderScheduler : IDisposable
     private readonly ILogger<ReminderScheduler> _logger;
     private readonly Lock _gate = new();
     private readonly List<IDisposable> _subscriptions = [];
+    private readonly IReadOnlyList<IReminderSource> _sources;
     private ITimer? _timer;
     private bool _disposed;
 
     public ReminderScheduler(AgendaService agenda, IReminderLog log, NotificationCenter notifications, IEventBus bus,
-        TimeProvider time, ILogger<ReminderScheduler> logger)
+        TimeProvider time, ILogger<ReminderScheduler> logger, IEnumerable<IReminderSource>? sources = null)
     {
+        _sources = [.. sources ?? []];
         _agenda = agenda;
         _log = log;
         _notifications = notifications;
@@ -54,6 +56,10 @@ public sealed partial class ReminderScheduler : IDisposable
         _log.PruneBefore(_time.GetUtcNow() - LogRetention);
         _subscriptions.Add(_bus.Subscribe<AgendaChanged>(_ => Evaluate()));
         _subscriptions.Add(_bus.Subscribe<NotificationActivated>(OnActivated));
+        foreach (var source in _sources)
+        {
+            _subscriptions.Add(source.Watch(Evaluate));
+        }
         Evaluate();
     }
 
@@ -156,6 +162,10 @@ public sealed partial class ReminderScheduler : IDisposable
                     ReminderSource.Task, t.Id, t.Title, anchor, fire, minutes, !t.DueHasTime, t.UpdatedAt));
             }
         }
+        foreach (var source in _sources)
+        {
+            list.AddRange(source.TriggersBetween(fromExclusive, toInclusive, updatedSince));
+        }
         return [.. list.OrderBy(t => t.FireAt)];
     }
 
@@ -216,9 +226,14 @@ public sealed partial class ReminderScheduler : IDisposable
         }
     }
 
-    private string CurrentTitle(ReminderLogEntry s) => s.Source == ReminderSource.Event
-        ? _agenda.FindEvent(s.SourceId)?.Title ?? s.Title
-        : _agenda.FindTask(s.SourceId)?.Title ?? s.Title;
+    private string CurrentTitle(ReminderLogEntry s) => s.Source switch
+    {
+        ReminderSource.Event => _agenda.FindEvent(s.SourceId)?.Title ?? s.Title,
+        ReminderSource.Task => _agenda.FindTask(s.SourceId)?.Title ?? s.Title,
+        _ => SourceFor(s.Source)?.CurrentTitle(s.SourceId) ?? s.Title,
+    };
+
+    private IReminderSource? SourceFor(ReminderSource source) => _sources.FirstOrDefault(x => x.Source == source);
 
     private void ScheduleNext(DateTimeOffset now)
     {
@@ -262,7 +277,11 @@ public sealed partial class ReminderScheduler : IDisposable
         var today = ZonedTime.ToWall(now, zone).Date;
         var anchorWall = ZonedTime.ToWall(t.Anchor, zone);
         string body;
-        if (t.Source == ReminderSource.Event)
+        if (SourceFor(t.Source) is { } external)
+        {
+            body = external.Body(t, now);
+        }
+        else if (t.Source == ReminderSource.Event)
         {
             var e = _agenda.FindEvent(t.SourceId);
             body = t.AllDay
@@ -337,7 +356,9 @@ public sealed partial class ReminderScheduler : IDisposable
                 CompleteTask(key);
                 break;
             case null:
-                _bus.Publish(new OpenMainRequested(key.StartsWith(nameof(ReminderSource.Task), StringComparison.Ordinal) ? "tasks" : "calendar"));
+                var page = _sources.FirstOrDefault(s => key.StartsWith(s.Source + ":", StringComparison.Ordinal))?.Page
+                    ?? (key.StartsWith(nameof(ReminderSource.Task), StringComparison.Ordinal) ? "tasks" : "calendar");
+                _bus.Publish(new OpenMainRequested(page));
                 break;
         }
     }

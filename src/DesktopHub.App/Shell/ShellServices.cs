@@ -31,4 +31,5 @@ internal sealed record ShellServices(
     WeatherService Weather,
     ActivityService Activity,
     CalendarSubscriptionService Subscriptions,
-    FinanceService Finance);
+    FinanceService Finance,
+    IReadOnlyList<ICalendarOverlaySource> Overlays);

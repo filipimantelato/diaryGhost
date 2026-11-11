@@ -24,6 +24,7 @@ internal sealed partial class WidgetController(
     AgendaService agenda,
     WeatherService weather,
     ActivityService activity,
+    DesktopHub.Core.Finance.FinanceService finance,
     ILogger<WidgetController> logger,
     ILoggerFactory loggerFactory) : IDisposable
 {
@@ -54,6 +55,10 @@ internal sealed partial class WidgetController(
             {
                 _window?.RefreshMedia();
             }
+            else if (e.Section == SettingsSections.Finance)
+            {
+                _window?.ShowFinance();
+            }
         }, ui));
         _subscriptions.Add(bus.Subscribe<ForegroundFullscreenChanged>(_ => Refresh(WidgetVisibilityReason.FullscreenPolicy), ui));
         // Eventos de mídia/volume chegam de threads do Windows; o contexto de UI serializa a entrega.
@@ -63,6 +68,7 @@ internal sealed partial class WidgetController(
         _subscriptions.Add(bus.Subscribe<AgendaChanged>(_ => _window?.ShowAgenda(), ui));
         _subscriptions.Add(bus.Subscribe<WeatherUpdated>(_ => _window?.ShowWeather(), ui));
         _subscriptions.Add(bus.Subscribe<ActivityReceived>(_ => _window?.ShowActivity(), ui));
+        _subscriptions.Add(bus.Subscribe<DesktopHub.Core.Finance.FinanceChanged>(_ => _window?.ShowFinance(), ui));
         Refresh(WidgetVisibilityReason.User);
     }
 
@@ -104,7 +110,7 @@ internal sealed partial class WidgetController(
         {
             if (_window is null)
             {
-                _window = new WidgetWindow(settings, bus, media, volume, productivity, agenda, weather, activity, loggerFactory.CreateLogger<WidgetWindow>());
+                _window = new WidgetWindow(settings, bus, media, volume, productivity, agenda, weather, activity, finance, loggerFactory.CreateLogger<WidgetWindow>());
                 LogCreated();
             }
             _window.Apply(s);

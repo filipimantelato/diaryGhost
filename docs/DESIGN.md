@@ -55,6 +55,7 @@ corpo e barra de abas na base. A altura acompanha o conteúdo, com transição d
 | Foco | 420 | chips Pomodoro/Temporizador/Cronômetro, anel de progresso, status, tempo, ciclos, controles; presets do temporizador | 3 ✅ |
 | Agenda | 420 | próximo evento, tempo restante, lembretes | 4 |
 | Atividade | 420 | eventos de integrações (Claude Code via hooks) | 6 |
+| Finanças | 420 | disponível, orçamento do mês (barra e %), próxima fatura e próximo vencimento; valores "R$ ••••" até o olho revelar (30 s) | 12 ✅ |
 
 Interações: clique na ilha compacta expande; botão no cabeçalho recolhe; arrastar move (se
 desbloqueado; limiar de 4 px separa clique de arraste); clique direito abre o menu (sempre visível,

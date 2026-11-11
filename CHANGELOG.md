@@ -2,6 +2,18 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.12.0] — 2026-11-11 — Fase 12: integração
+### Adicionado
+- **Avisos de vencimento** de contas, assinaturas e faturas de cartão como notificações do Windows (N dias antes, às
+  09:00), sem mostrar valores; adiar como nos outros lembretes; clicar abre Finanças. Liga/desliga e antecedência das
+  faturas em Configurações › Finanças.
+- **Calendário** mostra os vencimentos de Finanças (somente leitura) em mês, semana, dia e lista, com filtro.
+- **Widget**: painel Finanças (disponível, orçamento do mês, próxima fatura, próximo vencimento) com valores ocultos até
+  revelar por 30 s; opção "Mostrar valores no widget".
+- Aba **Importar** em Finanças: extratos OFX e CSV, com colunas ajustáveis, pré-visualização, duplicatas marcadas,
+  categoria sugerida pelo histórico, histórico de importações e desfazer o lote. Migração 4 do banco (com backup) e
+  ADR-034.
+
 ## [0.11.0] — 2026-11-11 — Fase 11: planejamento
 ### Adicionado
 - Aba **Planejamento** em Finanças:

@@ -377,7 +377,7 @@ public sealed class FinancePersistenceTests
         }
         SqliteConnection.ClearAllPools();
         var report = new FinanceDatabase(dir.Paths, NullLogger<SqliteDatabase>.Instance).Initialize();
-        Assert.Equal((2, 3), (report.Migration.FromVersion, report.Migration.ToVersion));
+        Assert.Equal((2, FinanceMigrations.All[^1].Version), (report.Migration.FromVersion, report.Migration.ToVersion));
         Assert.StartsWith("finance-v2-", Path.GetFileName(report.BackupFile));
         var s = Service(new FinanceDatabase(dir.Paths, NullLogger<SqliteDatabase>.Instance));
         Assert.Equal(777, s.Balance(s.Accounts.Single().Id, Today));
@@ -466,5 +466,38 @@ public sealed class FinancePersistenceTests
         // Cenário com JSON inválido.
         Rejects($"INSERT INTO fin_scenarios VALUES ('{Guid.NewGuid()}', 'x', 'não é json', 0, 0);");
         Assert.NotNull(paid);
+    }
+
+    [Fact]
+    public void Import_batch_survives_reopening_and_undo_removes_its_rows()
+    {
+        using var dir = new TempDataDir();
+        var s = Service(OpenDb(dir));
+        var bank = s.SaveAccount(s.NewAccount() with { Name = "Banco", OpeningBalance = 100_000, OpeningDate = new DateOnly(2026, 9, 1) }).Id;
+        var parsed = StatementParser.ParseOfx("""
+            <OFX><BANKTRANLIST>
+            <STMTTRN><DTPOSTED>20261105<TRNAMT>-45.90<FITID>A1<MEMO>Farmácia
+            <STMTTRN><DTPOSTED>20261106<TRNAMT>1500.00<FITID>A2<NAME>Pix
+            </BANKTRANLIST></OFX>
+            """);
+        var sha = StatementParser.Sha256("x"u8.ToArray());
+        var batch = s.Import(bank, ImportFormat.Ofx, "extrato.ofx", sha, s.PreviewImport(bank, parsed.Rows), _ => null, skipped: 0);
+        SqliteConnection.ClearAllPools();
+
+        var again = Service(OpenDb(dir));
+        var stored = Assert.Single(again.ImportBatches);
+        Assert.Equal((batch.Id, "extrato.ofx", sha, 2), (stored.Id, stored.FileName, stored.Sha256, stored.Imported));
+        var rows = again.BatchTransactions(batch.Id);
+        Assert.Equal(2, rows.Count);
+        Assert.Contains(rows, t => t.ExternalId == "A1" && t.Fingerprint is { Length: 32 } && t.Amount == 4_590);
+        Assert.All(again.PreviewImport(bank, parsed.Rows), c => Assert.Equal(ImportRowStatus.AlreadyImported, c.Status));
+
+        Assert.Equal(2, again.UndoImport(batch.Id));
+        SqliteConnection.ClearAllPools();
+        var third = Service(OpenDb(dir));
+        Assert.Empty(third.BatchTransactions(batch.Id));
+        Assert.NotNull(third.ImportBatches.Single().UndoneAt);
+        Assert.Equal(100_000, third.Balance(bank, new DateOnly(2026, 11, 15)));
+        Assert.Contains(new SqliteFinanceStore(OpenDb(dir), NullLogger<SqliteFinanceStore>.Instance).AuditLog(), e => e.Action == "undo" && e.Entity == "import");
     }
 }

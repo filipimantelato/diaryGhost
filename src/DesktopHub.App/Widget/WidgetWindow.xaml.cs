@@ -53,8 +53,9 @@ public partial class WidgetWindow : Window
     private PixelRect _dragWindowStart;
 
     internal WidgetWindow(SettingsService settings, IEventBus bus, MediaService media, IMasterVolume volume, ProductivityService productivity,
-        AgendaService agenda, WeatherService weather, ActivityService activity, ILogger logger)
+        AgendaService agenda, WeatherService weather, ActivityService activity, DesktopHub.Core.Finance.FinanceService finance, ILogger logger)
     {
+        _finance = finance;
         _weather = weather;
         _activity = activity;
         _settings = settings;
@@ -167,6 +168,7 @@ public partial class WidgetWindow : Window
         [WidgetPanel.Focus] = ("Foco", null, null),
         [WidgetPanel.Agenda] = ("Agenda", null, null),
         [WidgetPanel.Activity] = ("Atividade", null, null),
+        [WidgetPanel.Finance] = ("Finanças", null, null),
     };
 
     private void ShowPanel(WidgetPanel panel, WidgetLayout layout)
@@ -183,6 +185,15 @@ public partial class WidgetWindow : Window
         FocusBody.Visibility = panel == WidgetPanel.Focus ? Visibility.Visible : Visibility.Collapsed;
         AgendaBody.Visibility = panel == WidgetPanel.Agenda ? Visibility.Visible : Visibility.Collapsed;
         ActivityBody.Visibility = panel == WidgetPanel.Activity ? Visibility.Visible : Visibility.Collapsed;
+        FinanceBody.Visibility = panel == WidgetPanel.Finance ? Visibility.Visible : Visibility.Collapsed;
+        if (!expanded)
+        {
+            HideFinanceValues();
+        }
+        if (panel == WidgetPanel.Finance && expanded)
+        {
+            RenderFinance();
+        }
         RenderActivity();
         if (panel == WidgetPanel.Agenda && expanded)
         {
@@ -258,6 +269,7 @@ public partial class WidgetWindow : Window
         WidgetPanel.Agenda => TabAgenda,
         WidgetPanel.Activity => TabActivity,
         WidgetPanel.Volume => TabVolume,
+        WidgetPanel.Finance => TabFinance,
         _ => TabHome,
     };
 
@@ -274,6 +286,7 @@ public partial class WidgetWindow : Window
             _ when ReferenceEquals(sender, TabAgenda) => WidgetPanel.Agenda,
             _ when ReferenceEquals(sender, TabActivity) => WidgetPanel.Activity,
             _ when ReferenceEquals(sender, TabVolume) => WidgetPanel.Volume,
+            _ when ReferenceEquals(sender, TabFinance) => WidgetPanel.Finance,
             _ => WidgetPanel.Home,
         };
         _settings.UpdateWidget(w => w with { Panel = panel });

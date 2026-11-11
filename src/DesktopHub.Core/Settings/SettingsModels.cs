@@ -178,6 +178,7 @@ public enum WidgetPanel
     Activity,
     Home,
     Volume,
+    Finance,
 }
 
 /// <summary>Ferramenta exibida no painel Foco do widget.</summary>
@@ -276,5 +277,14 @@ public sealed record FinanceSettings
     /// <summary>Margem de segurança do "quanto posso reservar" (centavos, moeda base). Padrão 0.</summary>
     public long SafetyMargin { get; init; }
 
-    public FinanceSettings Sanitize() => this with { SafetyMargin = Math.Clamp(SafetyMargin, 0, 1_000_000_000_00) };
+    /// <summary>Avisos de vencimento de contas, assinaturas e faturas (sem valores no aviso).</summary>
+    public bool DueReminders { get; init; } = true;
+
+    /// <summary>Avisar faturas de cartão quantos dias antes do vencimento.</summary>
+    public int StatementReminderDays { get; init; } = 3;
+
+    /// <summary>Mostrar valores no painel Finanças do widget (desligado: sempre "R$ ••••" até revelar).</summary>
+    public bool WidgetShowValues { get; init; }
+
+    public FinanceSettings Sanitize() => this with { SafetyMargin = Math.Clamp(SafetyMargin, 0, 1_000_000_000_00), StatementReminderDays = Math.Clamp(StatementReminderDays, 0, 15) };
 }

@@ -388,5 +388,20 @@ Converter exigiria cotações de um serviço externo, o que contraria o módulo 
   calculado por eventos (sem recalcular saldos dia a dia). "Quanto posso reservar" usa o menor ponto do período, porque
   reservar hoje baixa todos os dias seguintes.
 
+## ADR-034 — Integração de Finanças por portas: avisos e calendário sem cópia, importação sem conexão ao banco
+**Data:** 2026-11-11 · **Status:** aceita
+
+- **Avisos**: o `ReminderScheduler` aceita outras origens (`IReminderSource`) e reaproveita registro, marca d'água,
+  atrasados e adiar. Finanças calcula os avisos a cada avaliação (nada é gravado além do registro de entregues); a
+  chave inclui o vencimento e a antecedência. O texto do aviso nunca traz valores.
+- **Calendário**: porta `ICalendarOverlaySource`; os vencimentos são consultados na hora de desenhar, nunca copiados
+  para `calendar_events` (sem duplicação nem sincronização).
+- **Importação**: só arquivos baixados pelo usuário (sem login automatizado, sem Open Finance por enquanto). Leitura de
+  OFX por expressões sobre o texto (1.x SGML e 2.x XML), com DTD/entidades recusados; CSV com detecção revisável.
+  Duplicatas: identificador do banco (FITID) ou impressão digital da linha (conta, data, valor, descrição normalizada e
+  repetição no arquivo) = já importado; mesmo valor até 2 dias de um lançamento digitado = possível duplicata,
+  desmarcada. Lote com SHA-256 do arquivo; desfazer remove os lançamentos do lote (inclusive editados) e marca o lote.
+- **Widget**: valores ocultos por padrão, revelar é temporário (30 s) e o modo privacidade sempre prevalece.
+
 ## Decisões pendentes
 - Nenhuma no momento.

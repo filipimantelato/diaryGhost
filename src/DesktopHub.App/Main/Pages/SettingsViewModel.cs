@@ -293,6 +293,26 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
         set => _settings.UpdateWidget(w => w with { Fullscreen = value ? FullscreenBehavior.Hide : FullscreenBehavior.KeepVisible });
     }
 
+    public bool FinanceDueReminders
+    {
+        get => _settings.Finance.DueReminders;
+        set => _settings.UpdateFinance(f => f with { DueReminders = value });
+    }
+
+    public IReadOnlyList<int> StatementReminderChoices { get; } = [0, 1, 2, 3, 5, 7, 10];
+
+    public int StatementReminderDays
+    {
+        get => _settings.Finance.StatementReminderDays;
+        set => _settings.UpdateFinance(f => f with { StatementReminderDays = value });
+    }
+
+    public bool FinanceWidgetShowValues
+    {
+        get => _settings.Finance.WidgetShowValues;
+        set => _settings.UpdateFinance(f => f with { WidgetShowValues = value });
+    }
+
     public bool ExcludeFromCapture
     {
         get => Widget.ExcludeFromCapture;

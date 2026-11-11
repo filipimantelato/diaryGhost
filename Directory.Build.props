@@ -7,7 +7,7 @@
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
 
-    <Version>0.11.0</Version>
+    <Version>0.12.0</Version>
     <Product>Diary Ghost</Product>
     <Company>DesktopHub</Company>
     <Copyright>Uso pessoal</Copyright>

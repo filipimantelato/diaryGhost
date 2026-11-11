@@ -141,6 +141,25 @@
         </StackPanel>
       </Border>
 
+      <!-- Finanças -->
+      <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+        <StackPanel>
+          <TextBlock Text="Finanças" Style="{StaticResource SubtitleText}" Margin="0,0,0,6" />
+          <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding FinanceDueReminders}" Content="Avisar vencimentos de contas, assinaturas e faturas" />
+          <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+            <TextBlock Text="Avisar faturas de cartão" Style="{StaticResource BodyText}" VerticalAlignment="Center" />
+            <ComboBox ItemsSource="{Binding StatementReminderChoices}" SelectedItem="{Binding StatementReminderDays}" Width="70" Margin="10,0,8,0"
+                      AutomationProperties.Name="Dias de antecedência do aviso de fatura" />
+            <TextBlock Text="dias antes do vencimento" Style="{StaticResource BodyText}" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Style="{StaticResource CaptionText}" Margin="0,0,0,8" TextWrapping="Wrap"
+                     Text="Os avisos dizem só o que vence e quando, nunca o valor (aparecem na tela de bloqueio e no histórico do Windows). Contas e assinaturas usam o &quot;avisar N dias antes&quot; de cada uma." />
+          <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding FinanceWidgetShowValues}" Content="Mostrar valores no painel Finanças do widget" />
+          <TextBlock Style="{StaticResource CaptionText}" TextWrapping="Wrap"
+                     Text="Desligado (padrão): o widget mostra R$ •••• e o olho revela por 30 segundos. O modo privacidade de Finanças sempre oculta." />
+        </StackPanel>
+      </Border>
+
       <!-- Clima -->
       <Border Style="{StaticResource Card}" Margin="0,16,0,0">
         <StackPanel>

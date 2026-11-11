@@ -36,10 +36,26 @@ public partial class CalendarPage : UserControl, IDisposable
     private DateTime _anchor;
     private double? _scrollOffset;
 
-    internal CalendarPage(AgendaService agenda, IEventBus bus)
+    private static bool s_showOverlays = true;
+    private readonly IReadOnlyList<ICalendarOverlaySource> _overlays;
+    private readonly IEventBus _bus;
+
+    internal CalendarPage(AgendaService agenda, IEventBus bus, IReadOnlyList<ICalendarOverlaySource>? overlays = null)
     {
         _agenda = agenda;
+        _bus = bus;
+        _overlays = overlays ?? [];
         InitializeComponent();
+        if (_overlays.Count > 0)
+        {
+            OverlayToggle.Visibility = Visibility.Visible;
+            OverlayToggle.Content = string.Join(" · ", _overlays.Select(o => o.Name));
+            foreach (var source in _overlays)
+            {
+                var context = SynchronizationContext.Current;
+                _subscriptions.Add(source.Watch(() => context?.Post(_ => Render(), null)));
+            }
+        }
         _anchor = agenda.LocalNow.Date;
         _subscriptions.Add(bus.Subscribe<AgendaChanged>(_ => Render(), SynchronizationContext.Current));
         // Linha do "agora" e dia atual: atualiza uma vez por minuto, só com a página aberta.
@@ -53,6 +69,8 @@ public partial class CalendarPage : UserControl, IDisposable
 
     private void Render()
     {
+        OverlayToggle.DataContext = new ChipState(s_showOverlays);
+        AutomationProperties.SetName(OverlayToggle, s_showOverlays ? "Ocultar vencimentos de finanças no calendário" : "Mostrar vencimentos de finanças no calendário");
         foreach (var (button, view) in new[] { (ViewDay, CalendarView.Day), (ViewWeek, CalendarView.Week), (ViewMonth, CalendarView.Month), (ViewList, CalendarView.List) })
         {
             button.DataContext = new ChipState(view == _view);
@@ -193,6 +211,57 @@ public partial class CalendarPage : UserControl, IDisposable
         return button;
     }
 
+    // ---------- Itens de outros módulos (somente leitura) ----------
+
+    private void Overlay_Click(object sender, RoutedEventArgs e)
+    {
+        s_showOverlays = !s_showOverlays;
+        Render();
+    }
+
+    /// <summary>Itens sobrepostos por dia (vazio com o filtro desligado).</summary>
+    private Dictionary<DateTime, List<CalendarOverlayItem>> OverlaysByDay(DateTime from, DateTime to)
+    {
+        var result = new Dictionary<DateTime, List<CalendarOverlayItem>>();
+        if (!s_showOverlays)
+        {
+            return result;
+        }
+        foreach (var item in _overlays.SelectMany(s => s.Between(DateOnly.FromDateTime(from), DateOnly.FromDateTime(to))))
+        {
+            var day = item.Date.ToDateTime(TimeOnly.MinValue);
+            (result.TryGetValue(day, out var list) ? list : result[day] = []).Add(item);
+        }
+        return result;
+    }
+
+    private Button OverlayChip(CalendarOverlayItem item, bool compact)
+    {
+        var label = new TextBlock
+        {
+            Text = compact ? "◇ " + item.Title : $"◇ {item.Title}\n{item.Detail}",
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = compact ? TextWrapping.NoWrap : TextWrapping.Wrap,
+            TextDecorations = item.Done ? TextDecorations.Strikethrough : null,
+        };
+        var button = new Button
+        {
+            Style = (Style)FindResource("EventChip"),
+            Background = AgendaUi.ColorBrush(item.Color, 0x22),
+            BorderBrush = AgendaUi.ColorBrush(item.Color),
+            Content = label,
+            Opacity = item.Done ? 0.6 : 1,
+            ToolTip = $"{item.Title} · {item.Detail} · abre Finanças",
+        };
+        AutomationProperties.SetName(button, $"{item.Title}, {item.Detail}, somente leitura: abre Finanças");
+        button.Click += (_, args) =>
+        {
+            args.Handled = true;
+            _bus.Publish(new OpenMainRequested(item.Page));
+        };
+        return button;
+    }
+
     private string Describe(EventOccurrence o)
     {
         var start = ZonedTime.ToWall(o.StartUtc, _agenda.LocalZone);
@@ -240,6 +309,7 @@ public partial class CalendarPage : UserControl, IDisposable
         var start = StartOfWeek(first);
         var today = _agenda.LocalNow.Date;
         var byDay = new Dictionary<DateTime, List<EventOccurrence>>();
+        var overlays = OverlaysByDay(start, start.AddDays(41));
         foreach (var o in _agenda.OccurrencesForDays(start, start.AddDays(41)))
         {
             foreach (var d in DaysOf(o))
@@ -279,6 +349,7 @@ public partial class CalendarPage : UserControl, IDisposable
             };
             panel.Children.Add(number);
             var items = byDay.GetValueOrDefault(day) ?? [];
+            var extra = overlays.GetValueOrDefault(day) ?? [];
             const int maxChips = 3;
             foreach (var o in items.OrderByDescending(o => CoversWholeDay(o, day)).ThenBy(o => o.StartUtc).Take(maxChips))
             {
@@ -287,9 +358,16 @@ public partial class CalendarPage : UserControl, IDisposable
                 chip.Margin = new Thickness(0, 0, 0, 2);
                 panel.Children.Add(chip);
             }
-            if (items.Count > maxChips)
+            foreach (var item in extra.Take(Math.Max(0, maxChips - items.Count)))
             {
-                panel.Children.Add(AgendaUi.Text($"+{items.Count - maxChips} mais", "CaptionText", 11));
+                var chip = OverlayChip(item, compact: true);
+                chip.Margin = new Thickness(0, 0, 0, 2);
+                panel.Children.Add(chip);
+            }
+            var total = items.Count + extra.Count;
+            if (total > maxChips)
+            {
+                panel.Children.Add(AgendaUi.Text($"+{total - maxChips} mais", "CaptionText", 11));
             }
             var cell = new Button
             {
@@ -298,7 +376,7 @@ public partial class CalendarPage : UserControl, IDisposable
                 Content = panel,
                 ToolTip = "Clique para ver o dia; clique duplo para criar um evento",
             };
-            AutomationProperties.SetName(cell, $"{AgendaFormat.DayTitle(day)}, {items.Count} eventos");
+            AutomationProperties.SetName(cell, $"{AgendaFormat.DayTitle(day)}, {items.Count} eventos" + (extra.Count > 0 ? $", {extra.Count} vencimentos" : ""));
             cell.Click += (_, _) => OpenDay(day);
             cell.MouseDoubleClick += (_, args) =>
             {
@@ -324,6 +402,7 @@ public partial class CalendarPage : UserControl, IDisposable
     {
         var today = _agenda.LocalNow;
         var occurrences = _agenda.OccurrencesForDays(firstDay, firstDay.AddDays(days - 1));
+        var overlays = OverlaysByDay(firstDay, firstDay.AddDays(days - 1));
 
         var outer = new Grid();
         outer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // cabeçalho
@@ -377,6 +456,12 @@ public partial class CalendarPage : UserControl, IDisposable
             foreach (var o in dayOccurrences.Where(o => CoversWholeDay(o, day)))
             {
                 var chip = EventChip(o, o.Event.Title, compact: true);
+                chip.Margin = new Thickness(0, 0, 0, 2);
+                allDayPanel.Children.Add(chip);
+            }
+            foreach (var item in overlays.GetValueOrDefault(day) ?? [])
+            {
+                var chip = OverlayChip(item, compact: true);
                 chip.Margin = new Thickness(0, 0, 0, 2);
                 allDayPanel.Children.Add(chip);
             }
@@ -518,13 +603,16 @@ public partial class CalendarPage : UserControl, IDisposable
         var today = _agenda.LocalNow;
         var panel = new StackPanel { Margin = new Thickness(18, 12, 18, 18) };
         var occurrences = _agenda.OccurrencesForDays(_anchor, _anchor.AddDays(ListDays - 1));
-        if (occurrences.Count == 0)
+        var overlays = OverlaysByDay(_anchor, _anchor.AddDays(ListDays - 1));
+        if (occurrences.Count == 0 && overlays.Count == 0)
         {
             panel.Children.Add(AgendaUi.Text("Nada marcado neste período. Use \"Novo evento\" ou dê um clique duplo num horário.", "CaptionText"));
         }
-        foreach (var dayGroup in occurrences.GroupBy(o => (ZonedTime.ToWall(o.StartUtc, _agenda.LocalZone).Date < _anchor ? _anchor : ZonedTime.ToWall(o.StartUtc, _agenda.LocalZone).Date)))
+        var groups = occurrences.GroupBy(o => (ZonedTime.ToWall(o.StartUtc, _agenda.LocalZone).Date < _anchor ? _anchor : ZonedTime.ToWall(o.StartUtc, _agenda.LocalZone).Date))
+            .ToDictionary(g => g.Key, g => g.ToList());
+        foreach (var day in groups.Keys.Concat(overlays.Keys).Distinct().Order())
         {
-            var day = dayGroup.Key;
+            var dayGroup = groups.GetValueOrDefault(day) ?? [];
             var relative = AgendaFormat.Day(day, today);
             var title = AgendaFormat.Capitalize(relative) + (relative.Contains('/', StringComparison.Ordinal) ? "" : " · " + AgendaFormat.DayTitle(day));
             var heading = AgendaUi.Text(title, "SubtitleText", 13.5, day == today.Date ? (Brush)FindResource("AccentBrush") : null);
@@ -554,6 +642,18 @@ public partial class CalendarPage : UserControl, IDisposable
                     meta.Add("aviso " + string.Join(", ", o.Event.ReminderMinutes.Select(m => AgendaFormat.ReminderOffset(m).ToLower(AgendaUi.PtBr))));
                 }
                 var chip = EventChip(o, o.Event.Title + (meta.Count > 0 ? "\n" + string.Join(" · ", meta) : ""), compact: false);
+                chip.FontSize = 12.5;
+                Grid.SetColumn(chip, 1);
+                row.Children.Add(chip);
+                panel.Children.Add(row);
+            }
+            foreach (var item in overlays.GetValueOrDefault(day) ?? [])
+            {
+                var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+                row.ColumnDefinitions.Add(new ColumnDefinition());
+                row.Children.Add(AgendaUi.Text("vencimento", "CaptionText"));
+                var chip = OverlayChip(item, compact: false);
                 chip.FontSize = 12.5;
                 Grid.SetColumn(chip, 1);
                 row.Children.Add(chip);

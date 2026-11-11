@@ -36,6 +36,7 @@ internal sealed class MemoryFinanceStore : IFinanceStore
         Goals = [.. Goals.Values],
         Contributions = [.. Contributions.Values],
         Scenarios = [.. Scenarios.Values],
+        ImportBatches = [.. Batches.Values],
     };
 
     public void SaveCard(CreditCard card)
@@ -215,6 +216,25 @@ internal sealed class MemoryFinanceStore : IFinanceStore
     {
         Guard();
         Scenarios.Remove(id);
+    }
+
+    public Dictionary<Guid, ImportBatch> Batches { get; } = [];
+
+    public void SaveImport(ImportBatch batch, IReadOnlyList<FinanceTransaction> transactions)
+    {
+        Guard();
+        Batches[batch.Id] = batch;
+        transactions.ToList().ForEach(t => Transactions[t.Id] = t);
+    }
+
+    public void UndoImport(Guid batchId, DateTimeOffset at)
+    {
+        Guard();
+        foreach (var t in Transactions.Values.Where(t => t.ImportBatchId == batchId).ToList())
+        {
+            Transactions.Remove(t.Id);
+        }
+        Batches[batchId] = Batches[batchId] with { UndoneAt = at };
     }
 }
 

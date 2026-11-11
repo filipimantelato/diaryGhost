@@ -51,6 +51,7 @@ internal sealed partial class AppShell(
     ActivityService activity,
     CalendarSubscriptionService subscriptions,
     FinanceService finance,
+    IEnumerable<ICalendarOverlaySource> overlays,
     ILogger<AppShell> logger) : IDisposable
 {
     private readonly List<IDisposable> _subscriptions = [];
@@ -61,7 +62,7 @@ internal sealed partial class AppShell(
 
     public bool IsExiting => _exiting;
 
-    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders, news, weather, activity, subscriptions, finance);
+    private ShellServices Services => new(settings, bus, widget, hotkeys, startup, paths, media, productivity, notifications, agenda, reminders, news, weather, activity, subscriptions, finance, [.. overlays]);
 
     public void Start()
     {

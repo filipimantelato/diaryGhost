@@ -125,6 +125,10 @@ public sealed record FinanceTransaction
     /// <summary>Ocorrência confirmada de uma recorrência (par único com <see cref="OccurrenceDate"/>).</summary>
     public Guid? RecurringId { get; init; }
     public DateOnly? OccurrenceDate { get; init; }
+    /// <summary>Importado de um extrato (lote, identificador do banco e impressão digital da linha).</summary>
+    public Guid? ImportBatchId { get; init; }
+    public string? ExternalId { get; init; }
+    public string? Fingerprint { get; init; }
     public required IReadOnlyList<Posting> Postings { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
     public required DateTimeOffset UpdatedAt { get; init; }
@@ -219,6 +223,7 @@ public sealed record FinanceSnapshot(
     public IReadOnlyList<FinancialGoal> Goals { get; init; } = [];
     public IReadOnlyList<GoalContribution> Contributions { get; init; } = [];
     public IReadOnlyList<SavedScenario> Scenarios { get; init; } = [];
+    public IReadOnlyList<ImportBatch> ImportBatches { get; init; } = [];
 }
 
 /// <summary>Persistência do módulo. Cada método é atômico (uma transação SQLite).</summary>
@@ -279,6 +284,12 @@ public interface IFinanceStore
     void SaveScenario(SavedScenario scenario);
 
     void DeleteScenario(Guid id);
+
+    /// <summary>Lote e seus lançamentos, juntos.</summary>
+    void SaveImport(ImportBatch batch, IReadOnlyList<FinanceTransaction> transactions);
+
+    /// <summary>Marca o lote como desfeito e remove os lançamentos dele.</summary>
+    void UndoImport(Guid batchId, DateTimeOffset at);
 }
 
 /// <summary>Algo mudou no módulo de finanças (telas recalculam; nada é enviado para fora).</summary>

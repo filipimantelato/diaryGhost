@@ -7,6 +7,8 @@ public enum ReminderSource
 {
     Event,
     Task,
+    /// <summary>Vencimentos do módulo de finanças (contas, assinaturas, faturas).</summary>
+    Finance,
 }
 
 /// <summary>
@@ -73,3 +75,27 @@ public interface IReminderLog
 
 /// <summary>Avisos entregues, adiados ou reagendados (para atualizar telas).</summary>
 public sealed record RemindersChanged : IAppEvent;
+
+/// <summary>
+/// Outra origem de avisos para o <see cref="ReminderScheduler"/> (ex.: vencimentos de finanças). Reaproveita o registro,
+/// a marca d'água e o adiar: a origem só calcula os avisos e o texto do toast.
+/// </summary>
+public interface IReminderSource
+{
+    ReminderSource Source { get; }
+
+    /// <summary>Página aberta ao clicar no aviso.</summary>
+    string Page { get; }
+
+    /// <summary>Avisos com horário em (fromExclusive, toInclusive]; com <paramref name="updatedSince"/>, só de origens editadas depois.</summary>
+    IReadOnlyList<ReminderTrigger> TriggersBetween(DateTimeOffset fromExclusive, DateTimeOffset toInclusive, DateTimeOffset? updatedSince);
+
+    /// <summary>Corpo do toast (sem dados sensíveis: o toast aparece na tela de bloqueio e no histórico do Windows).</summary>
+    string Body(ReminderTrigger trigger, DateTimeOffset now);
+
+    /// <summary>Título atual (a origem pode ter sido renomeada desde o aviso).</summary>
+    string? CurrentTitle(Guid sourceId);
+
+    /// <summary>Chamado quando os dados da origem mudam (o agendador reavalia).</summary>
+    IDisposable Watch(Action changed);
+}

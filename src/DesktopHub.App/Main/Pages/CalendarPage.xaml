@@ -70,6 +70,8 @@
         <Button x:Name="ViewWeek" Style="{StaticResource Chip}" Content="Semana" Tag="Week" Click="View_Click" />
         <Button x:Name="ViewMonth" Style="{StaticResource Chip}" Content="Mês" Tag="Month" Click="View_Click" />
         <Button x:Name="ViewList" Style="{StaticResource Chip}" Content="Lista" Tag="List" Click="View_Click" Margin="0,0,14,0" />
+        <Button x:Name="OverlayToggle" Style="{StaticResource Chip}" Content="Finanças" Margin="0,0,14,0" Click="Overlay_Click" Visibility="Collapsed"
+                ToolTip="Mostrar vencimentos de contas, assinaturas e faturas" />
         <Button Style="{StaticResource AccentButton}" Content="Novo evento" Click="NewEvent_Click" />
       </StackPanel>
       <StackPanel Orientation="Horizontal" VerticalAlignment="Center">

@@ -98,6 +98,9 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
                 InstallmentNumber = Long(r, "installment_number") is { } k ? (int)k : null,
                 RecurringId = Text(r, "recurring_id") is { } rid ? Guid.Parse(rid) : null,
                 OccurrenceDate = Text(r, "occurrence_date") is { } od ? ParseDate(od) : null,
+                ImportBatchId = Text(r, "import_batch_id") is { } ib ? Guid.Parse(ib) : null,
+                ExternalId = Text(r, "external_id"),
+                Fingerprint = Text(r, "fingerprint"),
                 Postings = postings.TryGetValue(id, out var list) ? list : [],
                 CreatedAt = Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
                 UpdatedAt = Ms(r.GetInt64(r.GetOrdinal("updated_at_ms"))),
@@ -218,6 +221,18 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
             ScenarioJson.Parse(r.GetString(r.GetOrdinal("items"))),
             Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
             Ms(r.GetInt64(r.GetOrdinal("updated_at_ms")))));
+        var batches = Read(connection, "SELECT * FROM fin_import_batches;", r => new ImportBatch
+        {
+            Id = Guid.Parse(r.GetString(r.GetOrdinal("id"))),
+            Format = Enum.Parse<ImportFormat>(r.GetString(r.GetOrdinal("format"))),
+            FileName = r.GetString(r.GetOrdinal("file_name")),
+            Sha256 = r.GetString(r.GetOrdinal("sha256")),
+            AccountId = Guid.Parse(r.GetString(r.GetOrdinal("account_id"))),
+            Imported = (int)r.GetInt64(r.GetOrdinal("imported")),
+            Skipped = (int)r.GetInt64(r.GetOrdinal("skipped")),
+            CreatedAt = Ms(r.GetInt64(r.GetOrdinal("created_at_ms"))),
+            UndoneAt = Long(r, "undone_at_ms") is { } u ? Ms(u) : null,
+        });
         return new FinanceSnapshot(accounts, categories, valid)
         {
             Cards = cards,
@@ -229,6 +244,7 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
             Goals = goals,
             Contributions = contributions,
             Scenarios = scenarios,
+            ImportBatches = batches,
         };
     }
 
@@ -402,6 +418,46 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
             p.AddWithValue("$updated", scenario.UpdatedAt.ToUnixTimeMilliseconds());
         }));
     }
+
+    public void SaveImport(ImportBatch batch, IReadOnlyList<FinanceTransaction> transactions)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(transactions);
+        transactions.ToList().ForEach(CheckInvariants);
+        Write((connection, tx) =>
+        {
+            Execute(connection, tx, """
+                INSERT INTO fin_import_batches (id, format, file_name, sha256, account_id, imported, skipped, created_at_ms, undone_at_ms)
+                VALUES ($id, $format, $file, $sha, $account, $imported, $skipped, $created, NULL);
+                """, p =>
+            {
+                p.AddWithValue("$id", batch.Id.ToString());
+                p.AddWithValue("$format", batch.Format.ToString());
+                p.AddWithValue("$file", batch.FileName);
+                p.AddWithValue("$sha", batch.Sha256);
+                p.AddWithValue("$account", batch.AccountId.ToString());
+                p.AddWithValue("$imported", batch.Imported);
+                p.AddWithValue("$skipped", batch.Skipped);
+                p.AddWithValue("$created", batch.CreatedAt.ToUnixTimeMilliseconds());
+            });
+            foreach (var t in transactions)
+            {
+                WriteTransaction(connection, tx, t);
+            }
+        });
+    }
+
+    public void UndoImport(Guid batchId, DateTimeOffset at) => Write((connection, tx) =>
+    {
+        // Partidas saem em cascata; estornos que apontavam para eles ficam soltos (ON DELETE SET NULL).
+        Execute(connection, tx, "DELETE FROM fin_transactions WHERE import_batch_id = $id;", p => p.AddWithValue("$id", batchId.ToString()));
+        Execute(connection, tx, "UPDATE fin_import_batches SET undone_at_ms = $at WHERE id = $id;", p =>
+        {
+            p.AddWithValue("$id", batchId.ToString());
+            p.AddWithValue("$at", at.ToUnixTimeMilliseconds());
+        });
+        Audit(connection, tx, "undo", "import", batchId, null, at);
+    });
 
     public void DeleteScenario(Guid id) => Write((connection, tx) =>
         Execute(connection, tx, "DELETE FROM fin_scenarios WHERE id = $id;", p => p.AddWithValue("$id", id.ToString())));
@@ -630,13 +686,14 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
     {
         CheckInvariants(transaction);
         Execute(connection, tx, """
-            INSERT INTO fin_transactions (id, kind, date, description, category_id, status, payment_method, notes, tags, refund_of_id, purchase_id, installment_number, recurring_id, occurrence_date, created_at_ms, updated_at_ms)
-            VALUES ($id, $kind, $date, $description, $category, $status, $method, $notes, $tags, $refundOf, $purchase, $installment, $recurring, $occurrence, $created, $updated)
+            INSERT INTO fin_transactions (id, kind, date, description, category_id, status, payment_method, notes, tags, refund_of_id, purchase_id, installment_number, recurring_id, occurrence_date, import_batch_id, external_id, fingerprint, created_at_ms, updated_at_ms)
+            VALUES ($id, $kind, $date, $description, $category, $status, $method, $notes, $tags, $refundOf, $purchase, $installment, $recurring, $occurrence, $batch, $external, $fingerprint, $created, $updated)
             ON CONFLICT(id) DO UPDATE SET kind = excluded.kind, date = excluded.date, description = excluded.description,
                 category_id = excluded.category_id, status = excluded.status, payment_method = excluded.payment_method,
                 notes = excluded.notes, tags = excluded.tags, refund_of_id = excluded.refund_of_id, purchase_id = excluded.purchase_id,
                 installment_number = excluded.installment_number, recurring_id = excluded.recurring_id,
-                occurrence_date = excluded.occurrence_date, updated_at_ms = excluded.updated_at_ms;
+                occurrence_date = excluded.occurrence_date, import_batch_id = excluded.import_batch_id,
+                external_id = excluded.external_id, fingerprint = excluded.fingerprint, updated_at_ms = excluded.updated_at_ms;
             """, p =>
         {
             p.AddWithValue("$id", transaction.Id.ToString());
@@ -653,6 +710,9 @@ public sealed partial class SqliteFinanceStore(FinanceDatabase database, ILogger
             p.AddWithValue("$installment", Db(transaction.InstallmentNumber));
             p.AddWithValue("$recurring", Db(transaction.RecurringId?.ToString()));
             p.AddWithValue("$occurrence", Db(transaction.OccurrenceDate is { } od ? Date(od) : null));
+            p.AddWithValue("$batch", Db(transaction.ImportBatchId?.ToString()));
+            p.AddWithValue("$external", Db(transaction.ExternalId));
+            p.AddWithValue("$fingerprint", Db(transaction.Fingerprint));
             p.AddWithValue("$created", transaction.CreatedAt.ToUnixTimeMilliseconds());
             p.AddWithValue("$updated", transaction.UpdatedAt.ToUnixTimeMilliseconds());
         });

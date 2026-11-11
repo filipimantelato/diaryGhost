@@ -199,6 +199,8 @@ public partial class App : Application
         services.AddSingleton<NotificationCenter>();
         services.AddSingleton<ProductivityService>();
         services.AddSingleton<AgendaService>();
+        services.AddSingleton<IReminderSource, FinanceReminders>();
+        services.AddSingleton<ICalendarOverlaySource, FinanceCalendarOverlay>();
         services.AddSingleton<ReminderScheduler>();
         services.AddSingleton<NewsService>();
         services.AddSingleton<WeatherService>();

@@ -27,6 +27,7 @@ public partial class FinancePage : UserControl, IDisposable
         Cards,
         Planning,
         Projections,
+        Import,
         Categories,
     }
 
@@ -85,7 +86,7 @@ public partial class FinancePage : UserControl, IDisposable
     {
         FilterBar.Visibility = Visibility.Collapsed;
         NewButton.IsEnabled = false;
-        foreach (var b in new UIElement[] { PrevMonth, NextMonth, TodayButton, TabOverview, TabTransactions, TabAccounts, TabCards, TabPlanning, TabProjections, TabCategories })
+        foreach (var b in new UIElement[] { PrevMonth, NextMonth, TodayButton, TabOverview, TabTransactions, TabAccounts, TabCards, TabPlanning, TabProjections, TabImport, TabCategories })
         {
             b.IsEnabled = false;
         }
@@ -143,15 +144,15 @@ public partial class FinancePage : UserControl, IDisposable
         }
         s_lastTab = _tab;
         s_lastMonth = (_year, _month);
-        foreach (var (button, tab) in new[] { (TabOverview, Tab.Overview), (TabTransactions, Tab.Transactions), (TabAccounts, Tab.Accounts), (TabCards, Tab.Cards), (TabPlanning, Tab.Planning), (TabProjections, Tab.Projections), (TabCategories, Tab.Categories) })
+        foreach (var (button, tab) in new[] { (TabOverview, Tab.Overview), (TabTransactions, Tab.Transactions), (TabAccounts, Tab.Accounts), (TabCards, Tab.Cards), (TabPlanning, Tab.Planning), (TabProjections, Tab.Projections), (TabImport, Tab.Import), (TabCategories, Tab.Categories) })
         {
             button.DataContext = new ChipState(tab == _tab);
         }
         // A visão geral tem seus próprios cartões: sem o resumo de cima e sem a moldura da lista.
-        var overview = _tab is Tab.Overview or Tab.Planning or Tab.Projections;
+        var overview = _tab is Tab.Overview or Tab.Planning or Tab.Projections or Tab.Import;
         foreach (var e in new UIElement[] { PrevMonth, NextMonth, MonthText })
         {
-            e.Visibility = _tab == Tab.Projections ? Visibility.Collapsed : Visibility.Visible;
+            e.Visibility = _tab is Tab.Projections or Tab.Import ? Visibility.Collapsed : Visibility.Visible;
         }
         SummaryGrid.Visibility = overview ? Visibility.Collapsed : Visibility.Visible;
         ListCard.Background = overview ? Brushes.Transparent : FinanceUi.Res("SurfaceBrush");
@@ -161,7 +162,7 @@ public partial class FinancePage : UserControl, IDisposable
         PrivacyButton.Content = FinanceUi.Privacy ? "" : "";
         MonthText.Text = FinanceUi.MonthTitle(_year, _month);
         var today = _finance.Today;
-        TodayButton.Visibility = today.Year == _year && today.Month == _month || _tab == Tab.Projections ? Visibility.Collapsed : Visibility.Visible;
+        TodayButton.Visibility = today.Year == _year && today.Month == _month || _tab is Tab.Projections or Tab.Import ? Visibility.Collapsed : Visibility.Visible;
         FilterBar.Visibility = _tab == Tab.Transactions ? Visibility.Visible : Visibility.Collapsed;
         RenderSummary();
 
@@ -186,6 +187,9 @@ public partial class FinancePage : UserControl, IDisposable
                 break;
             case Tab.Projections:
                 RenderProjections();
+                break;
+            case Tab.Import:
+                RenderImport();
                 break;
             default:
                 RenderTransactions();

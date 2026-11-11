@@ -51,7 +51,7 @@ public partial class MainWindow : Window
         };
 
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 11";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 12";
 
         SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
         ApplyTextScale();
@@ -100,7 +100,7 @@ public partial class MainWindow : Window
         MainPages.Settings => new SettingsPage(new SettingsViewModel(_settings, _bus, _widget, _hotkeys, _paths, _services.Notifications, _services.Agenda, _services.Weather)),
         "productivity" => new ProductivityPage(_services.Productivity, _settings, _bus),
         "news" => new NewsPage(_services.News, _settings, _bus),
-        "calendar" => new CalendarPage(_services.Agenda, _bus),
+        "calendar" => new CalendarPage(_services.Agenda, _bus, _services.Overlays),
         "tasks" => new TasksPage(_services.Agenda, _bus),
         "finance" => new FinancePage(_services.Finance, _bus),
         "reminders" => new RemindersPage(_services.Agenda, _services.Reminders, _services.Notifications, _bus),

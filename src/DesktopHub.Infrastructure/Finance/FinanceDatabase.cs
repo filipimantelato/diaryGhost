@@ -252,5 +252,26 @@ public static class FinanceMigrations
                 updated_at_ms  INTEGER NOT NULL
             ) STRICT;
             """),
+
+        new(4, "importacao", """
+            -- Lotes importados de extratos (CSV/OFX): o arquivo é identificado pelo SHA-256; desfazer marca undone_at.
+            CREATE TABLE fin_import_batches (
+                id              TEXT    NOT NULL PRIMARY KEY,
+                format          TEXT    NOT NULL CHECK (format IN ('Csv', 'Ofx')),
+                file_name       TEXT    NOT NULL CHECK (length(file_name) BETWEEN 1 AND 200),
+                sha256          TEXT    NOT NULL CHECK (length(sha256) = 64),
+                account_id      TEXT    NOT NULL REFERENCES fin_accounts (id) ON DELETE RESTRICT,
+                imported        INTEGER NOT NULL CHECK (imported >= 0),
+                skipped         INTEGER NOT NULL CHECK (skipped >= 0),
+                created_at_ms   INTEGER NOT NULL,
+                undone_at_ms    INTEGER
+            ) STRICT;
+
+            ALTER TABLE fin_transactions ADD COLUMN import_batch_id TEXT REFERENCES fin_import_batches (id) ON DELETE SET NULL;
+            ALTER TABLE fin_transactions ADD COLUMN external_id TEXT CHECK (external_id IS NULL OR length(external_id) <= 255);
+            ALTER TABLE fin_transactions ADD COLUMN fingerprint TEXT CHECK (fingerprint IS NULL OR length(fingerprint) = 32);
+            CREATE INDEX ix_fin_transactions_import ON fin_transactions (import_batch_id) WHERE import_batch_id IS NOT NULL;
+            CREATE INDEX ix_fin_transactions_fingerprint ON fin_transactions (fingerprint) WHERE fingerprint IS NOT NULL;
+            """),
     ];
 }

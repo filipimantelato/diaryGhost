@@ -350,11 +350,48 @@ Pendências levadas adiante:
 - Lembretes de contas, assinaturas e faturas (o "avisar N dias antes" já é guardado) → Fase 12.
 - Tema claro para a página (a referência visual é clara; o app hoje é só escuro) → avaliar na Fase 13.
 
+## Fase 12 — Integração ✅ (2026-11-11)
+Entregue:
+- **Avisos de vencimento** pelo agendador de lembretes existente (nova porta `IReminderSource`, ADR-034): contas e
+  assinaturas previstas N dias antes (o "avisar" de cada recorrência), faturas com saldo X dias antes (Configurações,
+  padrão 3), às 09:00. Chaves estáveis: confirmar ou pular faz o aviso sumir; nada repete após reiniciar; atrasados
+  chegam ao voltar. **Sem valores no aviso** (tela de bloqueio e histórico do Windows). Clicar abre Finanças.
+- **Calendário**: vencimentos de contas, assinaturas, receitas e faturas sobrepostos (somente leitura, nada copiado
+  para a agenda) no mês, semana/dia (faixa "dia todo") e lista; pagos riscados; filtro "Finanças"; valores mascarados
+  no modo privacidade; clicar abre Finanças.
+- **Widget**: painel Finanças com disponível (sem o reservado), orçamento do mês (barra e %), próxima fatura e próximo
+  vencimento. Valores ocultos por padrão; o olho revela por 30 s ou até recolher; "Mostrar valores no widget" em
+  Configurações; o modo privacidade sempre oculta; o modo compacto nunca mostra.
+- **Importar extratos** (aba Importar): OFX 1.x (SGML) e 2.x (XML), CSV com detecção de separador, cabeçalho,
+  colunas, formato de data e decimal (ajustáveis), UTF-8 ou Latin-1; até 20 MB e 20 mil linhas; OFX com DTD/entidades
+  recusado. Pré-visualização: novas marcadas; possíveis duplicatas (mesmo valor, até 2 dias de um lançamento digitado)
+  desmarcadas; já importadas (mesmo FITID ou impressão digital) bloqueadas; antes do saldo inicial bloqueadas; aviso de
+  arquivo repetido (SHA-256) e de moeda diferente; categoria sugerida pelo histórico. Lote com histórico e **desfazer**
+  (com confirmação). Migração 4 do `finance.db` com backup.
+- 351 testes (13 novos no núcleo e 1 de persistência): leitura de CSV (; e , / débito e crédito / Latin-1),
+  valores exatos, OFX 1.x e 2.x, DTD recusado, mesmo arquivo duas vezes = 0 novos, linhas repetidas distintas, FITID
+  repetido, possível duplicata, antes do saldo inicial, sugestão de categoria, desfazer, avisos de conta e de fatura
+  (com e sem configuração), entrega pelo agendador sem valores, calendário com privacidade, lote após reabrir.
+
+Critérios do MVP financeiro: **11 ✅** (avisos e calendário), **12 ✅** (importação).
+
+Verificado ao vivo (instância de teste; banco da Fase 11 migrado): CSV em Latin-1 com ";" e vírgula decimal → colunas
+detectadas; 4 novos e o aluguel de 1.800,00 marcado como possível duplicata do pendente de 20/11; OFX 1.x com 2
+lançamentos (conta terminando em 9887); reabrir o mesmo OFX → "já importado" e aviso de arquivo repetido; desfazer o
+lote CSV (com confirmação) removeu os 4; calendário de novembro com Streaming atrasado, Luz paga (riscada), Freela e
+a fatura de 10/12; widget com "R$ ••••" e, revelado, disponível 18.603,70 (19.686,60 − 82,90 importados − 1.000,00
+reservados); nenhum controle sem nome em Calendário, Configurações e Importar; widget no painel Finanças com 0 ms de
+CPU em 30 s.
+
+Pendências levadas adiante:
+- Importar fatura de cartão (OFX/CSV do cartão) para conferir com a fatura calculada → Fase 13.
+- Regras de categorização automática além da sugestão pelo histórico → Fase 13.
+
 | Fase | Entrega | Critérios do MVP financeiro |
 |---|---|---|
 | 8 — Fundação (A) ✅ | `Money` em centavos, `finance.db`, contas, categorias, lançamentos, transferências, ajustes, saldos derivados, página Lançamentos | 1, 2, 3, 4, 13, 14 |
 | 9 — Dashboard (B) ✅ | indicadores com definição formal, Visão geral por mês, gráficos, comparação mensal, modo privacidade, cartões no dashboard | 8 |
 | 10 — Cartões (C) ✅ | ciclos com vigência, compras, parcelas, faturas, limite, pagamentos totais e parciais, estornos | 5, 6, 7 |
 | 11 — Planejamento (D) ✅ | orçamentos, recorrências, contas e assinaturas, metas (real × planejado), projeções e simulador | 9, 10 |
-| 12 — Integração (E) | lembretes, sobreposição no calendário, painel do widget (valores ocultos), importação CSV/OFX | 11, 12 |
+| 12 — Integração (E) ✅ | lembretes, sobreposição no calendário, painel do widget (valores ocultos), importação CSV/OFX | 11, 12 |
 | 13 — Refinamento (F) | relatórios e CSV, anexos, backup cifrado, avaliação de cifragem e Windows Hello, desempenho, acessibilidade | — |

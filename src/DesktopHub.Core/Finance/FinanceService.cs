@@ -52,6 +52,8 @@ public sealed partial class FinanceService
 
     public DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(Now, _time.LocalTimeZone).DateTime);
 
+    public TimeZoneInfo LocalZone => _time.LocalTimeZone;
+
     public void Start()
     {
         var snapshot = _store.Load();
@@ -674,6 +676,10 @@ public sealed partial class FinanceService
             RefundOfId = draft.Kind == TransactionKind.Refund ? draft.RefundOfId : null,
             RecurringId = draft.Kind is TransactionKind.Income or TransactionKind.Expense ? draft.RecurringId : null,
             OccurrenceDate = draft.Kind is TransactionKind.Income or TransactionKind.Expense ? draft.OccurrenceDate : null,
+            // Editar um lançamento importado mantém o vínculo com o lote (desfazer o lote o remove) e a impressão digital.
+            ImportBatchId = existing?.ImportBatchId,
+            ExternalId = existing?.ExternalId,
+            Fingerprint = existing?.Fingerprint,
             Postings = postings,
             CreatedAt = existing?.CreatedAt ?? Now,
             UpdatedAt = Now,

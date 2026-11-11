@@ -304,6 +304,14 @@
               </WrapPanel>
             </StackPanel>
 
+            <!-- Finanças: valores ocultos por padrão (percentuais e barras continuam) -->
+            <StackPanel x:Name="FinanceBody" Visibility="Collapsed">
+              <StackPanel x:Name="FinanceList" />
+              <WrapPanel Margin="0,6,0,0">
+                <Button Style="{StaticResource Chip}" Content="Abrir Finanças" Tag="finance" Click="AgendaOpen_Click" />
+              </WrapPanel>
+            </StackPanel>
+
             <!-- Módulos ainda não implementados -->
             <StackPanel x:Name="PlaceholderBody" Visibility="Collapsed" Margin="0,0,0,4">
               <TextBlock x:Name="PlaceholderText" Style="{StaticResource CaptionText}" />
@@ -320,6 +328,7 @@
             <RadioButton x:Name="TabFocus" Style="{StaticResource IslandTab}" Content="&#xE916;" ToolTip="Foco" AutomationProperties.Name="Foco" Checked="Tab_Checked" />
             <RadioButton x:Name="TabAgenda" Style="{StaticResource IslandTab}" Content="&#xE787;" ToolTip="Agenda" AutomationProperties.Name="Agenda" Checked="Tab_Checked" />
             <RadioButton x:Name="TabActivity" Style="{StaticResource IslandTab}" Content="&#xE943;" ToolTip="Atividade" AutomationProperties.Name="Atividade de integrações" Checked="Tab_Checked" />
+            <RadioButton x:Name="TabFinance" Style="{StaticResource IslandTab}" Content="&#xE8C7;" ToolTip="Finanças" AutomationProperties.Name="Finanças" Checked="Tab_Checked" />
             <RadioButton x:Name="TabVolume" Style="{StaticResource IslandTab}" Content="&#xE767;" ToolTip="Volume" AutomationProperties.Name="Volume" Checked="Tab_Checked" />
           </StackPanel>
         </Grid>
