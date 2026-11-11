@@ -14,15 +14,15 @@
             <ColumnDefinition Width="96" />
             <ColumnDefinition Width="*" />
           </Grid.ColumnDefinitions>
-          <Border Width="96" Height="96" CornerRadius="12" Background="{StaticResource SurfaceElevatedBrush}" VerticalAlignment="Top">
+          <Border Width="96" Height="96" CornerRadius="12" Background="{DynamicResource SurfaceElevatedBrush}" VerticalAlignment="Top">
             <Grid>
-              <TextBlock Style="{StaticResource IconText}" Text="&#xE8D6;" FontSize="26" HorizontalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}" />
+              <TextBlock Style="{StaticResource IconText}" Text="&#xE8D6;" FontSize="26" HorizontalAlignment="Center" Foreground="{DynamicResource TextTertiaryBrush}" />
               <Border x:Name="ArtBox" CornerRadius="12" />
             </Grid>
           </Border>
           <StackPanel Grid.Column="1" Margin="18,0,0,0">
             <TextBlock x:Name="NowTitle" Style="{StaticResource SubtitleText}" FontSize="17" TextTrimming="CharacterEllipsis" />
-            <TextBlock x:Name="NowArtist" Style="{StaticResource BodyText}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+            <TextBlock x:Name="NowArtist" Style="{StaticResource BodyText}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,2,0,0" />
             <TextBlock x:Name="NowDetail" Style="{StaticResource CaptionText}" Margin="0,2,0,0" />
             <StackPanel x:Name="NowButtons" Orientation="Horizontal" Margin="-6,10,0,0">
               <Button x:Name="PrevButton" Style="{StaticResource IconButton}" Content="&#xE892;" AutomationProperties.Name="Faixa anterior" Click="Previous_Click" />
@@ -91,10 +91,10 @@
       <Border Style="{StaticResource Card}" Margin="0,16,0,0">
         <StackPanel>
           <TextBlock Text="Spotify Web API (opcional)" Style="{StaticResource SubtitleText}" />
-          <TextBlock Style="{StaticResource BodyText}" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,6,0,0"
+          <TextBlock Style="{StaticResource BodyText}" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,6,0,0"
                      Text="Integração complementar, separada do controle local: biblioteca, filas e dispositivos Spotify Connect. Usa OAuth no navegador (nenhuma senha aqui). Comandos de reprodução pela API exigem conta Premium. O controle local acima funciona sem ela." />
           <Border Style="{StaticResource Badge}" Margin="0,10,0,0">
-            <TextBlock Text="Não configurado · chega na Fase 6" FontSize="11.5" Foreground="{StaticResource TextPrimaryBrush}" />
+            <TextBlock Text="Não configurado · chega na Fase 6" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" />
           </Border>
         </StackPanel>
       </Border>

@@ -143,6 +143,13 @@ public sealed record MediaSettings
     };
 }
 
+/// <summary>Tema da janela principal e do widget.</summary>
+public enum AppTheme
+{
+    Dark,
+    Light,
+}
+
 public enum CloseBehavior
 {
     /// <summary>Fechar a janela principal mantém o app na bandeja (padrão).</summary>
@@ -219,6 +226,9 @@ public sealed partial record GeneralSettings
     /// <summary>Escala do texto da janela principal (acessibilidade): 1, 1,15 ou 1,3.</summary>
     public double TextScale { get; init; } = 1.0;
 
+    /// <summary>Modo escuro (padrão) ou claro.</summary>
+    public AppTheme Theme { get; init; } = AppTheme.Dark;
+
     /// <summary>Corrige valores inválidos (ex.: vindos de um banco editado à mão).</summary>
     public GeneralSettings Sanitize() => this with
     {
@@ -231,6 +241,7 @@ public sealed partial record GeneralSettings
         Language = string.IsNullOrWhiteSpace(Language) ? "pt-BR" : Language,
         CloseBehavior = Enum.IsDefined(CloseBehavior) ? CloseBehavior : CloseBehavior.MinimizeToTray,
         TextScale = TextScale >= 1.25 ? 1.3 : TextScale >= 1.1 ? 1.15 : 1.0,
+        Theme = Enum.IsDefined(Theme) ? Theme : AppTheme.Dark,
     };
 
     [GeneratedRegex("^#[0-9A-Fa-f]{6}$")]

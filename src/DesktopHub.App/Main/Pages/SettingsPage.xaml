@@ -10,9 +10,9 @@
     <StackPanel Margin="40,32,40,40" MaxWidth="760" HorizontalAlignment="Left">
       <TextBlock Text="Configurações" Style="{StaticResource TitleText}" />
       <TextBlock Text="Tudo é aplicado imediatamente e salvo neste computador." Style="{StaticResource CaptionText}" Margin="0,6,0,0" />
-      <Border Background="{StaticResource SurfaceElevatedBrush}" CornerRadius="8" Padding="12,8" Margin="0,12,0,0"
+      <Border Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="8" Padding="12,8" Margin="0,12,0,0"
               Visibility="{Binding StatusMessage, Converter={StaticResource NullToVisibility}, FallbackValue=Collapsed}">
-        <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource BodyText}" Foreground="{StaticResource WarningBrush}" />
+        <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource BodyText}" Foreground="{DynamicResource WarningBrush}" />
       </Border>
 
       <!-- Geral -->
@@ -29,6 +29,13 @@
             <Button Style="{StaticResource Chip}" Content="Muito grande (130%)" Tag="1.3" Click="TextScale_Click" DataContext="{Binding TextScaleHuge}" />
           </WrapPanel>
 
+          <TextBlock Text="Tema" Style="{StaticResource BodyText}" Margin="0,14,0,8" />
+          <WrapPanel>
+            <Button Style="{StaticResource Chip}" Content="Escuro" Tag="Dark" Click="Theme_Click" DataContext="{Binding ThemeDarkChip}" AutomationProperties.Name="Tema escuro" />
+            <Button Style="{StaticResource Chip}" Content="Claro" Tag="Light" Click="Theme_Click" DataContext="{Binding ThemeLightChip}" AutomationProperties.Name="Tema claro" />
+          </WrapPanel>
+          <TextBlock Style="{StaticResource CaptionText}" Margin="0,4,0,0" Text="Vale para a janela e o widget. Também dá para trocar pelo sol/lua na barra lateral." />
+
           <TextBlock Text="Cor de destaque" Style="{StaticResource BodyText}" Margin="0,14,0,8" />
           <ItemsControl ItemsSource="{Binding Accents}" Focusable="False">
             <ItemsControl.ItemsPanel>
@@ -44,7 +51,7 @@
                   <Button.Template>
                     <ControlTemplate TargetType="Button">
                       <Grid>
-                        <Ellipse x:Name="Ring" Stroke="{StaticResource TextPrimaryBrush}" StrokeThickness="2" Visibility="Hidden" />
+                        <Ellipse x:Name="Ring" Stroke="{DynamicResource TextPrimaryBrush}" StrokeThickness="2" Visibility="Hidden" />
                         <Ellipse Margin="4" Fill="{Binding Hex}" />
                       </Grid>
                       <ControlTemplate.Triggers>
@@ -70,7 +77,7 @@
           <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding Locked}" Content="Bloquear posição (impede arrastar)" />
           <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding HideInFullscreen}" Content="Ocultar durante jogos e apps em tela cheia" />
           <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ExcludeFromCapture}" Content="Ocultar o widget em capturas de tela e gravações" />
-          <TextBlock Text="O Windows recusou a exclusão de capturas neste sistema." Style="{StaticResource CaptionText}" Foreground="{StaticResource WarningBrush}"
+          <TextBlock Text="O Windows recusou a exclusão de capturas neste sistema." Style="{StaticResource CaptionText}" Foreground="{DynamicResource WarningBrush}"
                      Visibility="{Binding CaptureExclusionUnsupported, Converter={StaticResource BoolToVisibility}}" />
           <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AnimationsEnabled}" Content="Animações de transição" />
           <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AnimatedPlaybackIndicator}" Content="Equalizador animado enquanto toca (modo compacto)" />
@@ -210,7 +217,7 @@
             <TextBox x:Name="NewCategoryBox" MaxLength="40" AutomationProperties.Name="Nome da nova categoria" />
             <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Adicionar categoria" Margin="8,0,0,0" Click="AddCategory_Click" />
           </Grid>
-          <TextBlock Text="{Binding CategoryError}" Style="{StaticResource CaptionText}" Foreground="{StaticResource DangerBrush}" Margin="0,4,0,0" />
+          <TextBlock Text="{Binding CategoryError}" Style="{StaticResource CaptionText}" Foreground="{DynamicResource DangerBrush}" Margin="0,4,0,0" />
         </StackPanel>
       </Border>
 
@@ -227,7 +234,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <Border Background="{StaticResource SurfaceElevatedBrush}" CornerRadius="6" Padding="8,2" HorizontalAlignment="Left">
+                  <Border Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="6" Padding="8,2" HorizontalAlignment="Left">
                     <TextBlock Text="{Binding Gesture}" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
                   </Border>
                   <TextBlock Grid.Column="1" Text="{Binding Label}" Style="{StaticResource BodyText}" VerticalAlignment="Center" />
@@ -244,9 +251,9 @@
       <Border Style="{StaticResource Card}" Margin="0,16,0,0">
         <StackPanel>
           <TextBlock Text="Privacidade e dados" Style="{StaticResource SubtitleText}" Margin="0,0,0,8" />
-          <TextBlock Style="{StaticResource BodyText}" Foreground="{StaticResource TextSecondaryBrush}"
+          <TextBlock Style="{StaticResource BodyText}" Foreground="{DynamicResource TextSecondaryBrush}"
                      Text="Sem telemetria. Nenhuma integração externa está ativa. Configurações, banco SQLite e logs ficam nesta pasta; tokens futuros serão cifrados com DPAPI (somente sua conta do Windows consegue lê-los)." />
-          <TextBlock Text="{Binding DataFolder}" FontFamily="Cascadia Mono, Consolas" FontSize="12" Margin="0,10,0,0" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding DataFolder}" FontFamily="Cascadia Mono, Consolas" FontSize="12" Margin="0,10,0,0" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" />
           <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
             <Button Style="{StaticResource SecondaryButton}" Content="Abrir pasta de dados" Click="OpenData_Click" />
             <Button Style="{StaticResource SecondaryButton}" Content="Abrir logs" Margin="10,0,0,0" Click="OpenLogs_Click" />

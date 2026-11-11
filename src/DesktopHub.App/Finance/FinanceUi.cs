@@ -385,3 +385,20 @@ internal abstract class FinanceForm : UserControl
         _footer.Children.Insert(0, button);
     }
 }
+
+/// <summary>
+/// Cores do módulo Finanças (inspiradas na referência visual: azul como cor principal e cores vivas por tipo de
+/// informação). Funcionam nos dois temas; cor nunca é o único sinal (rótulos e sinais acompanham).
+/// </summary>
+internal static class FinanceColors
+{
+    public const string Blue = "#2F6BFF";
+    public const string Green = "#22A06B";
+    public const string Red = "#E5484D";
+    public const string Orange = "#F59E0B";
+    public const string Purple = "#8B5CF6";
+    public const string Teal = "#14B8A6";
+    public const string Pink = "#EC4899";
+    public const string Cyan = "#06B6D4";
+    public const string Gray = "#8A93A2";
+}

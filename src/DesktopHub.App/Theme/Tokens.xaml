@@ -31,6 +31,9 @@
 
   <SolidColorBrush x:Key="AccentBrush" Color="#C9A94E" />
   <SolidColorBrush x:Key="AccentSoftBrush" Color="#C9A94E" Opacity="0.16" />
+  <!-- Trocados pelo ThemeManager conforme o tema (sempre DynamicResource). -->
+  <SolidColorBrush x:Key="ArtworkShadeBrush" Color="#A6000000" />
+  <SolidColorBrush x:Key="GlassBrush" Color="#40FFFFFF" />
 
   <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
   <FontFamily x:Key="DisplayFont">Segoe UI Variable Display, Segoe UI</FontFamily>

@@ -9,7 +9,7 @@
   <Border Style="{StaticResource Card}" Padding="18,16">
     <DockPanel>
       <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
-        <TextBlock x:Name="ErrorText" Style="{StaticResource CaptionText}" Foreground="{StaticResource DangerBrush}" Visibility="Collapsed" Margin="0,0,0,8" />
+        <TextBlock x:Name="ErrorText" Style="{StaticResource CaptionText}" Foreground="{DynamicResource DangerBrush}" Visibility="Collapsed" Margin="0,0,0,8" />
         <DockPanel>
           <Button x:Name="DeleteButton" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE74D;" ToolTip="Excluir"
                   AutomationProperties.Name="Excluir tarefa" Click="Delete_Click" />

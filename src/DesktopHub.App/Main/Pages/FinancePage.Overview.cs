@@ -140,6 +140,17 @@ public partial class FinancePage
         return grid;
     }
 
+    /// <summary>Título de seção da visão geral (organiza os cartões em blocos com nome).</summary>
+    private TextBlock SectionTitle(string title, string subtitle)
+    {
+        var text = new TextBlock { Margin = new Thickness(2, ListPanel.Children.Count == 0 ? 0 : 10, 0, 10), TextWrapping = TextWrapping.Wrap };
+        text.Inlines.Add(new System.Windows.Documents.Run(title) { FontSize = 16, FontWeight = FontWeights.SemiBold });
+        text.Inlines.Add(new System.Windows.Documents.Run("   " + subtitle) { FontSize = 12, Foreground = FinanceUi.Res("TextTertiaryBrush") });
+        AutomationProperties.SetName(text, $"{title}: {subtitle}");
+        AutomationProperties.SetHeadingLevel(text, AutomationHeadingLevel.Level2);
+        return text;
+    }
+
     // ---------- Visão geral ----------
 
     private void RenderOverview()
@@ -158,6 +169,7 @@ public partial class FinancePage
         var isPast = o.Reference == end && end < _finance.Today;
         var due = DueItems(start, end);
 
+        ListPanel.Children.Add(SectionTitle($"Resumo de {monthName}", "o que tem, o que vai entrar e sair até o fim do mês"));
         var hero = HeroTile(o, end, monthName, previousName, isPast);
         var bills = BillsTile(due, start, end, monthName);
         var spending = SpendingTile(start, end, monthName);
@@ -173,6 +185,7 @@ public partial class FinancePage
         }
         if (GoalsRow() is { } goals)
         {
+            ListPanel.Children.Add(SectionTitle("Metas", "dinheiro guardado e planejado"));
             ListPanel.Children.Add(goals);
         }
         AddChartsAndIndicators(o, start, end, monthName, previousName, isPast);
@@ -198,11 +211,11 @@ public partial class FinancePage
         body.Children.Add(top);
 
         // Barra: o que entra (saldo + a receber) dividido em contas, faturas, outros e a sobra.
-        var accent = (Brush)FindResource("AccentBrush");
-        var receive = FinanceUi.Res("SuccessBrush");
-        var pay = FinanceUi.Res("DangerBrush");
-        var statements = FinanceUi.Res("WarningBrush");
-        var other = FinanceUi.Res("TextTertiaryBrush");
+        var receive = AgendaUi.ColorBrush(FinanceColors.Green);
+        var pay = AgendaUi.ColorBrush(FinanceColors.Red);
+        var statements = AgendaUi.ColorBrush(FinanceColors.Orange);
+        var other = AgendaUi.ColorBrush(FinanceColors.Gray);
+        var today = AgendaUi.ColorBrush(FinanceColors.Blue);
         var inflow = Math.Max(0, o.AccountsBalance) + o.ToReceive + Math.Max(0, o.OtherChanges);
         string Share(long value) => inflow > 0 ? $" · {Percent(Math.Abs(value), inflow)}" : "";
         body.Children.Add(FinanceCharts.SegmentBar(
@@ -237,7 +250,7 @@ public partial class FinancePage
             AutomationProperties.SetName(item, $"{label}: {FinanceUi.Amount(value, currency, plus)}");
             legend.Children.Add(item);
         }
-        Column(isPast ? "Saldo confirmado" : "Saldo hoje", o.AccountsBalance, null, "");
+        Column(isPast ? "Saldo confirmado" : "Saldo hoje", o.AccountsBalance, today, "");
         Column("A receber", o.ToReceive, receive, "", plus: true);
         Column("Contas a pagar", -o.ToPay, pay, Share(o.ToPay));
         if (o.CardStatements != 0)
@@ -276,7 +289,7 @@ public partial class FinancePage
         return Panel("Saldo previsto", body,
             "Saldo previsto = saldo confirmado das contas do disponível + receitas ainda por entrar − contas e despesas ainda por sair (pendentes, com data futura ou recorrências previstas) " +
             "− faturas de cartão que vencem até o fim do mês ± transferências com contas fora do disponível e ajustes. Investimentos, contas arquivadas e outras moedas não entram.",
-            Badge("\uE825", "#C9A94E"));
+            null, ("\uE825", FinanceColors.Blue));
     }
 
     // ---------- Contas a pagar ----------
@@ -352,14 +365,14 @@ public partial class FinancePage
         if (days.Count > 0)
         {
             var strip = new UniformGrid { Rows = 1, Columns = Math.Min(5, days.Count), Margin = new Thickness(0, 12, 0, 6), HorizontalAlignment = HorizontalAlignment.Left };
-            var accent = (Brush)FindResource("AccentBrush");
+            var accent = AgendaUi.ColorBrush(FinanceColors.Blue);
             foreach (var day in days.Take(5))
             {
                 var selected = s_billDay == day;
                 var dayItems = due.Count(d => d.Date.Day == day);
                 var content = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-                content.Children.Add(AgendaUi.Text(day.ToString("00", FinanceUi.PtBr), "BodyText", 14, selected ? FinanceUi.Res("BgBrush") : null));
-                content.Children.Add(AgendaUi.Text(new string('•', Math.Min(3, dayItems)), "CaptionText", 10, selected ? FinanceUi.Res("BgBrush") : accent));
+                content.Children.Add(AgendaUi.Text(day.ToString("00", FinanceUi.PtBr), "BodyText", 14, selected ? Brushes.White : null));
+                content.Children.Add(AgendaUi.Text(new string('•', Math.Min(3, dayItems)), "CaptionText", 10, selected ? Brushes.White : accent));
                 foreach (TextBlock t in content.Children)
                 {
                     t.HorizontalAlignment = HorizontalAlignment.Center;
@@ -404,7 +417,7 @@ public partial class FinancePage
         var open = Chip("Ver todas", (_, _) => OpenPlanning(PlanningView.Bills));
         AutomationProperties.SetName(open, "Ver todas as contas e assinaturas");
         return Panel("Contas a pagar" + (next is not null ? $" · dia {next.Date.Day:00}" : ""), body,
-            "Lançamentos pendentes, contas, assinaturas e receitas previstas e faturas de cartão até o fim do mês, incluindo atrasados. O círculo confirma o pagamento (ou abre o pagamento da fatura).", open);
+            "Lançamentos pendentes, contas, assinaturas e receitas previstas e faturas de cartão até o fim do mês, incluindo atrasados. O círculo confirma o pagamento (ou abre o pagamento da fatura).", open, ("\uE787", FinanceColors.Orange));
     }
 
     private static ControlTemplate? s_dayTemplate;
@@ -551,7 +564,7 @@ public partial class FinancePage
             }
         }
         return Panel("Gastos do mês", body, "Despesas do mês menos estornos, somando as subcategorias em cada categoria principal. Inclui pendentes e parcelas de cartão do mês.",
-            TablesToggle());
+            TablesToggle(), ("\uEB05", FinanceColors.Pink));
     }
 
     // ---------- Cartões ----------
@@ -567,7 +580,7 @@ public partial class FinancePage
             var add = new Button { Style = (Style)Application.Current.FindResource("SecondaryButton"), Content = "Cadastrar cartão", Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
             add.Click += (_, _) => OpenEditor(new CardEditor(_finance, _finance.NewCard(), isNew: true));
             body.Children.Add(add);
-            return Panel("Cartões", body, "Cartões de crédito ativos.", Badge("", "#6B9AC4"));
+            return Panel("Cartões", body, "Cartões de crédito ativos.", null, ("\uE8C7", FinanceColors.Purple));
         }
         s_cardIndex = Math.Clamp(s_cardIndex, 0, cards.Count - 1);
         var card = cards[s_cardIndex];
@@ -607,7 +620,7 @@ public partial class FinancePage
             body.Children.Add(Caps("Próximas faturas"));
             var strip = new UniformGrid { Rows = 1, Columns = 3 };
             var max = Math.Max(1, upcoming.Max(s => Math.Max(0, s.Remaining)));
-            var accent = (Brush)FindResource("AccentBrush");
+            var accent = AgendaUi.ColorBrush(FinanceColors.Blue);
             foreach (var s in upcoming)
             {
                 var selected = s.Closing == toPay?.Closing;
@@ -648,7 +661,7 @@ public partial class FinancePage
             body.Children.Add(strip);
         }
         return Panel("Cartões", body, "Fatura a pagar (a mais antiga fechada com saldo, ou a aberta), limite livre e as próximas faturas com as parcelas já lançadas.",
-            cards.Count > 1 ? AgendaUi.Text($"{s_cardIndex + 1} de {cards.Count}", "CaptionText", 11.5) : Badge("", card.Color));
+            cards.Count > 1 ? AgendaUi.Text($"{s_cardIndex + 1} de {cards.Count}", "CaptionText", 11.5) : null, ("\uE8C7", FinanceColors.Purple));
     }
 
     /// <summary>Desenho do cartão: nome, situação da fatura, vencimento e limite livre (nunca o número completo).</summary>
@@ -730,7 +743,7 @@ public partial class FinancePage
             var create = new Button { Style = (Style)Application.Current.FindResource("SecondaryButton"), Content = "Criar orçamento", Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
             create.Click += (_, _) => OpenPlanning(PlanningView.Budget);
             body.Children.Add(create);
-            return Panel($"Orçamento de {monthName}", body, "Limites de gasto por categoria.", Badge("", "#8FB573"));
+            return Panel($"Orçamento de {monthName}", body, "Limites de gasto por categoria.", null, ("\uE8EF", FinanceColors.Green));
         }
         body.Children.Add(AgendaUi.Text("Quanto você já gastou", "CaptionText", 11.5));
         body.Children.Add(BigMoney(budget.TotalSpent, 30, null, $"Gasto no orçamento: {FinanceUi.Amount(budget.TotalSpent, currency)} de {FinanceUi.Amount(budget.TotalLimit, currency)}"));
@@ -755,7 +768,7 @@ public partial class FinancePage
             var cell = new Grid { Margin = new Thickness(0, 0, 8, 10) };
             cell.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             cell.ColumnDefinitions.Add(new ColumnDefinition());
-            var icon = Badge("", line.Category.Color, 30);
+            var icon = Badge("\uE8EC", line.Category.Color, 30);
             icon.Margin = new Thickness(0, 0, 8, 0);
             cell.Children.Add(icon);
             var text = new StackPanel();
@@ -774,7 +787,7 @@ public partial class FinancePage
         var open = Chip("Abrir", (_, _) => OpenPlanning(PlanningView.Budget));
         AutomationProperties.SetName(open, "Abrir orçamento");
         return Panel($"Orçamento de {monthName}", body,
-            "Gasto do mês (despesas confirmadas e pendentes, menos estornos) × limites por categoria. Faixas: atenção em 80% e estouro em 100%. Parte clara da barra = contas previstas.", open);
+            "Gasto do mês (despesas confirmadas e pendentes, menos estornos) × limites por categoria. Faixas: atenção em 80% e estouro em 100%. Parte clara da barra = contas previstas.", open, ("\uE8EF", FinanceColors.Green));
     }
 
     // ---------- Metas ----------
@@ -808,7 +821,7 @@ public partial class FinancePage
             var g = goal;
             var open = Chip("Guardar", (_, _) => OpenEditor(new ContributionEditor(_finance, g)));
             AutomationProperties.SetName(open, $"Guardar ou planejar dinheiro para {goal.Name}");
-            tiles.Add((Panel($"Meta · {goal.Name}", body, "Barra cheia = guardado de fato; clara = planejado (não entra no Reservado).", open), 0, i, 1));
+            tiles.Add((Panel($"Meta · {goal.Name}", body, "Barra cheia = guardado de fato; clara = planejado (não entra no Reservado).", open, ("\uE734", FinanceColors.Teal)), 0, i, 1));
         }
         return Grid3([.. tiles]);
     }
@@ -840,33 +853,35 @@ public partial class FinancePage
             forecastSwatch.Opacity = 0.45;
             balancePanel.Children.Add(FinanceCharts.Legend(("Confirmado", accent), ("Previsto (tracejado)", forecastSwatch)));
         }
+        ListPanel.Children.Add(SectionTitle("Tendências", "últimos 6 meses e o saldo dia a dia"));
         ListPanel.Children.Add(Columns(
-            (Panel("Receitas × despesas · 6 meses", flowContent, "Receitas e despesas de cada mês, incluindo pendentes. O mês exibido fica destacado."), 1),
+            (Panel("Receitas × despesas · 6 meses", flowContent, "Receitas e despesas de cada mês, incluindo pendentes. O mês exibido fica destacado.", null, ("\uE9D9", FinanceColors.Blue)), 1),
             (Panel($"Saldo ao longo de {monthName}", balancePanel,
-                "Saldo das contas do disponível ao fim de cada dia: confirmado até hoje; depois, previsto com pendentes, recorrências previstas e faturas no vencimento."), 1)));
+                "Saldo das contas do disponível ao fim de cada dia: confirmado até hoje; depois, previsto com pendentes, recorrências previstas e faturas no vencimento.", null, ("\uE81C", FinanceColors.Cyan)), 1)));
 
+        ListPanel.Children.Add(SectionTitle("Indicadores do mês", "comparados com o mês anterior; passe o mouse para ver a definição"));
         var indicators = new UniformGrid { Columns = _narrow ? 2 : 4, Margin = new Thickness(0, 0, -12, 0) };
         indicators.Children.Add(Indicator("Receitas recebidas", o.Totals.IncomeCleared, o.Totals.IncomePending > 0 ? $"+ {FinanceUi.Amount(o.Totals.IncomePending, currency)} pendentes" : "nada pendente",
             o.HasPreviousMonth ? new Change(o.Totals.Income, o.PreviousTotals.Income) : null, previousName, true,
-            "Receitas confirmadas no mês. A comparação usa receitas totais (com pendentes). Recorrências previstas aparecem no saldo previsto."));
+            "Receitas confirmadas no mês. A comparação usa receitas totais (com pendentes). Recorrências previstas aparecem no saldo previsto.", glyph: "\uE74A", color: FinanceColors.Green));
         indicators.Children.Add(Indicator("Despesas pagas", o.Totals.ExpenseCleared, o.Totals.ExpensePending > 0 ? $"+ {FinanceUi.Amount(o.Totals.ExpensePending, currency)} pendentes" : "nada pendente",
             o.HasPreviousMonth ? new Change(o.Totals.Expense, o.PreviousTotals.Expense) : null, previousName, false,
-            "Despesas confirmadas no mês, menos estornos. A comparação usa despesas totais (com pendentes). Transferências e ajustes não contam."));
+            "Despesas confirmadas no mês, menos estornos. A comparação usa despesas totais (com pendentes). Transferências e ajustes não contam.", glyph: "\uE74B", color: FinanceColors.Red));
         indicators.Children.Add(Indicator("Resultado do mês", o.Totals.Net, "receitas − despesas, com pendentes",
-            o.HasPreviousMonth ? new Change(o.Totals.Net, o.PreviousTotals.Net) : null, previousName, true, "Receitas menos despesas do mês, incluindo pendentes.", showPlus: true));
+            o.HasPreviousMonth ? new Change(o.Totals.Net, o.PreviousTotals.Net) : null, previousName, true, "Receitas menos despesas do mês, incluindo pendentes.", showPlus: true, glyph: "\uE9D9", color: FinanceColors.Purple));
         indicators.Children.Add(Indicator("Patrimônio financeiro", o.NetWorth, isPast ? $"em {FinanceUi.Date(o.Reference)}" : "contas − dívida dos cartões", null, previousName, true,
-            "Saldos confirmados de todas as contas ativas na moeda base (incluindo investimentos) menos a dívida dos cartões, contando as parcelas futuras de compras já feitas."));
+            "Saldos confirmados de todas as contas ativas na moeda base (incluindo investimentos) menos a dívida dos cartões, contando as parcelas futuras de compras já feitas.", glyph: "\uE825", color: FinanceColors.Blue));
         if (o.Reserved > 0)
         {
             indicators.Children.Add(Indicator("Reservado em metas", o.Reserved, $"disponível {FinanceUi.Amount(o.Available, currency)}", null, previousName, true,
-                "Dinheiro guardado de fato em metas ativas, em contas do disponível. Contribuições planejadas não entram. Disponível = saldo em contas − reservado."));
+                "Dinheiro guardado de fato em metas ativas, em contas do disponível. Contribuições planejadas não entram. Disponível = saldo em contas − reservado.", glyph: "\uE734", color: FinanceColors.Teal));
         }
         if (_finance.Cards.Count > 0)
         {
             indicators.Children.Add(Indicator("Gastos no cartão", o.CardSpending, "compras e parcelas do mês, menos estornos", null, previousName, false,
-                "Despesas no cartão pela data de cada parcela (competência). Já estão somadas em \"Despesas\": o pagamento da fatura não é outra despesa."));
+                "Despesas no cartão pela data de cada parcela (competência). Já estão somadas em \"Despesas\": o pagamento da fatura não é outra despesa.", glyph: "\uE8C7", color: FinanceColors.Pink));
             indicators.Children.Add(Indicator("Faturas do mês", o.StatementsDue, "valor devido das faturas que vencem no mês", null, previousName, false,
-                "Soma do valor devido (inclui saldo de faturas anteriores) das faturas com vencimento neste mês. É o que sai do caixa, não o que foi gasto."));
+                "Soma do valor devido (inclui saldo de faturas anteriores) das faturas com vencimento neste mês. É o que sai do caixa, não o que foi gasto.", glyph: "\uE787", color: FinanceColors.Orange));
         }
         if (!_narrow)
         {

@@ -6,7 +6,7 @@
       <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
       <Setter Property="FontSize" Value="40" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
     </Style>
     <Style x:Key="StepButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
       <Setter Property="Width" Value="26" />
@@ -40,7 +40,7 @@
               <Button Style="{StaticResource IconButton}" Content="&#xE72C;" ToolTip="Reiniciar o ciclo" AutomationProperties.Name="Reiniciar Pomodoro" Click="PomodoroReset_Click" />
             </StackPanel>
 
-            <Border Height="1" Background="{StaticResource BorderTokenBrush}" Margin="0,14" />
+            <Border Height="1" Background="{DynamicResource BorderTokenBrush}" Margin="0,14" />
             <Grid x:Name="PomodoroConfigGrid">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -107,7 +107,7 @@
                   <TextBlock Text="min" Style="{StaticResource BodyText}" VerticalAlignment="Center" Margin="8,0,12,0" />
                   <Button Style="{StaticResource SecondaryButton}" Content="Iniciar" Click="CustomStart_Click" />
                 </StackPanel>
-                <TextBlock x:Name="CustomError" Style="{StaticResource CaptionText}" Foreground="{StaticResource DangerBrush}" Margin="0,6,0,0" Visibility="Collapsed"
+                <TextBlock x:Name="CustomError" Style="{StaticResource CaptionText}" Foreground="{DynamicResource DangerBrush}" Margin="0,6,0,0" Visibility="Collapsed"
                            Text="Use um número inteiro de minutos entre 1 e 1440." />
               </StackPanel>
             </StackPanel>

@@ -7,7 +7,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" ShowInTaskbar="False" ShowActivated="False"
         WindowStartupLocation="Manual" Left="0" Top="0"
-        FontFamily="{StaticResource UiFont}" Foreground="{StaticResource TextPrimaryBrush}"
+        FontFamily="{StaticResource UiFont}" Foreground="{DynamicResource TextPrimaryBrush}"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
   <!-- A janela é uma "tela" transparente de tamanho fixo. Pixels com alfa 0 não capturam cliques,
        então só a ilha interage com o mouse. A ilha muda de tamanho dentro da tela; o HWND nunca é
@@ -23,7 +23,7 @@
 
     <Style x:Key="CardLabel" TargetType="TextBlock">
       <Setter Property="FontSize" Value="11" />
-      <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
     </Style>
     <Style x:Key="IslandCard" TargetType="Border">
       <Setter Property="CornerRadius" Value="14" />
@@ -37,8 +37,8 @@
     <local:InvokableBorder x:Name="Island"
             HorizontalAlignment="Center" VerticalAlignment="Top"
             Width="220" Height="40" CornerRadius="20"
-            Background="{StaticResource IslandBrush}"
-            BorderBrush="{StaticResource BorderTokenBrush}" BorderThickness="1"
+            Background="{DynamicResource IslandBrush}"
+            BorderBrush="{DynamicResource BorderTokenBrush}" BorderThickness="1"
             AutomationProperties.Name="Widget do Diary Ghost: expandir ou recolher"
             Invoked="Island_Invoked"
             RenderOptions.BitmapScalingMode="Linear"
@@ -58,7 +58,7 @@
           <Grid Width="24" Height="24" VerticalAlignment="Center">
             <Ellipse x:Name="CompactArt" Visibility="Collapsed" />
             <TextBlock x:Name="CompactGlyph" Style="{StaticResource IconText}" FontSize="13" HorizontalAlignment="Center"
-                       Foreground="{StaticResource TextSecondaryBrush}" Text="&#xE823;" />
+                       Foreground="{DynamicResource TextSecondaryBrush}" Text="&#xE823;" />
           </Grid>
           <TextBlock x:Name="CompactText" Grid.Column="1" Margin="9,0,12,0" FontSize="12.5" MaxWidth="240"
                      TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
@@ -86,7 +86,7 @@
           <!-- Cabeçalho -->
           <DockPanel Margin="16,10,8,0" CacheMode="BitmapCache">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-              <TextBlock x:Name="HeaderClock" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <TextBlock x:Name="HeaderClock" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
               <Button Style="{StaticResource IconButton}" Width="26" Height="26" FontSize="11" Content="&#xE70E;"
                       ToolTip="Recolher" AutomationProperties.Name="Recolher widget" Click="Collapse_Click" />
             </StackPanel>
@@ -97,53 +97,47 @@
           <Grid Grid.Row="1" Margin="16,8,16,0">
             <!-- Início: cartões -->
             <UniformGrid x:Name="HomeBody" Rows="1" Columns="3">
-              <Border x:Name="HomeMediaCard" Style="{StaticResource IslandCard}" Margin="0,0,6,0" Background="{StaticResource SurfaceBrush}"
+              <Border x:Name="HomeMediaCard" Style="{StaticResource IslandCard}" Margin="0,0,6,0" Background="{DynamicResource SurfaceBrush}"
                       AutomationProperties.Name="Cartão de mídia">
                 <Grid>
                   <Border x:Name="HomeMediaArt" CornerRadius="14" />
-                  <Border x:Name="HomeMediaShade" CornerRadius="14" Background="#A6000000" Visibility="Collapsed" />
+                  <Border x:Name="HomeMediaShade" CornerRadius="14" Background="{DynamicResource ArtworkShadeBrush}" Visibility="Collapsed" />
                   <TextBlock Text="Mídia" Style="{StaticResource CardLabel}" Margin="10,8" VerticalAlignment="Top" />
                   <StackPanel Margin="10,0,38,10" VerticalAlignment="Bottom">
                     <TextBlock x:Name="HomeMediaTitle" FontSize="12.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                    <TextBlock x:Name="HomeMediaArtist" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="HomeMediaArtist" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
                   </StackPanel>
                   <Button x:Name="HomeMediaPlay" Style="{StaticResource IconButton}" Width="28" Height="28" FontSize="11"
-                          Background="#40FFFFFF" Foreground="{StaticResource TextPrimaryBrush}" Content="&#xE768;"
+                          Background="{DynamicResource GlassBrush}" Foreground="{DynamicResource TextPrimaryBrush}" Content="&#xE768;"
                           HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,8,8"
                           AutomationProperties.Name="Tocar ou pausar" Click="PlayPause_Click" />
                 </Grid>
               </Border>
               <Border x:Name="HomeFocusCard" Style="{StaticResource IslandCard}" Margin="3,0" AutomationProperties.Name="Cartão de foco">
                 <Border.Background>
-                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#2B2B2B" Offset="0" />
-                    <GradientStop Color="#1D1D1D" Offset="1" />
-                  </LinearGradientBrush>
+                  <SolidColorBrush Color="{DynamicResource SurfaceElevatedColor}" />
                 </Border.Background>
                 <Grid Margin="10,8,8,8">
                   <TextBlock x:Name="HomeFocusLabel" Text="Foco" Style="{StaticResource CardLabel}" VerticalAlignment="Top" />
                   <StackPanel VerticalAlignment="Bottom" Margin="0,0,30,2">
                     <TextBlock x:Name="HomeFocusTime" FontSize="20" FontWeight="SemiBold" FontFamily="{StaticResource DisplayFont}" />
-                    <TextBlock x:Name="HomeFocusCaption" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="HomeFocusCaption" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
                   </StackPanel>
                   <Button x:Name="HomeFocusPlay" Style="{StaticResource IconButton}" Width="28" Height="28" FontSize="11"
-                          Background="#33FFFFFF" Foreground="{StaticResource TextPrimaryBrush}" Content="&#xE768;"
+                          Background="{DynamicResource GlassBrush}" Foreground="{DynamicResource TextPrimaryBrush}" Content="&#xE768;"
                           HorizontalAlignment="Right" VerticalAlignment="Bottom"
                           AutomationProperties.Name="Iniciar ou pausar o Pomodoro" Click="PomodoroToggle_Click" />
                 </Grid>
               </Border>
               <Border x:Name="HomeActivityCard" Style="{StaticResource IslandCard}" Margin="6,0,0,0" AutomationProperties.Name="Cartão de atividade">
                 <Border.Background>
-                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#2D2A24" Offset="0" />
-                    <GradientStop Color="#1E1C19" Offset="1" />
-                  </LinearGradientBrush>
+                  <SolidColorBrush Color="{DynamicResource SurfaceElevatedColor}" />
                 </Border.Background>
                 <Grid Margin="10,8,10,10">
                   <TextBlock Text="Claude Code" Style="{StaticResource CardLabel}" VerticalAlignment="Top" />
                   <StackPanel VerticalAlignment="Bottom">
-                    <TextBlock Text="&#xE943;" Style="{StaticResource IconText}" FontSize="18" Margin="0,0,0,4" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Left" />
-                    <TextBlock x:Name="HomeActivityText" Text="Sem atividade" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" MaxHeight="30" />
+                    <TextBlock Text="&#xE943;" Style="{StaticResource IconText}" FontSize="18" Margin="0,0,0,4" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Left" />
+                    <TextBlock x:Name="HomeActivityText" Text="Sem atividade" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" MaxHeight="30" />
                   </StackPanel>
                 </Grid>
               </Border>
@@ -156,16 +150,16 @@
                   <ColumnDefinition Width="56" />
                   <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Border Width="56" Height="56" CornerRadius="10" Background="{StaticResource SurfaceElevatedBrush}">
+                <Border Width="56" Height="56" CornerRadius="10" Background="{DynamicResource SurfaceElevatedBrush}">
                   <Grid>
-                    <TextBlock Style="{StaticResource IconText}" Text="&#xE8D6;" HorizontalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}" />
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE8D6;" HorizontalAlignment="Center" Foreground="{DynamicResource TextTertiaryBrush}" />
                     <Border x:Name="MediaArt" CornerRadius="10" />
                   </Grid>
                 </Border>
                 <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                   <TextBlock x:Name="MediaTitle" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                  <TextBlock x:Name="MediaArtist" FontSize="12" Margin="0,1,0,0" Foreground="{StaticResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
-                  <TextBlock x:Name="MediaSource" FontSize="11" Margin="0,1,0,0" Foreground="{StaticResource TextTertiaryBrush}" />
+                  <TextBlock x:Name="MediaArtist" FontSize="12" Margin="0,1,0,0" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock x:Name="MediaSource" FontSize="11" Margin="0,1,0,0" Foreground="{DynamicResource TextTertiaryBrush}" />
                 </StackPanel>
               </Grid>
 
@@ -177,8 +171,8 @@
                 <Slider x:Name="ProgressSlider" Style="{StaticResource ThinSlider}" Minimum="0" Maximum="1"
                         AutomationProperties.Name="Posição da faixa" PreviewMouseLeftButtonUp="ProgressSlider_MouseUp" />
                 <DockPanel Grid.Row="1">
-                  <TextBlock x:Name="DurationText" DockPanel.Dock="Right" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
-                  <TextBlock x:Name="ElapsedText" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                  <TextBlock x:Name="DurationText" DockPanel.Dock="Right" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
+                  <TextBlock x:Name="ElapsedText" FontSize="10.5" Foreground="{DynamicResource TextSecondaryBrush}" />
                 </DockPanel>
               </Grid>
 
@@ -249,17 +243,17 @@
                   <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <Grid Width="64" Height="64" VerticalAlignment="Top">
-                  <Ellipse Stroke="{StaticResource BorderStrongBrush}" StrokeThickness="4" />
+                  <Ellipse Stroke="{DynamicResource BorderStrongBrush}" StrokeThickness="4" />
                   <Path x:Name="FocusRing" Stroke="{DynamicResource AccentBrush}" StrokeThickness="4"
                         StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
                   <TextBlock x:Name="FocusGlyph" Style="{StaticResource IconText}" FontSize="18" HorizontalAlignment="Center"
                              Foreground="{DynamicResource AccentBrush}" Text="&#xE916;" />
                 </Grid>
                 <StackPanel Grid.Column="1" Margin="16,0,0,0">
-                  <TextBlock x:Name="FocusStatus" FontSize="11.5" Foreground="{StaticResource TextSecondaryBrush}" />
+                  <TextBlock x:Name="FocusStatus" FontSize="11.5" Foreground="{DynamicResource TextSecondaryBrush}" />
                   <TextBlock x:Name="FocusTime" FontSize="30" FontWeight="SemiBold" FontFamily="{StaticResource DisplayFont}" Margin="0,-2,0,0"
                              AutomationProperties.Name="Tempo" />
-                  <TextBlock x:Name="FocusDetail" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" />
+                  <TextBlock x:Name="FocusDetail" FontSize="11" Foreground="{DynamicResource TextTertiaryBrush}" />
                   <StackPanel x:Name="FocusControls" Orientation="Horizontal" Margin="-6,4,0,0" CacheMode="BitmapCache">
                     <Button x:Name="FocusPrimary" Style="{StaticResource IconButton}" Content="&#xE768;" Click="FocusPrimary_Click"
                             AutomationProperties.Name="Iniciar ou pausar" />
@@ -316,7 +310,7 @@
             <StackPanel x:Name="PlaceholderBody" Visibility="Collapsed" Margin="0,0,0,4">
               <TextBlock x:Name="PlaceholderText" Style="{StaticResource CaptionText}" />
               <Border Style="{StaticResource Badge}" Margin="0,8,0,0">
-                <TextBlock x:Name="PlaceholderBadge" FontSize="11.5" Foreground="{StaticResource TextPrimaryBrush}" />
+                <TextBlock x:Name="PlaceholderBadge" FontSize="11.5" Foreground="{DynamicResource TextPrimaryBrush}" />
               </Border>
             </StackPanel>
           </Grid>

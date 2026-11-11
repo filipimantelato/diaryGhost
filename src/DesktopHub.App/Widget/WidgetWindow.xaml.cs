@@ -75,6 +75,17 @@ public partial class WidgetWindow : Window
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         InitializeMedia();
         InitializeFocus();
+        Theme.ThemeManager.ThemeChanged += OnThemeChanged;
+    }
+
+    /// <summary>Partes desenhadas em código guardam o pincel do momento: redesenha o painel com as cores do tema novo.</summary>
+    private void OnThemeChanged()
+    {
+        if (_appliedPanel is { } panel && _appliedLayout is { } layout)
+        {
+            ShowPanel(panel, layout);
+        }
+        RenderCompact();
     }
 
     /// <summary>Falso quando o Windows recusou a exclusão de capturas (ex.: versão anterior ao 2004).</summary>

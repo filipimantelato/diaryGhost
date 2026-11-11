@@ -214,16 +214,26 @@ public partial class FinancePage : UserControl, IDisposable
 
     // ---------- Visão geral ----------
 
-    private static Border Panel(string title, UIElement content, string? help = null, UIElement? headerRight = null)
+    private static Border Panel(string title, UIElement content, string? help = null, UIElement? headerRight = null, (string Glyph, string Color)? icon = null)
     {
         var stack = new StackPanel();
-        var head = new DockPanel();
+        var head = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
         if (headerRight is not null)
         {
             DockPanel.SetDock(headerRight, Dock.Right);
             head.Children.Add(headerRight);
         }
-        head.Children.Add(AgendaUi.Text(title, "SubtitleText", 14));
+        if (icon is { } i)
+        {
+            var badge = Badge(i.Glyph, i.Color, 32);
+            badge.Margin = new Thickness(0, 0, 10, 0);
+            badge.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(badge, Dock.Left);
+            head.Children.Add(badge);
+        }
+        var titleText = AgendaUi.Text(title, "SubtitleText", 14);
+        titleText.VerticalAlignment = VerticalAlignment.Center;
+        head.Children.Add(titleText);
         stack.Children.Add(head);
         stack.Children.Add(content);
         var card = new Border { Style = (Style)Application.Current.FindResource("Card"), Padding = new Thickness(16, 14, 16, 14), Margin = new Thickness(0, 0, 12, 12), Child = stack };
@@ -268,10 +278,16 @@ public partial class FinancePage : UserControl, IDisposable
         return chip;
     }
 
-    private Border Indicator(string title, long value, string detail, Change? change, string previousName, bool higherIsGood, string help, bool showPlus = false)
+    private Border Indicator(string title, long value, string detail, Change? change, string previousName, bool higherIsGood, string help, bool showPlus = false,
+        string glyph = "\uE9D9", string color = FinanceColors.Blue)
     {
         var panel = new StackPanel();
-        panel.Children.Add(AgendaUi.Text(title, "CaptionText"));
+        var head = new DockPanel();
+        var badge = Badge(glyph, color, 30);
+        DockPanel.SetDock(badge, Dock.Right);
+        head.Children.Add(badge);
+        head.Children.Add(AgendaUi.Text(title, "CaptionText"));
+        panel.Children.Add(head);
         var big = AgendaUi.Text(FinanceUi.Amount(value, _finance.BaseCurrency, showPlus), "TitleText", 20);
         big.Margin = new Thickness(0, 4, 0, 2);
         panel.Children.Add(big);
@@ -315,22 +331,31 @@ public partial class FinancePage : UserControl, IDisposable
         var month = FinanceUi.MonthTitle(_year, _month).Split(' ')[0].ToLower(FinanceUi.PtBr);
         SummaryGrid.Children.Add(SummaryCard("Saldo em contas", FinanceUi.Amount(_finance.AccountsBalance()),
             $"patrimônio {FinanceUi.Amount(_finance.NetWorth())}",
-            "Soma dos saldos confirmados até hoje das contas que entram no disponível (sem investimentos, contas arquivadas e outras moedas). Patrimônio inclui investimentos."));
+            "Soma dos saldos confirmados até hoje das contas que entram no disponível (sem investimentos, contas arquivadas e outras moedas). Patrimônio inclui investimentos.",
+            glyph: "", color: FinanceColors.Blue));
         SummaryGrid.Children.Add(SummaryCard($"Receitas · {month}", FinanceUi.Amount(totals.IncomeCleared),
             totals.IncomePending > 0 ? $"+ {FinanceUi.Amount(totals.IncomePending)} a receber" : "nada pendente",
-            "Receitas confirmadas no mês. Pendentes aparecem à parte. Transferências e ajustes não contam."));
+            "Receitas confirmadas no mês. Pendentes aparecem à parte. Transferências e ajustes não contam.",
+            glyph: "", color: FinanceColors.Green));
         SummaryGrid.Children.Add(SummaryCard($"Despesas · {month}", FinanceUi.Amount(totals.ExpenseCleared),
             totals.ExpensePending > 0 ? $"+ {FinanceUi.Amount(totals.ExpensePending)} a pagar" : "nada pendente",
-            "Despesas confirmadas no mês, já descontados os estornos. Pendentes aparecem à parte. Transferências e ajustes não contam."));
+            "Despesas confirmadas no mês, já descontados os estornos. Pendentes aparecem à parte. Transferências e ajustes não contam.",
+            glyph: "", color: FinanceColors.Red));
         SummaryGrid.Children.Add(SummaryCard("Resultado do mês", FinanceUi.Amount(totals.Net, showPlus: true),
             "receitas − despesas, com pendentes",
-            "Receitas menos despesas do mês, incluindo as pendentes.", totals.Net >= 0 ? null : FinanceUi.Res("WarningBrush")));
+            "Receitas menos despesas do mês, incluindo as pendentes.", totals.Net >= 0 ? null : FinanceUi.Res("WarningBrush"),
+            glyph: "", color: FinanceColors.Purple));
     }
 
-    private static Border SummaryCard(string title, string value, string detail, string definition, Brush? valueBrush = null)
+    private static Border SummaryCard(string title, string value, string detail, string definition, Brush? valueBrush = null, string glyph = "", string color = FinanceColors.Blue)
     {
         var panel = new StackPanel();
-        panel.Children.Add(AgendaUi.Text(title, "CaptionText"));
+        var head = new DockPanel();
+        var badge = Badge(glyph, color, 30);
+        DockPanel.SetDock(badge, Dock.Right);
+        head.Children.Add(badge);
+        head.Children.Add(AgendaUi.Text(title, "CaptionText"));
+        panel.Children.Add(head);
         var big = AgendaUi.Text(value, "TitleText", 21, valueBrush);
         big.Margin = new Thickness(0, 4, 0, 2);
         panel.Children.Add(big);

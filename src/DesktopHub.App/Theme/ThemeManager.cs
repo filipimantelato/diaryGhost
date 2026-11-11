@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
+using DesktopHub.Core.Settings;
 
 namespace DesktopHub.App.Theme;
 
@@ -19,6 +20,69 @@ internal static class ThemeManager
         ("Rosa", "#EC4899"),
         ("Roxo", "#8B5CF6"),
     ];
+
+    /// <summary>Paletas dos tokens (mesmas chaves de Tokens.xaml). O claro segue a referência visual: fundo cinza-azulado, cartões brancos.</summary>
+    private static readonly Dictionary<string, (string Dark, string Light)> Palette = new()
+    {
+        ["Bg"] = ("#141414", "#F3F5F9"),
+        ["Surface"] = ("#1C1C1C", "#FFFFFF"),
+        ["SurfaceElevated"] = ("#262626", "#EEF1F6"),
+        ["Border"] = ("#2E2E2E", "#E4E8EF"),
+        ["BorderStrong"] = ("#3D3D3D", "#C9D0DB"),
+        ["TextPrimary"] = ("#EDEDED", "#171B22"),
+        ["TextSecondary"] = ("#A1A1A1", "#566070"),
+        ["TextTertiary"] = ("#8F8F8F", "#6B7585"),
+        ["Success"] = ("#34D399", "#15803D"),
+        ["Warning"] = ("#F0985A", "#C2410C"),
+        ["Danger"] = ("#F87171", "#DC2626"),
+        ["Island"] = ("#F50F0F0F", "#F7FFFFFF"),
+    };
+
+    private static readonly Dictionary<string, string> BrushKeys = new()
+    {
+        ["Bg"] = "BgBrush",
+        ["Surface"] = "SurfaceBrush",
+        ["SurfaceElevated"] = "SurfaceElevatedBrush",
+        ["Border"] = "BorderTokenBrush",
+        ["BorderStrong"] = "BorderStrongBrush",
+        ["TextPrimary"] = "TextPrimaryBrush",
+        ["TextSecondary"] = "TextSecondaryBrush",
+        ["TextTertiary"] = "TextTertiaryBrush",
+        ["Success"] = "SuccessBrush",
+        ["Warning"] = "WarningBrush",
+        ["Danger"] = "DangerBrush",
+        ["Island"] = "IslandBrush",
+    };
+
+    public static AppTheme Current { get; private set; } = AppTheme.Dark;
+
+    public static bool IsLight => Current == AppTheme.Light;
+
+    /// <summary>Tema trocado (janelas atualizam a barra de título; telas desenhadas em código redesenham).</summary>
+    public static event Action? ThemeChanged;
+
+    /// <summary>
+    /// Troca o tema em tempo real: os tokens são referenciados com DynamicResource no XAML, então trocar os pincéis
+    /// atualiza o que já está na tela; telas montadas em código são redesenhadas pelo evento <see cref="ThemeChanged"/>.
+    /// </summary>
+    public static void ApplyTheme(AppTheme theme)
+    {
+        var changed = theme != Current;
+        Current = theme;
+        var resources = Application.Current.Resources;
+        foreach (var (token, colors) in Palette)
+        {
+            var color = (Color)ColorConverter.ConvertFromString(theme == AppTheme.Light ? colors.Light : colors.Dark);
+            resources[token + "Color"] = color;
+            resources[BrushKeys[token]] = Freeze(new SolidColorBrush(color));
+        }
+        resources["ArtworkShadeBrush"] = Freeze(new SolidColorBrush((Color)ColorConverter.ConvertFromString(theme == AppTheme.Light ? "#C8FFFFFF" : "#A6000000")));
+        resources["GlassBrush"] = Freeze(new SolidColorBrush((Color)ColorConverter.ConvertFromString(theme == AppTheme.Light ? "#14000000" : "#40FFFFFF")));
+        if (changed)
+        {
+            ThemeChanged?.Invoke();
+        }
+    }
 
     public static void ApplyAccent(string hex)
     {

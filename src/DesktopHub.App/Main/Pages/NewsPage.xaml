@@ -43,7 +43,7 @@
         </Grid.ColumnDefinitions>
         <TextBox x:Name="SearchBox" AutomationProperties.Name="Buscar notícias" TextChanged="Search_Changed" />
         <TextBlock x:Name="SearchHint" Text="Buscar no título, resumo ou fonte…" IsHitTestVisible="False" Margin="10,0,0,0" VerticalAlignment="Center"
-                   Foreground="{StaticResource TextTertiaryBrush}" FontSize="13" />
+                   Foreground="{DynamicResource TextTertiaryBrush}" FontSize="13" />
         <CheckBox x:Name="UnreadOnly" Grid.Column="1" Style="{StaticResource ToggleSwitch}" Content="Só não lidas" Margin="16,0,0,0"
                   VerticalAlignment="Center" Checked="Filter_Changed" Unchecked="Filter_Changed" />
         <Button Grid.Column="3" Style="{StaticResource SecondaryButton}" Content="Marcar como lidas" Padding="12,5" Click="MarkAllRead_Click"
@@ -78,7 +78,7 @@
             <CheckBox x:Name="NotifyTopics" Style="{StaticResource ToggleSwitch}" Content="Avisar quando aparecerem" Margin="0,4,0,0"
                       Checked="NotifyTopics_Changed" Unchecked="NotifyTopics_Changed" />
 
-            <Border Height="1" Background="{StaticResource BorderTokenBrush}" Margin="0,14" />
+            <Border Height="1" Background="{DynamicResource BorderTokenBrush}" Margin="0,14" />
             <TextBlock Text="Atualização" Style="{StaticResource SubtitleText}" />
             <Grid Margin="0,8,0,0">
               <Grid.ColumnDefinitions>
@@ -91,7 +91,7 @@
             </Grid>
             <Button Style="{StaticResource SecondaryButton}" Content="Desativar notícias" HorizontalAlignment="Left" Margin="0,10,0,0" Click="Disable_Click" />
 
-            <Border Height="1" Background="{StaticResource BorderTokenBrush}" Margin="0,14" />
+            <Border Height="1" Background="{DynamicResource BorderTokenBrush}" Margin="0,14" />
             <TextBlock Text="Fontes" Style="{StaticResource SubtitleText}" />
             <TextBlock Style="{StaticResource CaptionText}" Margin="0,4,0,4"
                        Text="Curadas: feeds oficiais de veículos e órgãos com redação identificada. Desmarque para ocultar." />

@@ -4,7 +4,7 @@
         Title="Diary Ghost"
         Width="1120" Height="740" MinWidth="820" MinHeight="520"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BgBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+        Background="{DynamicResource BgBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
         FontFamily="{StaticResource UiFont}" UseLayoutRounding="True">
   <Grid>
     <Grid.ColumnDefinitions>
@@ -13,17 +13,28 @@
     </Grid.ColumnDefinitions>
 
     <!-- Navegação lateral -->
-    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderTokenBrush}" BorderThickness="0,0,1,0">
+    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderTokenBrush}" BorderThickness="0,0,1,0">
       <DockPanel Margin="12,18,12,12">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="10,0,0,22">
-          <Image Source="pack://application:,,,/Assets/logo.png" Width="30" Height="30" VerticalAlignment="Center"
-                 RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Logo do Diary Ghost" />
+          <!-- Fundo escuro fixo: o fantasma é branco e precisa de contraste também no tema claro. -->
+          <Border Width="34" Height="34" CornerRadius="10" Background="#1F2430" VerticalAlignment="Center">
+            <Image Source="pack://application:,,,/Assets/logo.png" Width="26" Height="26" VerticalAlignment="Center"
+                   RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="Logo do Diary Ghost" />
+          </Border>
           <TextBlock Text="Diary Ghost" Margin="8,0,0,0" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Bottom">
+          <DockPanel Margin="12,0,4,10">
+            <TextBlock Text="&#xE793;" FontFamily="{StaticResource IconFont}" FontSize="14" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" AutomationProperties.Name="Tema">
+              <RadioButton x:Name="ThemeLight" GroupName="AppTheme" Style="{StaticResource ThemeToggle}" Content="&#xE706;" ToolTip="Modo claro" AutomationProperties.Name="Modo claro" Checked="Theme_Checked" />
+              <RadioButton x:Name="ThemeDark" GroupName="AppTheme" Style="{StaticResource ThemeToggle}" Content="&#xE708;" ToolTip="Modo escuro" AutomationProperties.Name="Modo escuro" Checked="Theme_Checked" />
+            </StackPanel>
+            <TextBlock Text="Tema" Margin="12,0,0,0" FontSize="13" VerticalAlignment="Center" Foreground="{DynamicResource TextSecondaryBrush}" />
+          </DockPanel>
           <RadioButton x:Name="NavSettings" Style="{StaticResource NavItem}" Tag="&#xE713;" Content="Configurações" Checked="Nav_Checked" />
-          <TextBlock x:Name="VersionText" Margin="12,12,0,0" FontSize="11.5" Foreground="{StaticResource TextTertiaryBrush}" />
+          <TextBlock x:Name="VersionText" Margin="12,12,0,0" FontSize="11.5" Foreground="{DynamicResource TextTertiaryBrush}" />
         </StackPanel>
 
         <StackPanel KeyboardNavigation.DirectionalNavigation="Cycle" AutomationProperties.Name="Navegação principal">

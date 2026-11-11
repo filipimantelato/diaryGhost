@@ -24,6 +24,14 @@ public partial class SettingsPage : UserControl, IDisposable
         }
     }
 
+    private void Theme_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string text } && Enum.TryParse<DesktopHub.Core.Settings.AppTheme>(text, out var theme))
+        {
+            _viewModel.SetTheme(theme);
+        }
+    }
+
     private void TextScale_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string text } && double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var scale))

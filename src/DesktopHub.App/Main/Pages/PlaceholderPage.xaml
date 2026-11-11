@@ -8,9 +8,9 @@
         <TextBlock x:Name="TitleBlock" Style="{StaticResource TitleText}" Margin="12,0,0,0" />
       </StackPanel>
       <Border Style="{StaticResource Badge}" Margin="0,14,0,0">
-        <TextBlock x:Name="PhaseText" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" />
+        <TextBlock x:Name="PhaseText" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
       </Border>
-      <TextBlock x:Name="DescriptionText" Style="{StaticResource BodyText}" Margin="0,16,0,0" Foreground="{StaticResource TextSecondaryBrush}" />
+      <TextBlock x:Name="DescriptionText" Style="{StaticResource BodyText}" Margin="0,16,0,0" Foreground="{DynamicResource TextSecondaryBrush}" />
       <Border Style="{StaticResource Card}" Margin="0,24,0,0">
         <StackPanel>
           <TextBlock Text="Planejado para este módulo" Style="{StaticResource SubtitleText}" />
@@ -22,7 +22,7 @@
                     <ColumnDefinition Width="18" />
                     <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
-                  <Ellipse Width="5" Height="5" Fill="{StaticResource TextTertiaryBrush}" VerticalAlignment="Top" Margin="0,7,0,0" HorizontalAlignment="Left" />
+                  <Ellipse Width="5" Height="5" Fill="{DynamicResource TextTertiaryBrush}" VerticalAlignment="Top" Margin="0,7,0,0" HorizontalAlignment="Left" />
                   <TextBlock Grid.Column="1" Text="{Binding}" Style="{StaticResource BodyText}" />
                 </Grid>
               </DataTemplate>

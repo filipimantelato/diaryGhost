@@ -10,7 +10,7 @@
         </StackPanel>
         <StackPanel>
           <TextBlock x:Name="GreetingText" Style="{StaticResource TitleText}" />
-          <TextBlock x:Name="DateText" Margin="0,4,0,0" FontSize="15" Foreground="{StaticResource TextSecondaryBrush}" />
+          <TextBlock x:Name="DateText" Margin="0,4,0,0" FontSize="15" Foreground="{DynamicResource TextSecondaryBrush}" />
         </StackPanel>
       </DockPanel>
 

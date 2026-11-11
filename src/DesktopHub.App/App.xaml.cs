@@ -99,7 +99,15 @@ public partial class App : Application
         var settings = _services.GetRequiredService<SettingsService>();
         settings.Load();
         DesktopHub.App.Finance.FinanceUi.Attach(settings, _services.GetRequiredService<IEventBus>());
+        ThemeManager.ApplyTheme(settings.General.Theme);
         ThemeManager.ApplyAccent(settings.General.AccentColor);
+        _services.GetRequiredService<IEventBus>().Subscribe<SettingsChanged>(e =>
+        {
+            if (e.Section == SettingsSections.General)
+            {
+                ThemeManager.ApplyTheme(settings.General.Theme);
+            }
+        }, SynchronizationContext.Current);
 
         var shell = _services.GetRequiredService<AppShell>();
         shell.Start();

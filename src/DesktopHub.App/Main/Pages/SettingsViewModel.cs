@@ -246,6 +246,11 @@ public sealed class SettingsViewModel : ObservableObject, IDisposable
 
     public void SetTextScale(double scale) => _settings.UpdateGeneral(g => g with { TextScale = scale });
 
+    public object ThemeDarkChip => new Agenda.ChipState(_settings.General.Theme == AppTheme.Dark);
+    public object ThemeLightChip => new Agenda.ChipState(_settings.General.Theme == AppTheme.Light);
+
+    public void SetTheme(AppTheme theme) => _settings.UpdateGeneral(g => g with { Theme = theme });
+
     public void SetAccent(string hex)
     {
         _settings.UpdateGeneral(g => g with { AccentColor = hex });

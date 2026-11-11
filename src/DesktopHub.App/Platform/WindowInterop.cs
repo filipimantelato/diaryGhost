@@ -32,9 +32,9 @@ internal static class WindowInterop
         SetWindowDisplayAffinity(hwnd, exclude ? WDA_EXCLUDEFROMCAPTURE : WDA_NONE);
 
     /// <summary>Barra de título escura (Windows 11 e Windows 10 20H1+).</summary>
-    public static void UseDarkTitleBar(nint hwnd)
+    public static void UseDarkTitleBar(nint hwnd, bool dark = true)
     {
-        var enabled = 1;
+        var enabled = dark ? 1 : 0;
         _ = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref enabled, sizeof(int));
     }
 

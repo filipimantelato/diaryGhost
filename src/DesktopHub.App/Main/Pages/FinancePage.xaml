@@ -34,11 +34,13 @@
       </StackPanel>
     </WrapPanel>
 
-    <!-- Resumo do mês: 4 colunas, ou 2×2 em larguras menores (ex.: com o editor aberto) -->
-    <UniformGrid x:Name="SummaryGrid" Grid.Row="1" Columns="4" Margin="0,8,-10,0" SizeChanged="Summary_SizeChanged" />
+    <!-- Resumo do mês (abaixo das abas, que ficam sempre no mesmo lugar): 4 colunas, ou 2×2 em larguras menores (ex.: com o editor aberto) -->
+    <UniformGrid x:Name="SummaryGrid" Grid.Row="2" Columns="4" Margin="0,0,-10,4" SizeChanged="Summary_SizeChanged" />
 
     <!-- Seções -->
-    <WrapPanel Grid.Row="2" Margin="0,6,0,10" AutomationProperties.Name="Seções de finanças">
+    <Border Grid.Row="1" Margin="0,4,0,14" Padding="5,5,1,0" CornerRadius="14" HorizontalAlignment="Left"
+            Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderTokenBrush}" BorderThickness="1">
+    <WrapPanel AutomationProperties.Name="Seções de finanças">
       <Button x:Name="TabOverview" Style="{StaticResource Chip}" Content="Visão geral" Tag="Overview" Click="Tab_Click" />
       <Button x:Name="TabTransactions" Style="{StaticResource Chip}" Content="Lançamentos" Tag="Transactions" Click="Tab_Click" />
       <Button x:Name="TabAccounts" Style="{StaticResource Chip}" Content="Contas" Tag="Accounts" Click="Tab_Click" />
@@ -48,13 +50,14 @@
       <Button x:Name="TabImport" Style="{StaticResource Chip}" Content="Importar" Tag="Import" Click="Tab_Click" />
       <Button x:Name="TabCategories" Style="{StaticResource Chip}" Content="Categorias" Tag="Categories" Click="Tab_Click" />
     </WrapPanel>
+    </Border>
 
     <!-- Filtros (só em Lançamentos) -->
     <WrapPanel x:Name="FilterBar" Grid.Row="3" Margin="0,0,0,10">
       <Grid Width="220" Margin="0,0,8,6">
         <TextBox x:Name="SearchBox" AutomationProperties.Name="Buscar em descrição, observações, etiquetas e categoria" TextChanged="Filter_Changed" />
         <TextBlock x:Name="SearchHint" Text="Buscar…" IsHitTestVisible="False" Margin="10,0,0,0" VerticalAlignment="Center"
-                   Foreground="{StaticResource TextTertiaryBrush}" FontSize="13" />
+                   Foreground="{DynamicResource TextTertiaryBrush}" FontSize="13" />
       </Grid>
       <ComboBox x:Name="AccountFilter" Width="160" Margin="0,0,8,6" AutomationProperties.Name="Filtrar por conta" SelectionChanged="Filter_Changed" />
       <ComboBox x:Name="CategoryFilter" Width="170" Margin="0,0,8,6" AutomationProperties.Name="Filtrar por categoria" SelectionChanged="Filter_Changed" />

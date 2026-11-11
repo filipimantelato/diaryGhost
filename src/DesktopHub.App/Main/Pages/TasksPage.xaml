@@ -25,7 +25,7 @@
       </Grid.ColumnDefinitions>
       <TextBox x:Name="QuickAddBox" MaxLength="200" AutomationProperties.Name="Nova tarefa: digite o título e pressione Enter" KeyDown="QuickAdd_KeyDown" />
       <TextBlock x:Name="QuickAddHint" Text="Adicionar tarefa para hoje… (Enter)" IsHitTestVisible="False" Margin="10,0,0,0" VerticalAlignment="Center"
-                 Foreground="{StaticResource TextTertiaryBrush}" FontSize="13" />
+                 Foreground="{DynamicResource TextTertiaryBrush}" FontSize="13" />
       <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Com detalhes…" Margin="8,0,0,0" Click="NewDetailed_Click" />
     </Grid>
 

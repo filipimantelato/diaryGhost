@@ -53,8 +53,10 @@ public partial class MainWindow : Window
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
         VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 12";
 
-        SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle);
+        SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle, !Theme.ThemeManager.IsLight);
+        Theme.ThemeManager.ThemeChanged += OnThemeChanged;
         ApplyTextScale();
+        UpdateThemeButtons();
         _subscriptions.Add(_bus.Subscribe<SettingsChanged>(e =>
         {
             if (e.Section == SettingsSections.General)
@@ -66,6 +68,34 @@ public partial class MainWindow : Window
     }
 
     private readonly List<IDisposable> _subscriptions = [];
+
+    private void OnThemeChanged()
+    {
+        WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle, !Theme.ThemeManager.IsLight);
+        UpdateThemeButtons();
+        // Partes montadas em código guardam o pincel do momento: a página atual é recriada com as cores novas.
+        if (_navKeys.FirstOrDefault(p => p.Key.IsChecked == true).Value is { } key)
+        {
+            (PageHost.Content as IDisposable)?.Dispose();
+            PageHost.Content = CreatePage(key);
+        }
+    }
+
+    private void UpdateThemeButtons()
+    {
+        ThemeLight.IsChecked = Theme.ThemeManager.IsLight;
+        ThemeDark.IsChecked = !Theme.ThemeManager.IsLight;
+    }
+
+    // Checked (e não Click): também cobre teclado e leitores de tela.
+    private void Theme_Checked(object sender, RoutedEventArgs e)
+    {
+        var theme = ReferenceEquals(sender, ThemeLight) ? AppTheme.Light : AppTheme.Dark;
+        if (_settings.General.Theme != theme)
+        {
+            _settings.UpdateGeneral(g => g with { Theme = theme });
+        }
+    }
 
     /// <summary>Acessibilidade: amplia toda a janela (texto, ícones e espaçamentos juntos, sem quebrar o layout).</summary>
     private void ApplyTextScale()
@@ -111,6 +141,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        Theme.ThemeManager.ThemeChanged -= OnThemeChanged;
         _subscriptions.ForEach(s => s.Dispose());
         (PageHost.Content as IDisposable)?.Dispose();
         PageHost.Content = null;

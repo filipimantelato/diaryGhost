@@ -7,7 +7,7 @@
       <TextBlock Style="{StaticResource CaptionText}" Margin="0,6,0,0"
                  Text="Avisos de tarefas e eventos. Disparam com a janela fechada enquanto o app roda na bandeja; o que vencer com o app fechado ou o PC suspenso é entregue ao voltar, marcado como atrasado." />
 
-      <Border x:Name="ChannelWarning" Style="{StaticResource Card}" Margin="0,16,0,0" BorderBrush="{StaticResource WarningBrush}" Visibility="Collapsed">
+      <Border x:Name="ChannelWarning" Style="{StaticResource Card}" Margin="0,16,0,0" BorderBrush="{DynamicResource WarningBrush}" Visibility="Collapsed">
         <TextBlock x:Name="ChannelWarningText" Style="{StaticResource BodyText}" />
       </Border>
 
@@ -25,7 +25,7 @@
             </Grid.ColumnDefinitions>
             <TextBox x:Name="TitleBox" MaxLength="200" AutomationProperties.Name="Lembrar de" KeyDown="Field_KeyDown" />
             <TextBlock x:Name="TitleHint" Text="Lembrar de…" IsHitTestVisible="False" Margin="10,0,0,0" VerticalAlignment="Center"
-                       Foreground="{StaticResource TextTertiaryBrush}" FontSize="13" />
+                       Foreground="{DynamicResource TextTertiaryBrush}" FontSize="13" />
             <TextBox x:Name="TimeBox" Grid.Column="2" AutomationProperties.Name="Horário (hh:mm)" ToolTip="Hoje neste horário (ou amanhã, se já passou)" KeyDown="Field_KeyDown" />
             <Button Grid.Column="4" Style="{StaticResource AccentButton}" Content="Criar" Click="Create_Click" />
           </Grid>
