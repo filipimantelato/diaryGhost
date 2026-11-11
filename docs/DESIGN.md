@@ -36,6 +36,9 @@ Todo controle interativo tem `AutomationProperties.Name` ou conteúdo textual �
 Dashboard · Notícias · Calendário · Agenda e tarefas · Lembretes · Mídia · Produtividade ·
 Atividades e integrações · Configurações. Módulos ainda não implementados mostram uma página que diz
 em qual fase chegam — nunca dados de exemplo.
+**Finanças (modo simples, ADR-036):** abas Mês · Lançamentos · Contas e cartões · Assinaturas · Metas · Mais. Tabelas no
+estilo de planilha (cabeçalho em maiúsculas, linhas separadas por fio), cartões de total com "mês anterior" e selo de
+ícone colorido.
 **Temas:** escuro (padrão) e claro, com as mesmas chaves de token; no claro o fundo é cinza-azulado (#F3F5F9) e os
 cartões brancos, como a referência. O widget acompanha o tema. Cores do módulo Finanças (`FinanceColors`): azul
 #2F6BFF, verde #22A06B, vermelho #E5484D, laranja #F59E0B, roxo #8B5CF6, verde-água #14B8A6, rosa #EC4899.

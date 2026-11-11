@@ -131,6 +131,10 @@ public sealed partial class FinanceService
         {
             return "Conta de pagamento não encontrada.";
         }
+        if (card.PaymentAccountId is null && Accounts.Any(a => !a.IsArchived))
+        {
+            return "Escolha a conta do banco a que o cartão pertence.";
+        }
         var existing = Card(card.Id);
         if (existing is not null && existing.Currency != card.Currency && Transactions.Any(t => t.CardId == card.Id))
         {

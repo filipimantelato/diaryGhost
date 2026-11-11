@@ -30,6 +30,8 @@ public partial class FinancePage : UserControl, IDisposable
         Import,
         Reports,
         Categories,
+        Subscriptions,
+        Goals,
     }
 
     private const int PageSize = 300;
@@ -89,7 +91,7 @@ public partial class FinancePage : UserControl, IDisposable
     {
         FilterBar.Visibility = Visibility.Collapsed;
         NewButton.IsEnabled = false;
-        foreach (var b in new UIElement[] { PrevMonth, NextMonth, TodayButton, TabOverview, TabTransactions, TabAccounts, TabCards, TabPlanning, TabProjections, TabImport, TabReports, TabCategories })
+        foreach (var b in new UIElement[] { PrevMonth, NextMonth, TodayButton, TabOverview, TabTransactions, TabAccounts, TabSubscriptions, TabGoals, TabMore })
         {
             b.IsEnabled = false;
         }
@@ -147,17 +149,22 @@ public partial class FinancePage : UserControl, IDisposable
         }
         s_lastTab = _tab;
         s_lastMonth = (_year, _month);
-        foreach (var (button, tab) in new[] { (TabOverview, Tab.Overview), (TabTransactions, Tab.Transactions), (TabAccounts, Tab.Accounts), (TabCards, Tab.Cards), (TabPlanning, Tab.Planning), (TabProjections, Tab.Projections), (TabImport, Tab.Import), (TabReports, Tab.Reports), (TabCategories, Tab.Categories) })
+        foreach (var (button, tab) in new[] { (TabOverview, Tab.Overview), (TabTransactions, Tab.Transactions), (TabAccounts, Tab.Accounts), (TabSubscriptions, Tab.Subscriptions), (TabGoals, Tab.Goals) })
         {
             button.DataContext = new ChipState(tab == _tab);
         }
+        var more = MoreTabs.FirstOrDefault(m => m.Tab == _tab);
+        TabMore.DataContext = new ChipState(more.Label is not null);
+        TabMore.Content = more.Label is null ? "Mais ▾" : $"Mais: {more.Label} ▾";
         // A visão geral tem seus próprios cartões: sem o resumo de cima e sem a moldura da lista.
-        var overview = _tab is Tab.Overview or Tab.Planning or Tab.Projections or Tab.Import or Tab.Reports;
+        var overview = _tab is Tab.Overview or Tab.Planning or Tab.Projections or Tab.Import or Tab.Reports or Tab.Accounts or Tab.Subscriptions or Tab.Goals;
+        var monthTab = _tab is Tab.Overview or Tab.Transactions or Tab.Subscriptions or Tab.Planning or Tab.Cards;
         foreach (var e in new UIElement[] { PrevMonth, NextMonth, MonthText })
         {
-            e.Visibility = _tab is Tab.Projections or Tab.Import or Tab.Reports ? Visibility.Collapsed : Visibility.Visible;
+            e.Visibility = monthTab ? Visibility.Visible : Visibility.Collapsed;
         }
-        SummaryGrid.Visibility = overview ? Visibility.Collapsed : Visibility.Visible;
+        // O resumo de cima só aparece em Lançamentos (nas outras abas ele repetia o que a tela já mostra).
+        SummaryGrid.Visibility = _tab == Tab.Transactions ? Visibility.Visible : Visibility.Collapsed;
         ListCard.Background = overview ? Brushes.Transparent : FinanceUi.Res("SurfaceBrush");
         ListCard.BorderThickness = new Thickness(overview ? 0 : 1);
         ListPanel.Margin = overview ? new Thickness(0, 0, 4, 8) : new Thickness(16, 8, 16, 16);
@@ -165,7 +172,7 @@ public partial class FinancePage : UserControl, IDisposable
         PrivacyButton.Content = FinanceUi.Privacy ? "" : "";
         MonthText.Text = FinanceUi.MonthTitle(_year, _month);
         var today = _finance.Today;
-        TodayButton.Visibility = today.Year == _year && today.Month == _month || _tab is Tab.Projections or Tab.Import or Tab.Reports ? Visibility.Collapsed : Visibility.Visible;
+        TodayButton.Visibility = today.Year == _year && today.Month == _month || !monthTab ? Visibility.Collapsed : Visibility.Visible;
         FilterBar.Visibility = _tab == Tab.Transactions ? Visibility.Visible : Visibility.Collapsed;
         RenderSummary();
 
@@ -174,7 +181,7 @@ public partial class FinancePage : UserControl, IDisposable
         switch (_tab)
         {
             case Tab.Accounts:
-                RenderAccounts();
+                RenderAccountsAndCards();
                 break;
             case Tab.Categories:
                 RenderCategories();
@@ -183,10 +190,16 @@ public partial class FinancePage : UserControl, IDisposable
                 RenderCards();
                 break;
             case Tab.Overview:
-                RenderOverview();
+                RenderMonth();
+                break;
+            case Tab.Subscriptions:
+                RenderSubscriptions();
+                break;
+            case Tab.Goals:
+                RenderGoals();
                 break;
             case Tab.Planning:
-                RenderPlanning();
+                RenderBudget();
                 break;
             case Tab.Projections:
                 RenderProjections();
@@ -718,60 +731,6 @@ public partial class FinancePage : UserControl, IDisposable
 
     // ---------- Contas ----------
 
-    private void RenderAccounts()
-    {
-        var add = new Button { Style = (Style)Application.Current.FindResource("SecondaryButton"), Content = "+ Nova conta" };
-        add.Click += (_, _) => OpenEditor(new AccountEditor(_finance, _finance.NewAccount(), isNew: true));
-        var accounts = _finance.Accounts;
-        var archivedCount = accounts.Count(a => a.IsArchived);
-        var buttons = archivedCount > 0
-            ? new[] { Chip($"Mostrar arquivadas ({archivedCount})", (_, _) => { _showArchived = !_showArchived; Render(); }, _showArchived), add }
-            : [add];
-        ListPanel.Children.Add(SectionHeader("Contas e carteiras", buttons));
-        if (accounts.Count == 0)
-        {
-            ListPanel.Children.Add(Paragraph("Nenhuma conta ainda. Cadastre a conta corrente, a poupança, a carteira digital ou o dinheiro em espécie."));
-            return;
-        }
-        var today = _finance.Today;
-        var balances = _finance.CurrentBalances();
-        foreach (var a in accounts.Where(a => _showArchived || !a.IsArchived))
-        {
-            var balance = balances[a.Id];
-            var forecast = _finance.Balance(a.Id, today, includePending: true);
-            var body = new StackPanel { Margin = new Thickness(0, 6, 8, 6), VerticalAlignment = VerticalAlignment.Center };
-            body.Children.Add(AgendaUi.Text(a.Name + (a.IsArchived ? " (arquivada)" : ""), "BodyText", foreground: a.IsArchived ? FinanceUi.Res("TextTertiaryBrush") : null));
-            var detail = FinanceUi.Kind(a.Kind) + (a.Institution is { } inst ? $" · {inst}" : "") + (a.Currency != _finance.BaseCurrency ? $" · {a.Currency}" : "") +
-                         (a.IncludeInAvailable ? "" : " · fora do disponível");
-            body.Children.Add(AgendaUi.Text(detail, "CaptionText", 11.5));
-
-            var right = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-            var value = AgendaUi.Text(FinanceUi.Amount(balance, a.Currency), "BodyText", 15, balance < 0 ? FinanceUi.Res("WarningBrush") : null);
-            value.FontWeight = FontWeights.SemiBold;
-            value.HorizontalAlignment = HorizontalAlignment.Right;
-            right.Children.Add(value);
-            if (forecast != balance)
-            {
-                var f = AgendaUi.Text($"com pendentes: {FinanceUi.Amount(forecast, a.Currency)}", "CaptionText", 11.5);
-                f.HorizontalAlignment = HorizontalAlignment.Right;
-                right.Children.Add(f);
-            }
-
-            var actions = new StackPanel();
-            actions.Children.Add(AgendaUi.IconButton("", $"Ajustar saldo de {a.Name}", (_, _) => OpenEditor(new AdjustBalanceEditor(_finance, a))));
-            actions.Children.Add(AgendaUi.IconButton("", $"Ver lançamentos de {a.Name}", (_, _) => ShowAccountTransactions(a.Id)));
-            actions.Children.Add(AgendaUi.IconButton(a.IsArchived ? "" : "", a.IsArchived ? $"Reativar {a.Name}" : $"Arquivar {a.Name}", (_, _) => _finance.SetArchived(a.Id, !a.IsArchived)));
-            if (_finance.CanDeleteAccount(a.Id))
-            {
-                actions.Children.Add(AgendaUi.IconButton("", $"Excluir {a.Name}", (_, _) => _finance.DeleteAccount(a.Id)));
-            }
-            ListPanel.Children.Add(ActionRow(IconCircle(FinanceUi.Glyph(a.Kind), a.Color), body, right, actions,
-                $"{a.Name}: saldo {FinanceUi.Amount(balance, a.Currency)}", () => OpenEditor(new AccountEditor(_finance, a, isNew: false))));
-        }
-        FooterText.Text = $"Saldo em contas {FinanceUi.Amount(_finance.AccountsBalance())} · patrimônio {FinanceUi.Amount(_finance.NetWorth())} " +
-                          "· saldos confirmados até hoje; contas em outra moeda não entram nos totais";
-    }
-
     private void ShowAccountTransactions(Guid accountId)
     {
         _tab = Tab.Transactions;
@@ -1101,9 +1060,9 @@ public partial class FinancePage : UserControl, IDisposable
             return;
         }
         var menu = new ContextMenu { PlacementTarget = NewButton, Placement = PlacementMode.Bottom };
-        foreach (var kind in new[] { TransactionKind.Expense, TransactionKind.Income, TransactionKind.Transfer })
+        foreach (var (kind, label) in new[] { (TransactionKind.Expense, "Gasto"), (TransactionKind.Income, "Entrada"), (TransactionKind.Transfer, "Transferência entre contas") })
         {
-            var item = new MenuItem { Header = FinanceUi.Kind(kind) };
+            var item = new MenuItem { Header = label };
             item.Click += (_, _) => OpenEditor(new TransactionEditor(_finance, NewDraft(kind), isNew: true));
             menu.Items.Add(item);
         }
@@ -1117,6 +1076,9 @@ public partial class FinancePage : UserControl, IDisposable
             menu.Items.Add(payment);
         }
         menu.Items.Add(new Separator { Style = (Style)FindResource("MenuSeparator") });
+        var subscription = new MenuItem { Header = "Assinatura (todo mês)…" };
+        subscription.Click += (_, _) => OpenEditor(new SubscriptionEditor(_finance, null));
+        menu.Items.Add(subscription);
         var account = new MenuItem { Header = "Conta…" };
         account.Click += (_, _) => OpenEditor(new AccountEditor(_finance, _finance.NewAccount(), isNew: true));
         menu.Items.Add(account);

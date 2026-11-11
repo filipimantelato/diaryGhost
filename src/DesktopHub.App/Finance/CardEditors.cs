@@ -47,8 +47,10 @@ internal sealed class CardEditor : FinanceForm
             IsChecked = card.ClosingDayGoesNext,
             Margin = new Thickness(0, 12, 0, 0),
         });
-        List<Choice<Guid?>> accounts = [new("Nenhuma", null), .. finance.Accounts.Where(a => !a.IsArchived || a.Id == card.PaymentAccountId).Select(a => new Choice<Guid?>(a.Name, a.Id))];
-        _account = Combo("Conta que paga a fatura (sugestão)", accounts, card.PaymentAccountId, "Conta de pagamento");
+        List<Choice<Guid?>> accounts = [.. finance.Accounts.Where(a => !a.IsArchived || a.Id == card.PaymentAccountId)
+            .Select(a => new Choice<Guid?>(a.Name + (a.Institution is { Length: > 0 } bank ? $" · {bank}" : ""), a.Id))];
+        _account = Combo("Conta do banco deste cartão", accounts, card.PaymentAccountId, "Conta do banco a que o cartão pertence");
+        Hint("O cartão aparece junto dessa conta, e a fatura é paga por ela.");
         Label("Cor");
         var (picker, selected) = FinanceUi.ColorPicker(card.Color);
         Add(picker);

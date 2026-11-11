@@ -676,3 +676,103 @@ internal sealed class ScenarioEditor : FinanceForm
         Loaded += (_, _) => name.Focus();
     }
 }
+
+/// <summary>
+/// Assinatura ou conta fixa, no modo simples: nome, valor, dia do mês, por onde paga e categoria. Vira uma recorrência
+/// mensal de valor fixo (todo mês, 100% certa); cada mês aparece na lista para marcar como paga.
+/// </summary>
+internal sealed class SubscriptionEditor : FinanceForm
+{
+    private readonly FinanceService _finance;
+    private readonly RecurringItem _original;
+    private readonly bool _isNew;
+    private readonly TextBox _name;
+    private readonly TextBox _amount;
+    private readonly TextBox _day;
+    private readonly ComboBox _payWith;
+    private readonly ComboBox _category;
+
+    public SubscriptionEditor(FinanceService finance, RecurringItem? item)
+        : base(item is null ? "Nova assinatura" : "Editar assinatura")
+    {
+        _finance = finance;
+        _isNew = item is null;
+        var assinaturas = finance.Categories.FirstOrDefault(c => c.Name == "Assinaturas" && c.Kind == CategoryKind.Expense && !c.IsArchived)?.Id;
+        _original = item ?? finance.NewRecurring(RecurringKind.Subscription) with { CategoryId = assinaturas };
+        Hint("Pagamentos que acontecem todo mês com valor certo (streaming, academia, aluguel, internet…). Todo mês ela aparece para você marcar como paga.");
+        _name = TextField("Nome", _original.Description, "Nome da assinatura", FinanceService.MaxDescriptionLength);
+        _amount = TextField("Valor por mês", _original.Amount == 0 ? "" : Money.Format(_original.Amount, symbol: false), "Valor por mês", 24);
+        _day = TextField("Dia do pagamento (1 a 31)", _original.StartDate.Day.ToString(CultureInfo.InvariantCulture), "Dia do mês do pagamento", 2);
+        var current = _original.CardId ?? _original.AccountId ?? Guid.Empty;
+        var choices = FinanceUi.AccountChoices(finance, _original.AccountId)
+            .Concat(finance.Cards.Where(c => !c.IsArchived || c.Id == _original.CardId).Select(c => new Choice<Guid>("Cartão " + c.Name, c.Id))).ToList();
+        _payWith = Combo("Pago com", choices, current, "Conta ou cartão que paga");
+        var categories = FinanceUi.CategoryChoices(finance, CategoryKind.Expense, "Sem categoria", _original.CategoryId);
+        _category = Combo("Categoria", categories, _original.CategoryId, "Categoria");
+        Button("Salvar", "AccentButton", (_, _) => Save(), isDefault: true);
+        Button("Cancelar", "SecondaryButton", (_, _) => Finish(), isCancel: true);
+        if (!_isNew)
+        {
+            Button(_original.IsArchived ? "Voltar a cobrar" : "Parar de cobrar", "SecondaryButton", (_, _) => Run(() => _finance.SetArchived(_original, !_original.IsArchived)));
+            DeleteButton("Excluir assinatura (pagamentos já marcados ficam)", (_, _) => Run(() => _finance.DeleteRecurring(_original.Id)));
+        }
+        Loaded += (_, _) => _name.Focus();
+    }
+
+    private void Run(Action action)
+    {
+        try
+        {
+            action();
+            Finish();
+        }
+        catch (FinanceValidationException ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private void Save()
+    {
+        if (!Money.TryParse(_amount.Text, out var amount) || amount <= 0)
+        {
+            ShowError("Valor inválido. Exemplo: 39,90.");
+            return;
+        }
+        if (!int.TryParse(_day.Text, NumberStyles.None, CultureInfo.InvariantCulture, out var day) || day is < 1 or > 31)
+        {
+            ShowError("Dia do pagamento: um número de 1 a 31.");
+            return;
+        }
+        var payWith = Selected<Guid>(_payWith);
+        var isCard = _finance.Card(payWith) is not null;
+        // Começa no mês atual (ou mantém o mês de início ao editar); o dia vale para todos os meses.
+        var month = _isNew ? new DateOnly(_finance.Today.Year, _finance.Today.Month, 1) : new DateOnly(_original.StartDate.Year, _original.StartDate.Month, 1);
+        // O dia é a "âncora" da repetição: começar num mês que tem esse dia (31 em novembro começa em dezembro), senão a
+        // assinatura ficaria presa no dia 30 para sempre.
+        while (day > DateTime.DaysInMonth(month.Year, month.Month))
+        {
+            month = month.AddMonths(1);
+        }
+        var start = new DateOnly(month.Year, month.Month, day);
+        var item = _original with
+        {
+            Kind = _original.Kind == RecurringKind.Income ? RecurringKind.Subscription : _original.Kind,
+            Description = _name.Text,
+            Amount = amount,
+            IsEstimated = false,
+            AccountId = isCard ? null : payWith,
+            CardId = isCard ? payWith : null,
+            CategoryId = Selected<Guid?>(_category),
+            Frequency = RecurringFrequency.Monthly,
+            Interval = 1,
+            StartDate = _isNew || day != _original.StartDate.Day ? start : _original.StartDate,
+        };
+        if (_finance.Validate(item) is { } error)
+        {
+            ShowError(error);
+            return;
+        }
+        Run(() => _finance.SaveRecurring(item));
+    }
+}

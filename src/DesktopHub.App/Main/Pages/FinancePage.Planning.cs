@@ -9,17 +9,9 @@ using DesktopHub.Core.Finance;
 
 namespace DesktopHub.App.Main.Pages;
 
-/// <summary>Planejamento (orçamento, contas e assinaturas, metas) e Projeções com simulador (Fase 11).</summary>
+/// <summary>Orçamento por categoria, metas e projeções com simulador.</summary>
 public partial class FinancePage
 {
-    private enum PlanningView
-    {
-        Budget,
-        Bills,
-        Goals,
-    }
-
-    private static PlanningView s_planningView = PlanningView.Budget;
     private static int s_horizonMonths;
     private static bool s_variable;
     private static readonly List<SimulationItem> s_simulations = [];
@@ -32,42 +24,6 @@ public partial class FinancePage
         block.TextWrapping = TextWrapping.Wrap;
         block.TextTrimming = TextTrimming.None;
         return block;
-    }
-
-    private void RenderPlanning()
-    {
-        var chips = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
-        AutomationProperties.SetName(chips, "Partes do planejamento");
-        foreach (var (label, view) in new[] { ("Orçamento", PlanningView.Budget), ("Contas e assinaturas", PlanningView.Bills), ("Metas", PlanningView.Goals) })
-        {
-            var chip = Chip(label, (_, _) =>
-            {
-                s_planningView = view;
-                Render();
-            }, view == s_planningView);
-            chip.Margin = new Thickness(0, 0, 6, 0);
-            chips.Children.Add(chip);
-        }
-        ListPanel.Children.Add(chips);
-        switch (s_planningView)
-        {
-            case PlanningView.Bills:
-                RenderBills();
-                break;
-            case PlanningView.Goals:
-                RenderGoals();
-                break;
-            default:
-                RenderBudget();
-                break;
-        }
-    }
-
-    private void OpenPlanning(PlanningView view)
-    {
-        _tab = Tab.Planning;
-        s_planningView = view;
-        Render();
     }
 
     // ---------- Orçamento ----------
@@ -182,159 +138,6 @@ public partial class FinancePage
             Render();
         }));
         return ActionRow(new Border { Width = 0 }, body, null, actions, summary, () => OpenEditor(new BudgetEditor(_finance, category.Id, _year, _month)));
-    }
-
-    // ---------- Contas e assinaturas ----------
-
-    private void RenderBills()
-    {
-        var (start, end) = FinanceService.MonthRange(_year, _month);
-        var monthName = FinanceUi.MonthTitle(_year, _month).Split(' ')[0].ToLower(FinanceUi.PtBr);
-        var add = new Button { Style = (Style)Application.Current.FindResource("SecondaryButton"), Content = "+ Recorrência" };
-        AutomationProperties.SetName(add, "Nova conta, assinatura ou receita recorrente");
-        add.Click += (_, _) =>
-        {
-            var menu = new ContextMenu { PlacementTarget = add, Placement = PlacementMode.Bottom };
-            foreach (var kind in Enum.GetValues<RecurringKind>())
-            {
-                var item = new MenuItem { Header = PlanningText.Kind(kind) };
-                item.Click += (_, _) => OpenEditor(new RecurringEditor(_finance, _finance.NewRecurring(kind) with { StartDate = NewItemDate() }, isNew: true));
-                menu.Items.Add(item);
-            }
-            menu.IsOpen = true;
-        };
-        if (_finance.Accounts.All(a => a.IsArchived))
-        {
-            add.IsEnabled = false;
-        }
-
-        // Ocorrências do mês exibido.
-        var occurrences = _finance.Occurrences(start, end, includeArchived: true);
-        var monthPanel = new StackPanel();
-        if (occurrences.Count == 0)
-        {
-            monthPanel.Children.Add(Paragraph(_finance.Recurring.Count == 0
-                ? "Cadastre contas (luz, aluguel), assinaturas e receitas que se repetem. Elas aparecem aqui como previstas e entram no saldo previsto até você confirmar."
-                : $"Nenhuma ocorrência em {monthName}."));
-        }
-        long toPay = 0, toReceive = 0;
-        foreach (var o in occurrences)
-        {
-            if (o.IsOpen)
-            {
-                if (o.Item.IsIncome)
-                {
-                    toReceive = Money.Add(toReceive, o.Amount);
-                }
-                else
-                {
-                    toPay = Money.Add(toPay, o.Amount);
-                }
-            }
-            monthPanel.Children.Add(OccurrenceRow(o));
-        }
-        if (toPay > 0 || toReceive > 0)
-        {
-            monthPanel.Children.Insert(0, AgendaUi.Text($"Em aberto: {FinanceUi.Amount(toPay, Currency)} a pagar · {FinanceUi.Amount(toReceive, Currency)} a receber", "CaptionText", 12));
-        }
-        var monthCard = Panel($"Vencimentos de {monthName}", monthPanel, "Ocorrências previstas, atrasadas, confirmadas e puladas do mês. Confirmar cria o lançamento real (uma vez só).", add);
-
-        // Modelos.
-        var (monthly, yearly) = _finance.SubscriptionTotals();
-        var itemsPanel = new StackPanel();
-        if (_finance.Recurring.Any(r => r.Kind == RecurringKind.Subscription && !r.IsArchived))
-        {
-            itemsPanel.Children.Add(AgendaUi.Text($"Assinaturas: {FinanceUi.Amount(monthly, Currency)} por mês · {FinanceUi.Amount(yearly, Currency)} por ano", "BodyText", 13.5));
-        }
-        foreach (var item in _finance.Recurring)
-        {
-            itemsPanel.Children.Add(RecurringRow(item));
-        }
-        if (_finance.Recurring.Count == 0)
-        {
-            itemsPanel.Children.Add(Paragraph("Nenhuma recorrência cadastrada."));
-        }
-        var itemsCard = Panel("Recorrências", itemsPanel, "Assinaturas mostram o custo mensal e anual equivalentes (semanal conta 52 semanas por ano). Pausar para de prever; o histórico fica.");
-        ListPanel.Children.Add(Columns((monthCard, 1), (itemsCard, 1)));
-        FooterText.Text = "Nada é lançado sozinho: as ocorrências ficam previstas até você confirmar o pagamento ou recebimento.";
-    }
-
-    private DateOnly NewItemDate()
-    {
-        var today = _finance.Today;
-        return today.Year == _year && today.Month == _month ? today : new DateOnly(_year, _month, 1);
-    }
-
-    private Grid OccurrenceRow(RecurringOccurrence o)
-    {
-        var item = o.Item;
-        var signed = item.IsIncome ? o.Amount : -o.Amount;
-        var amount = AgendaUi.Text((o.IsEstimated ? "≈ " : "") + FinanceUi.Amount(signed, Currency, showPlus: true), "BodyText", 13,
-            o.State == OccurrenceState.Skipped ? FinanceUi.Res("TextTertiaryBrush") : FinanceUi.AmountBrush(signed));
-        amount.VerticalAlignment = VerticalAlignment.Center;
-        var body = new StackPanel { Margin = new Thickness(0, 4, 8, 4) };
-        body.Children.Add(AgendaUi.Text(item.Description, "BodyText", 13.5, o.State == OccurrenceState.Skipped ? FinanceUi.Res("TextTertiaryBrush") : null));
-        var where = item.CardId is { } card ? "cartão " + _finance.Card(card)?.Name : _finance.Account(item.AccountId)?.Name;
-        var stateBrush = o.State switch
-        {
-            OccurrenceState.Overdue => FinanceUi.Res("WarningBrush"),
-            OccurrenceState.Confirmed => FinanceUi.Res("SuccessBrush"),
-            _ => null,
-        };
-        body.Children.Add(AgendaUi.Text($"{o.Date.ToString("dd/MM", FinanceUi.PtBr)} · {PlanningText.State(o.State)}{(o.IsEstimated ? " · valor estimado" : "")} · {where}", "CaptionText", 11.5, stateBrush));
-        var actions = new StackPanel();
-        Action open;
-        switch (o.State)
-        {
-            case OccurrenceState.Confirmed when o.TransactionId is { } tx && _finance.Find(tx) is { } t:
-                open = () => OpenEditor(t.PurchaseId is { } pid && _finance.Purchase(pid) is { } p
-                    ? new PurchaseEditor(_finance, FinanceService.DraftFrom(p), isNew: false)
-                    : EditorFor(t));
-                break;
-            case OccurrenceState.Skipped:
-                actions.Children.Add(AgendaUi.IconButton("\uE7A7", $"Desfazer: voltar a prever {item.Description} em {FinanceUi.Date(o.Date)}", (_, _) => _finance.Skip(item.Id, o.Date, skipped: false)));
-                open = () => OpenEditor(new RecurringEditor(_finance, item, isNew: false));
-                break;
-            default:
-                actions.Children.Add(AgendaUi.IconButton("\uE73E", $"Confirmar {item.Description} de {FinanceUi.Date(o.Date)}", (_, _) => OpenEditor(new OccurrenceEditor(_finance, o))));
-                actions.Children.Add(AgendaUi.IconButton("\uE893", $"Pular {item.Description} de {FinanceUi.Date(o.Date)}", (_, _) => _finance.Skip(item.Id, o.Date)));
-                open = () => OpenEditor(new OccurrenceEditor(_finance, o));
-                break;
-        }
-        var glyph = o.State switch
-        {
-            OccurrenceState.Confirmed => "\uE73E",
-            OccurrenceState.Skipped => "\uE893",
-            OccurrenceState.Overdue => "\uE7BA",
-            _ => "\uE823",
-        };
-        return ActionRow(IconCircle(glyph, item.IsIncome ? "#8FB573" : "#C9A94E"), body, amount, actions,
-            $"{item.Description}, {FinanceUi.Date(o.Date)}, {PlanningText.State(o.State)}, {FinanceUi.Amount(signed, Currency, showPlus: true)}", open);
-    }
-
-    private Grid RecurringRow(RecurringItem item)
-    {
-        var expected = _finance.ExpectedAmount(item);
-        var body = new StackPanel { Margin = new Thickness(0, 4, 8, 4) };
-        body.Children.Add(AgendaUi.Text(item.Description + (item.IsArchived ? " (pausada)" : ""), "BodyText", 13.5, item.IsArchived ? FinanceUi.Res("TextTertiaryBrush") : null));
-        var next = item.IsArchived ? null : _finance.NextOccurrence(item);
-        var detail = $"{PlanningText.Kind(item.Kind)} · {PlanningText.Every(item)}" +
-            (next is not null ? $" · próxima {next.Date.ToString("dd/MM", FinanceUi.PtBr)}{(next.State == OccurrenceState.Overdue ? " (atrasada)" : "")}" : item.IsArchived ? "" : " · encerrada");
-        body.Children.Add(Wrap(AgendaUi.Text(detail, "CaptionText", 11.5)));
-        var right = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        var amount = AgendaUi.Text((item.IsEstimated ? "≈ " : "") + FinanceUi.Amount(expected, Currency), "BodyText", 13);
-        amount.HorizontalAlignment = HorizontalAlignment.Right;
-        right.Children.Add(amount);
-        if (item.Kind == RecurringKind.Subscription)
-        {
-            var eq = AgendaUi.Text($"{FinanceUi.Amount(RecurringSchedule.MonthlyCost(item, expected), Currency)}/mês", "CaptionText", 11);
-            eq.HorizontalAlignment = HorizontalAlignment.Right;
-            right.Children.Add(eq);
-        }
-        var actions = new StackPanel();
-        actions.Children.Add(AgendaUi.IconButton(item.IsArchived ? "\uE768" : "\uE769", item.IsArchived ? $"Retomar {item.Description}" : $"Pausar {item.Description}", (_, _) => _finance.SetArchived(item, !item.IsArchived)));
-        return ActionRow(IconCircle(item.Kind switch { RecurringKind.Subscription => "\uE895", RecurringKind.Income => FinanceUi.Glyph(TransactionKind.Income), _ => FinanceUi.Glyph(TransactionKind.Expense) }, item.IsIncome ? "#8FB573" : "#B89A6B"),
-            body, right, actions, $"{item.Description}, {detail}, {FinanceUi.Amount(expected, Currency)}", () => OpenEditor(new RecurringEditor(_finance, item, isNew: false)));
     }
 
     // ---------- Metas ----------

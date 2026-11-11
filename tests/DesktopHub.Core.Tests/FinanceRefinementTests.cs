@@ -97,6 +97,16 @@ public sealed class FinanceRefinementTests
     }
 
     [Fact]
+    public void Card_must_belong_to_an_account_when_there_are_accounts()
+    {
+        var (s, bank) = Create();
+        var card = s.NewCard() with { Name = "Roxo", Limit = 100_000 };
+        Assert.Equal(bank, card.PaymentAccountId); // sugere a primeira conta
+        Assert.NotNull(s.Validate(card with { PaymentAccountId = null }));
+        Assert.Null(s.Validate(card));
+    }
+
+    [Fact]
     public void Protected_backup_round_trips_and_rejects_wrong_password_or_tampering()
     {
         var plain = Encoding.UTF8.GetBytes("SQLite format 3 — dados de teste");

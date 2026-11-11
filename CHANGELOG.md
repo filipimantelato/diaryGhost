@@ -2,6 +2,20 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões seguem SemVer.
 
+## [0.14.0] — 2026-11-11 — Finanças simplificada
+### Alterado
+- **Finanças refeita no modo simples**, organizada como a planilha do usuário. Abas: **Mês**, Lançamentos, **Contas e
+  cartões**, **Assinaturas**, Metas e **Mais** (faturas, orçamento, projeções, relatórios, importar e categorias).
+- **Mês**: entradas, saídas, reservas, uso do débito e do crédito (com o mês anterior); "Restante para gastar"; para
+  onde foi o dinheiro; listas de entradas, gastos, assinaturas do mês (com quadradinho de "paga") e reservas e metas.
+- **Contas e cartões**: contas agrupadas por banco, com os cartões de cada conta logo abaixo.
+- **Cartão sempre ligado a uma conta** do banco (obrigatório ao salvar).
+- **Assinaturas**: pagamentos certos de todo mês (nome, valor, dia, conta ou cartão, categoria), com total por mês e por
+  ano e a lista do mês para marcar como paga.
+
+### Removido
+- Painel antigo da Visão geral e as subabas de Planejamento (substituídos pelas telas acima).
+
 ## [0.13.0] — 2026-11-11 — Fase 13: refinamento (e modo claro)
 ### Adicionado
 - **Modo claro e escuro** para o app inteiro e o widget, trocado na hora (sol/lua na barra lateral ou Configurações).

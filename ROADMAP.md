@@ -424,6 +424,20 @@ Avaliado e não feito agora (ADR-035):
   continua sendo BitLocker + permissões da pasta + backups cifrados.
 - Anexos (comprovantes), importar fatura de cartão para conferência e PDF dos relatórios: ficam como próximos passos.
 
+## Finanças simplificada (2026-11-11)
+A pedido do usuário ("muita coisa na tela, confuso"), a página foi refeita no modo simples, seguindo a planilha de
+organização financeira que ele usa (ADR-036):
+- Abas principais: **Mês**, Lançamentos, **Contas e cartões**, **Assinaturas**, Metas; o resto (faturas, orçamento,
+  projeções, relatórios, importar, categorias e regras) fica em **Mais**.
+- **Mês**: cinco totais com o mês anterior (entradas, saídas, reservas, débito, crédito), "Restante para gastar" =
+  entradas − saídas − reservas − assinaturas a pagar, gastos por categoria e quatro listas (entradas com %, gastos com
+  forma de pagamento, assinaturas do mês com "paga", reservas e metas). Cabe numa tela.
+- **Contas e cartões**: contas por banco com os cartões de cada conta; cartão passa a exigir a conta do banco.
+- **Assinaturas**: editor simples (nome, valor, dia, pago com, categoria) sobre as recorrências mensais; marcar "paga"
+  confirma com o valor previsto, desmarcar desfaz. O resumo de cima só aparece em Lançamentos.
+- Verificado ao vivo: restante 4.263,80 = 8.000,00 − 2.696,30 − 1.000,00 − 39,90; marcar o Streaming como pago moveu
+  39,90 para o crédito e manteve o restante; nenhum controle sem nome nas abas novas; 360 testes passando.
+
 | Fase | Entrega | Critérios do MVP financeiro |
 |---|---|---|
 | 8 — Fundação (A) ✅ | `Money` em centavos, `finance.db`, contas, categorias, lançamentos, transferências, ajustes, saldos derivados, página Lançamentos | 1, 2, 3, 4, 13, 14 |

@@ -25,6 +25,8 @@ roadmap e critérios de teste.
 > ocultos e importação de extratos OFX/CSV (só contas; importar fatura de cartão fica para depois). As demais seções
 > A **Fase 13 (refinamento)** também (ADR-035): relatórios, exportação CSV, regras de categorização, backup protegido
 > por senha e teste de desempenho com 50 mil lançamentos; anexos, PDF, banco cifrado e Windows Hello ficaram para depois.
+> **Modo simples (ADR-036):** a página foi reorganizada como a planilha do usuário (Mês, Contas e cartões, Assinaturas,
+> Metas e "Mais"); a seção 4 abaixo descreve a proposta original de telas.
 > descrevem o que vem nas próximas fases.
 
 > **Nomes.** A especificação fala em "Orbit" e "Orbit Learn". Este repositório é o **Diary Ghost**, e não há

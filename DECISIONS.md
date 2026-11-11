@@ -417,5 +417,14 @@ Converter exigiria cotações de um serviço externo, o que contraria o módulo 
   complexidade agora; reavaliar se houver sincronização entre computadores.
 - **CSV** é exportação explícita e avisada como "sem proteção", com células de texto neutralizadas contra fórmulas.
 
+## ADR-036 — Finanças em modo simples por padrão
+**Data:** 2026-11-11 · **Status:** aceita
+
+A Visão geral com muitos cartões e as várias abas confundiam o uso diário. A página passa a seguir o modelo mental da
+planilha que o usuário já usa: um mês por vez, totais no topo, "restante para gastar" e quatro listas simples. Nada do
+motor mudou (lançamentos, cartões, faturas, recorrências, metas, projeções e relatórios continuam iguais); as telas
+avançadas ficam no menu "Mais". "Assinatura" é o nome, para o usuário, de uma recorrência mensal de valor fixo.
+Cartão sem conta deixa de ser aceito quando há contas cadastradas, para que cada cartão apareça junto do seu banco.
+
 ## Decisões pendentes
 - Nenhuma no momento.

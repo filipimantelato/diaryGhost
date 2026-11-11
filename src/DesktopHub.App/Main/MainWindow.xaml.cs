@@ -51,7 +51,7 @@ public partial class MainWindow : Window
         };
 
         var version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "?";
-        VersionText.Text = $"Versão {version.Split('+')[0]} · Fase 13";
+        VersionText.Text = $"Versão {version.Split('+')[0]} · Finanças simples";
 
         SourceInitialized += (_, _) => WindowInterop.UseDarkTitleBar(new WindowInteropHelper(this).Handle, !Theme.ThemeManager.IsLight);
         Theme.ThemeManager.ThemeChanged += OnThemeChanged;
